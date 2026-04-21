@@ -51,7 +51,7 @@ export default function LoginForm() {
     try {
       const result = await authApi.login({ email, password });
       if (result.success) {
-        router.push("/");
+        router.push("/dashboard");
       } else {
         setErrors({ general: result.message || "Invalid email or password" });
       }

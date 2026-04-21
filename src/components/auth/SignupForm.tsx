@@ -74,7 +74,7 @@ export default function SignupForm() {
 
       if (result.success) {
         setStep("success");
-        setTimeout(() => router.push("/"), 2000);
+        setTimeout(() => router.push("/dashboard"), 2000);
       } else {
         setErrors({ general: result.message || "Registration failed. Please try again." });
       }
