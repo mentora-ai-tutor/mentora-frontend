@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Eye, EyeOff, Mail, Lock, User, ArrowRight, Sparkles, Check,
+  Eye, EyeOff, Mail, Lock, User, ArrowRight, Sparkles, Check, MapPin,
 } from "lucide-react";
 import AuthInput from "@/components/auth/AuthInput";
 import AuthButton from "@/components/auth/AuthButton";
 import AuthDivider from "@/components/auth/AuthDivider";
 import SocialButton from "@/components/auth/SocialButton";
 import PasswordStrength from "@/components/auth/PasswordStrength";
+import { authApi } from "@/lib/api/auth";
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none">
@@ -27,6 +29,7 @@ const GitHubIcon = () => (
 );
 
 export default function SignupForm() {
+  const router = useRouter();
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,11 +37,11 @@ export default function SignupForm() {
   const [step, setStep] = useState<"form" | "success">("form");
 
   const [form, setForm] = useState({
-    name: "", email: "", password: "", confirm: "",
+    name: "", email: "", password: "", confirm: "", country: "",
   });
-  const [errors, setErrors] = useState<Partial<typeof form & { agree: string }>>({});
+  const [errors, setErrors] = useState<Partial<typeof form & { agree: string; general: string }>>({});
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const validate = () => {
@@ -46,6 +49,7 @@ export default function SignupForm() {
     if (!form.name.trim()) e.name = "Full name is required";
     if (!form.email) e.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email";
+    if (!form.country) e.country = "Country is required";
     if (!form.password) e.password = "Password is required";
     else if (form.password.length < 8) e.password = "At least 8 characters";
     if (form.confirm !== form.password) e.confirm = "Passwords do not match";
@@ -59,9 +63,26 @@ export default function SignupForm() {
     if (Object.keys(e).length) { setErrors(e); return; }
     setErrors({});
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 2000));
+
+    try {
+      const result = await authApi.register({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        country: form.country,
+      });
+
+      if (result.success) {
+        setStep("success");
+        setTimeout(() => router.push("/"), 2000);
+      } else {
+        setErrors({ general: result.message || "Registration failed. Please try again." });
+      }
+    } catch {
+      setErrors({ general: "Network error. Please try again." });
+    }
+
     setLoading(false);
-    setStep("success");
   };
 
   if (step === "success") {
@@ -107,6 +128,11 @@ export default function SignupForm() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {errors.general && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            {errors.general}
+          </div>
+        )}
         <AuthInput
           label="Full name"
           id="signup-name"
@@ -129,6 +155,41 @@ export default function SignupForm() {
           error={errors.email}
           icon={<Mail className="w-4 h-4" />}
         />
+
+        <div className="relative">
+          <label
+            htmlFor="signup-country"
+            className="block text-xs font-medium text-white/70 mb-1.5 ml-1"
+          >
+            Country
+          </label>
+          <div className="relative">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <select
+              id="signup-country"
+              value={form.country}
+              onChange={set("country")}
+              className="w-full pl-10 pr-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/30 focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all appearance-none"
+            >
+              <option value="" className="bg-zinc-800">Select your country</option>
+              <option value="Sri Lanka" className="bg-zinc-800">Sri Lanka</option>
+              <option value="India" className="bg-zinc-800">India</option>
+              <option value="United States" className="bg-zinc-800">United States</option>
+              <option value="United Kingdom" className="bg-zinc-800">United Kingdom</option>
+              <option value="Australia" className="bg-zinc-800">Australia</option>
+              <option value="Canada" className="bg-zinc-800">Canada</option>
+              <option value="Germany" className="bg-zinc-800">Germany</option>
+              <option value="France" className="bg-zinc-800">France</option>
+              <option value="Japan" className="bg-zinc-800">Japan</option>
+              <option value="Singapore" className="bg-zinc-800">Singapore</option>
+              <option value="Malaysia" className="bg-zinc-800">Malaysia</option>
+              <option value="Other" className="bg-zinc-800">Other</option>
+            </select>
+          </div>
+          {errors.country && <p className="text-xs text-red-400 mt-1 ml-1">{errors.country}</p>}
+        </div>
 
         <div>
           <AuthInput
