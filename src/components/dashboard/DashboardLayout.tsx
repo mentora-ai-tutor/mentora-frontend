@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   Menu, X, Search, Bell, Settings, LogOut, 
-  LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp 
+  LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp, User
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MentoraLogo from "@/components/auth/MentoraLogo";
@@ -23,6 +23,7 @@ const navItems = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [scrolled, setScrolled] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -126,14 +127,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             
             <div className="h-6 w-px bg-white/10" />
             
-            <div className="flex items-center gap-3 cursor-pointer group">
-              <div className="hidden md:block text-right">
-                <p className="text-sm font-bold text-white group-hover:text-teal-200 transition-colors">{user?.name || "User"}</p>
-                <p className="text-[10px] text-teal-400 uppercase tracking-widest font-semibold pb-0.5">{user?.role || "Student"}</p>
+            <div className="relative">
+              <div 
+                className="flex items-center gap-3 cursor-pointer group"
+                onClick={() => setProfileOpen(!profileOpen)}
+              >
+                <div className="hidden md:block text-right">
+                  <p className="text-sm font-bold text-white group-hover:text-teal-200 transition-colors">{user?.name || "User"}</p>
+                  <p className="text-[10px] text-teal-400 uppercase tracking-widest font-semibold pb-0.5">{user?.role || "Student"}</p>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-teal-800 border-2 border-[#0F172A] shadow-[0_0_0_1px_rgba(255,255,255,0.1)] flex items-center justify-center font-bold relative overflow-hidden transition-transform group-hover:scale-105">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-teal-800 border-2 border-[#0F172A] shadow-[0_0_0_1px_rgba(255,255,255,0.1)] flex items-center justify-center font-bold relative overflow-hidden">
-                {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-              </div>
+
+              {/* Profile Dropdown */}
+              {profileOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+                  <div className="absolute right-0 top-full mt-3 w-48 bg-[#1e293b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-slide-up origin-top-right">
+                    <div className="p-2 space-y-1">
+                      <Link 
+                        href="/profile" 
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-white/80 hover:text-teal-400 hover:bg-teal-500/10 rounded-xl transition-colors"
+                      >
+                        <User className="w-4 h-4" /> Profile
+                      </Link>
+                      <button 
+                        onClick={async () => { 
+                          setProfileOpen(false);
+                          await logout(); 
+                          router.push("/"); 
+                        }}
+                        className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-[#ef4444]/80 hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-xl transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" /> Logout
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>

@@ -50,8 +50,10 @@ function FadeInView({ children, delay = 0, direction = "up" }: { children: React
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
@@ -96,7 +98,7 @@ export default function LandingPage() {
         
         {/* Particles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-          {[...Array(15)].map((_, i) => (
+          {mounted && [...Array(15)].map((_, i) => (
             <div
               key={i}
               className="absolute w-1 h-1 bg-teal-400 rounded-full animate-particle"
