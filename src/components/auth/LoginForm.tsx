@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
 import AuthInput from "@/components/auth/AuthInput";
 import AuthButton from "@/components/auth/AuthButton";
 import AuthDivider from "@/components/auth/AuthDivider";
 import SocialButton from "@/components/auth/SocialButton";
+import { authApi } from "@/lib/api/auth";
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none">
@@ -24,11 +26,12 @@ const GitHubIcon = () => (
 );
 
 export default function LoginForm() {
+  const router = useRouter();
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
 
   const validate = () => {
     const e: typeof errors = {};
@@ -44,7 +47,18 @@ export default function LoginForm() {
     if (Object.keys(e).length) { setErrors(e); return; }
     setErrors({});
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1800));
+
+    try {
+      const result = await authApi.login({ email, password });
+      if (result.success) {
+        router.push("/");
+      } else {
+        setErrors({ general: result.message || "Invalid email or password" });
+      }
+    } catch {
+      setErrors({ general: "Network error. Please try again." });
+    }
+
     setLoading(false);
   };
 
@@ -71,6 +85,11 @@ export default function LoginForm() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {errors.general && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            {errors.general}
+          </div>
+        )}
         <AuthInput
           label="Email address"
           id="login-email"

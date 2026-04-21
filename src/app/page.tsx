@@ -1,6 +1,10 @@
+'use client';
+
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Home() {
+  const { user, isAuthenticated, logout } = useAuth();
   const components = [
     {
       name: "Knowledge Analysis",
@@ -35,13 +39,45 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800">
       <header className="border-b border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-            Mentora Platform
-          </h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-            AI-Powered Personalized Learning System
-          </p>
+        <div className="max-w-6xl mx-auto px-6 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+              Mentora Platform
+            </h1>
+            <p className="text-zinc-600 dark:text-zinc-400 mt-1">
+              AI-Powered Personalized Learning System
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {isAuthenticated ? (
+              <>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {user?.email}
+                </span>
+                <button
+                  onClick={() => logout()}
+                  className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-sm text-blue-600 hover:underline"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
