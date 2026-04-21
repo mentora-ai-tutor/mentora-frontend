@@ -16,7 +16,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('user');
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null; // handle parse errors
+      }
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = async () => {
@@ -36,8 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (data: LoginData) => {
     const result = await authApi.login(data);
-    if (result.success && result.data) {
-      setUser(result.data.user);
+    if (result.success) {
+      if (result.data?.user) setUser(result.data.user);
       return { success: true };
     }
     return { success: false, message: result.message || 'Login failed' };
@@ -45,8 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterData) => {
     const result = await authApi.register(data);
-    if (result.success && result.data) {
-      setUser(result.data.user);
+    if (result.success) {
+      if (result.data?.user) setUser(result.data.user);
       return { success: true };
     }
     return { success: false, message: result.message || 'Registration failed' };
