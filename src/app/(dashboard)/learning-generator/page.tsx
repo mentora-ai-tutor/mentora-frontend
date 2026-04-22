@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, Sparkles, Wand2, Plus, RefreshCw, Layers, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, Sparkles, Wand2, Plus, RefreshCw, Layers, TrendingUp, Play, Target } from "lucide-react";
 
 export default function LearningGeneratorPage() {
   const [topic, setTopic] = useState("");
-  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+  const [state, setState] = useState<"hub" | "idle" | "loading" | "done">("hub");
 
   const handleGenerate = () => {
     if (!topic.trim()) return;
@@ -24,6 +25,86 @@ export default function LearningGeneratorPage() {
           <p className="text-sm text-white/50">Instantly create personalized tutorials, exercises, and study plans.</p>
         </div>
       </div>
+
+      {state === "hub" && (
+        <div className="space-y-8 animate-fade-in">
+          {/* Continue Learning */}
+          <div>
+             <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Play className="w-5 h-5 text-teal-400" /> Continue Learning</h2>
+             <div className="p-1 rounded-2xl bg-gradient-to-r from-teal-500/30 to-transparent">
+               <div className="bg-[#0F172A] p-6 rounded-[14px] border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-[#334155]/20 transition-colors">
+                  <div className="flex-1">
+                     <span className="px-2.5 py-1 rounded-md bg-teal-500/10 text-teal-400 text-xs font-bold uppercase tracking-wider mb-3 inline-block">Module in Progress</span>
+                     <h3 className="text-xl font-bold text-white mb-2">Dynamic Programming Hub</h3>
+                     <p className="text-sm text-white/50 mb-4">You left off at: <strong>Interactive Workspace</strong></p>
+                     <div className="flex items-center gap-3">
+                       <div className="flex-1 max-w-sm h-1.5 bg-[#334155] rounded-full overflow-hidden">
+                         <div className="h-full bg-teal-500 rounded-full w-[40%]" />
+                       </div>
+                       <span className="text-xs font-bold text-white/70">40%</span>
+                     </div>
+                  </div>
+                  <Link href="/learning-generator/workspace" className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(13,148,136,0.3)] transition-all whitespace-nowrap">
+                     Resume Workspace
+                  </Link>
+               </div>
+             </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 pb-6">
+             {/* Saved Modules */}
+             <div className="space-y-4">
+               <div className="flex items-center justify-between">
+                 <h2 className="text-lg font-bold text-white flex items-center gap-2"><BookOpen className="w-5 h-5 text-teal-400" /> Saved Modules</h2>
+                 <button className="text-sm font-bold text-teal-400 hover:text-teal-300">View All</button>
+               </div>
+               <div className="space-y-3">
+                 {[
+                   { title: "React Context API", date: "2 days ago", progress: 100 },
+                   { title: "GraphQL Subscriptions", date: "Last week", progress: 85 }
+                 ].map((mod, i) => (
+                   <div key={i} className="p-4 bg-[#334155]/20 border border-white/5 rounded-xl hover:border-teal-500/30 transition-all cursor-pointer group">
+                      <div className="flex justify-between items-start mb-2">
+                         <h4 className="font-bold text-white group-hover:text-teal-300 transition-colors">{mod.title}</h4>
+                         <span className="text-xs text-white/40">{mod.date}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                         <span className="text-xs text-white/60">Module</span>
+                         <span className={`text-xs font-bold ${mod.progress === 100 ? 'text-amber-500' : 'text-teal-400'}`}>{mod.progress}%</span>
+                      </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+
+             {/* Actions */}
+             <div className="space-y-4">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2"><Sparkles className="w-5 h-5 text-teal-400" /> Quick Actions</h2>
+                <button 
+                  onClick={() => setState("idle")}
+                  className="w-full p-6 bg-gradient-to-br from-teal-900/40 to-[#0F172A] border border-teal-500/30 rounded-2xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(13,148,136,0.15)] transition-all text-left flex items-start gap-4"
+                >
+                  <div className="w-12 h-12 rounded-full bg-teal-500/20 border border-teal-500/40 flex items-center justify-center shrink-0">
+                     <Plus className="w-6 h-6 text-teal-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-1">Generate New Module</h3>
+                    <p className="text-sm text-teal-100/60">Input a topic and let AI craft a personalized step-by-step curriculum.</p>
+                  </div>
+                </button>
+                <div className="w-full p-6 bg-[#334155]/20 border border-white/5 rounded-2xl hover:border-white/20 transition-all cursor-pointer text-left flex items-start gap-4 grayscale opacity-70 hover:grayscale-0 hover:opacity-100">
+                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                     <Target className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-1">Review Weaknesses</h3>
+                    <p className="text-sm text-white/50">Automatically generate a quiz based on your past mistakes.</p>
+                  </div>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
 
       {state === "idle" && (
         <div className="max-w-2xl bg-[#334155]/20 border border-white/5 p-6 rounded-2xl relative overflow-hidden">
@@ -78,9 +159,9 @@ export default function LearningGeneratorPage() {
               <button className="px-4 py-2 text-xs font-bold bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors flex items-center gap-2 text-white">
                 <RefreshCw className="w-3.5 h-3.5" /> Regenerate
               </button>
-              <button className="px-4 py-2 text-xs font-bold bg-teal-600/10 text-teal-400 border border-teal-500/30 rounded-lg hover:bg-teal-600/20 transition-colors flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5" /> Simplify explanation
-              </button>
+              <Link href="/learning-generator/workspace" className="px-4 py-2 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-500 transition-colors flex items-center gap-2 shadow-[0_0_15px_rgba(13,148,136,0.4)]">
+                <BookOpen className="w-3.5 h-3.5 fill-current" /> Enter Workspace
+              </Link>
             </div>
           </div>
 
