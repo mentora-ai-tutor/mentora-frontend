@@ -11,19 +11,42 @@ import { useRouter } from "next/navigation";
 import MentoraLogo from "@/components/auth/MentoraLogo";
 import { useAuth } from "@/contexts/AuthContext";
 
+type NavSubItem = {
+  name: string;
+  href: string;
+};
+
+type NavItem = {
+  name: string;
+  href?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  subItems?: NavSubItem[];
+};
+
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Knowledge Assist", href: "/knowledge-assist", icon: Brain },
+  {
+    name: "Knowledge Assist",
+    icon: Brain,
+    subItems: [
+      { name: "Dashboard", href: "/knowledge-assist" },
+      { name: "Assessment", href: "/knowledge-assist/assessment" },
+      { name: "Sandbox", href: "/knowledge-assist/sandbox" },
+      { name: "Forensics", href: "/knowledge-assist/forensics" },
+      { name: "Mastery", href: "/knowledge-assist/mastery" },
+    ],
+  },
   { name: "Material Generator", href: "/learning-generator", icon: BookOpen },
   { name: "Assessment", href: "/assessment", icon: Target },
   { name: "Peer Learning", href: "/peer-learning", icon: Users },
   { name: "Progress", href: "/progress", icon: TrendingUp },
-];
+] satisfies NavItem[];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -58,7 +81,56 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1.5 scrollbar-hide">
           {navItems.map((item) => {
-            const active = pathname === item.href;
+            const subMenuActive = item.subItems?.some((subItem) => pathname === subItem.href) ?? false;
+            const active = item.href ? pathname === item.href : subMenuActive;
+
+            if (item.subItems) {
+              const isExpanded = expandedMenu === item.name;
+              return (
+                <div key={item.name} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedMenu((prev) => (prev === item.name ? null : item.name))}
+                    className={`relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300
+                      ${active
+                        ? "bg-teal-500/10 text-teal-400 shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
+                        : "text-white/60 hover:bg-[#334155]/30 hover:text-teal-200"
+                      }
+                    `}
+                    title={!sidebarOpen ? item.name : undefined}
+                  >
+                    {active && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-teal-500 rounded-r-full shadow-[0_0_10px_rgba(13,148,136,0.8)]" />
+                    )}
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    <span className={`font-semibold text-sm whitespace-nowrap transition-opacity duration-300 ${!sidebarOpen && "lg:opacity-0 lg:hidden"}`}>
+                      {item.name}
+                    </span>
+                  </button>
+
+                  <div className={`${!isExpanded || !sidebarOpen ? "hidden" : ""} pl-6 space-y-1`}>
+                    {item.subItems.map((subItem) => {
+                      const subActive = pathname === subItem.href;
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          className={`block px-3 py-2 rounded-lg text-sm transition-all
+                            ${subActive
+                              ? "bg-teal-500/10 text-teal-300"
+                              : "text-white/50 hover:text-teal-200 hover:bg-[#334155]/30"
+                            }
+                          `}
+                        >
+                          {subItem.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={item.href}
