@@ -197,9 +197,11 @@ export default function PairSessionPerformancePage() {
       </div>
 
       <div className="flex gap-4 pt-4 justify-center">
+        <Link href="/peer-learning/group-coding/">
         <Button className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-6 px-8 rounded-xl">
           BOOK NEXT SESSION
         </Button>
+        </Link>
         <Link href="/peer-learning">
           <Button variant="outline" className="border-white/10 hover:bg-white/5 text-white font-bold py-6 px-8 rounded-xl">
             RETURN TO DASHBOARD
