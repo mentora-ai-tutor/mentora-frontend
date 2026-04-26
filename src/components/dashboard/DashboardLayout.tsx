@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  Menu, X, Search, Bell, Settings, LogOut, 
+import {
+  Menu, X, Search, Bell, Settings, LogOut,
   LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp, User
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -29,7 +29,7 @@ const navItems = [
     name: "Knowledge Assist",
     icon: Brain,
     subItems: [
-      { name: "Dashboard", href: "/knowledge-assist" },
+      { name: "Knowledge Profile", href: "/knowledge-assist" },
       { name: "Assessment", href: "/knowledge-assist/assessment" },
       { name: "Sandbox", href: "/knowledge-assist/sandbox" },
       { name: "Forensics", href: "/knowledge-assist/forensics" },
@@ -54,21 +54,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
-    
+
     // Auto-collapse on small screens
     if (window.innerWidth < 1024) setSidebarOpen(false);
-    
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-white flex overflow-hidden">
-      
+
       {/* ── SIDEBAR ── */}
-      <aside 
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-[#0B1121] border-r border-white/5 transform transition-transform duration-300 ease-in-out flex flex-col ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-20"
-        }`}
+      <aside
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-[#0B1121] border-r border-white/5 transform transition-transform duration-300 ease-in-out flex flex-col ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-20"
+          }`}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-white/5 shrink-0">
           <div className={`overflow-hidden transition-all ${!sidebarOpen && "lg:hidden"}`}>
@@ -136,8 +135,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 key={item.href}
                 href={item.href}
                 className={`relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 group
-                  ${active 
-                    ? "bg-teal-500/10 text-teal-400 shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]" 
+                  ${active
+                    ? "bg-teal-500/10 text-teal-400 shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
                     : "text-white/60 hover:bg-[#334155]/30 hover:text-teal-200"
                   }
                 `}
@@ -160,7 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
             <span className={`font-medium text-sm whitespace-nowrap ${!sidebarOpen && "lg:hidden"}`}>Settings</span>
           </Link>
-          <button 
+          <button
             onClick={async () => { await logout(); router.push("/login"); }}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-white/50 hover:bg-red-500/10 hover:text-red-400 transition-all group`}
           >
@@ -172,7 +171,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── MAIN CONTENT ── */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        
+
         {/* HEADER */}
         <header className={`h-16 flex items-center justify-between px-4 lg:px-8 border-b border-transparent transition-all duration-300 z-30
           ${scrolled ? "bg-[#0F172A]/80 backdrop-blur-md border-white/10 shadow-lg" : "bg-transparent"}
@@ -183,9 +182,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
             <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-full focus-within:border-teal-500/50 focus-within:shadow-[0_0_15px_rgba(13,148,136,0.2)] transition-all">
               <Search className="w-4 h-4 text-white/40" />
-              <input 
-                type="text" 
-                placeholder="Search..." 
+              <input
+                type="text"
+                placeholder="Search..."
                 className="bg-transparent border-none outline-none text-sm text-white placeholder:text-white/40 w-48 focus:w-64 transition-all duration-300"
               />
             </div>
@@ -196,11 +195,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B45309] shadow-[0_0_8px_rgba(180,83,9,0.8)] animate-pulse" />
             </button>
-            
+
             <div className="h-6 w-px bg-white/10" />
-            
+
             <div className="relative">
-              <div 
+              <div
                 className="flex items-center gap-3 cursor-pointer group"
                 onClick={() => setProfileOpen(!profileOpen)}
               >
@@ -219,18 +218,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
                   <div className="absolute right-0 top-full mt-3 w-48 bg-[#1e293b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-slide-up origin-top-right">
                     <div className="p-2 space-y-1">
-                      <Link 
-                        href="/profile" 
+                      <Link
+                        href="/profile"
                         onClick={() => setProfileOpen(false)}
                         className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-white/80 hover:text-teal-400 hover:bg-teal-500/10 rounded-xl transition-colors"
                       >
                         <User className="w-4 h-4" /> Profile
                       </Link>
-                      <button 
-                        onClick={async () => { 
+                      <button
+                        onClick={async () => {
                           setProfileOpen(false);
-                          await logout(); 
-                          router.push("/"); 
+                          await logout();
+                          router.push("/");
                         }}
                         className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-[#ef4444]/80 hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-xl transition-colors"
                       >
@@ -249,7 +248,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Subtle background glow for all pages */}
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-teal-600/5 rounded-full blur-[120px] pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-amber-600/5 rounded-full blur-[100px] pointer-events-none" />
-          
+
           <div className="p-4 md:p-8 max-w-7xl mx-auto w-full relative z-10 animate-slide-up pb-24">
             {children}
           </div>
