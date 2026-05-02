@@ -58,6 +58,22 @@ export default function MaterialWorkspace() {
     return result;
   }, []);
 
+  const storageKey = (key: string) => `mentora_${materialId}_${activeStep}_${key}`;
+
+  const saveInsightToStorage = (type: string, text: string) => {
+    try {
+      sessionStorage.setItem(storageKey(type), text);
+    } catch {}
+  };
+
+  const loadInsightFromStorage = (type: string): string | null => {
+    try {
+      return sessionStorage.getItem(storageKey(type));
+    } catch {
+      return null;
+    }
+  };
+
   const formatInsightText = (text: string) => {
     const paragraphs = text.split('\n\n').filter(p => p.trim());
     return paragraphs.map((para, idx) => {
@@ -143,10 +159,28 @@ export default function MaterialWorkspace() {
     setAiFeedback(null);
     setIsCompilationError(false);
     setActiveTab("output");
-    setAiInsight(null);
-    setInsightType(null);
-    setInsightActiveTab(null);
     setShowCodeEditor(false);
+
+    const storedSimpler = loadInsightFromStorage("simpler");
+    const storedAnalogy = loadInsightFromStorage("analogy");
+    const storedFeedback = loadInsightFromStorage("code_feedback");
+
+    if (storedSimpler) {
+      setAiInsight(storedSimpler);
+      setInsightActiveTab("simpler");
+    } else if (storedAnalogy) {
+      setAiInsight(storedAnalogy);
+      setInsightActiveTab("analogy");
+    } else {
+      setAiInsight(null);
+      setInsightActiveTab(null);
+    }
+
+    if (storedFeedback) {
+      setAiFeedback(storedFeedback);
+    } else {
+      setAiFeedback(null);
+    }
   }, [activeStep, material, steps]);
 
   const saveProgress = useCallback(async (stepIndex: number, isComplete?: boolean) => {
@@ -202,6 +236,7 @@ export default function MaterialWorkspace() {
           const fbRes = await aiEngineApi.getFeedback(code, runOutput || undefined, runError || undefined, currentStepId);
           if (fbRes.data) {
             setAiFeedback(fbRes.data.feedback);
+            saveInsightToStorage("code_feedback", fbRes.data.feedback);
           }
         } catch {
           setAiFeedback("AI feedback unavailable right now.");
@@ -230,6 +265,7 @@ export default function MaterialWorkspace() {
     setExecutionError(null);
     setAiFeedback(null);
     setActiveTab("output");
+    saveInsightToStorage("code_feedback", "");
   };
 
   const handleExplainSimpler = async () => {
@@ -242,7 +278,11 @@ export default function MaterialWorkspace() {
     setAiInsight(null);
     try {
       const res = await aiEngineApi.explainSimpler(exampleCode, sm?.topic);
-      if (res.data) setAiInsight(res.data.insight);
+      if (res.data) {
+        setAiInsight(res.data.insight);
+        saveInsightToStorage("simpler", res.data.insight);
+        saveInsightToStorage("analogy", "");
+      }
     } catch {
       setAiInsight("Unable to generate explanation. Try again.");
     } finally {
@@ -260,7 +300,11 @@ export default function MaterialWorkspace() {
     setAiInsight(null);
     try {
       const res = await aiEngineApi.getAnalogy(exampleCode, sm?.topic);
-      if (res.data) setAiInsight(res.data.insight);
+      if (res.data) {
+        setAiInsight(res.data.insight);
+        saveInsightToStorage("analogy", res.data.insight);
+        saveInsightToStorage("simpler", "");
+      }
     } catch {
       setAiInsight("Unable to generate analogy. Try again.");
     } finally {
@@ -707,7 +751,11 @@ export default function MaterialWorkspace() {
                           </p>
                         </div>
                         <button
-                          onClick={() => { setAiInsight(null); setInsightActiveTab(null); }}
+                          onClick={() => {
+                            if (insightActiveTab) saveInsightToStorage(insightActiveTab, "");
+                            setAiInsight(null);
+                            setInsightActiveTab(null);
+                          }}
                           className="text-white/30 hover:text-white/50 transition-colors"
                         >
                           <XCircle className="w-4 h-4" />
