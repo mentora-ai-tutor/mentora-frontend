@@ -6,13 +6,17 @@ interface ApiResponse<T = any> {
   data?: T;
   code?: string;
   details?: any[];
-  pagination?: {
+  error?: string;
+}
+
+interface PaginatedData<T> {
+  items: T[];
+  meta: {
     page: number;
     limit: number;
     total: number;
     pages: number;
   };
-  error?: string;
 }
 
 interface KnowledgeGap {
@@ -203,6 +207,33 @@ interface AgentStats {
   };
 }
 
+interface StudentProgress {
+  _id: string;
+  student_id: string;
+  material_id: string;
+  topic_id: string;
+  topic: string;
+  total_steps: number;
+  completed_steps: number[];
+  quiz_score: number | null;
+  started_at: string;
+  completed_at: string | null;
+  last_active_step: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ProgressStats {
+  total_materials: number;
+  completed_materials: number;
+  in_progress_materials: number;
+  not_started_materials: number;
+  total_steps: number;
+  completed_steps: number;
+  progress_percentage: number;
+  avg_quiz_score: number | null;
+}
+
 class LearningGeneratorApi {
   private getAccessToken(): string | null {
     if (typeof window === 'undefined') return null;
@@ -254,24 +285,76 @@ class LearningGeneratorApi {
     return this.request('GET', `/api/mastery/${studentId}/history?page=${page}&limit=${limit}`);
   }
 
-  async getMaterials(studentId: string): Promise<ApiResponse<LearningMaterial[]>> {
-    return this.request('GET', `/api/materials/student/${studentId}`);
+  async getMaterials(studentId: string, params?: { topic?: string; gap_type?: string; limit?: number; page?: number }): Promise<ApiResponse<LearningMaterial[]>> {
+    const qs = new URLSearchParams();
+    if (params?.topic) qs.set('topic', params.topic);
+    if (params?.gap_type) qs.set('gap_type', params.gap_type);
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.page) qs.set('page', String(params.page));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return this.request('GET', `/api/materials/${studentId}${query}`);
   }
 
   async getMaterial(materialId: string): Promise<ApiResponse<LearningMaterial>> {
-    return this.request('GET', `/api/materials/${materialId}`);
+    return this.request('GET', `/api/materials/item/${materialId}`);
+  }
+
+  async getTopics(studentId: string): Promise<ApiResponse<string[]>> {
+    return this.request('GET', `/api/materials/${studentId}/topics`);
+  }
+
+  async getMaterialStats(studentId: string): Promise<ApiResponse> {
+    return this.request('GET', `/api/materials/${studentId}/stats`);
+  }
+
+  async deleteMaterial(materialId: string): Promise<ApiResponse> {
+    return this.request('DELETE', `/api/materials/item/${materialId}`);
   }
 
   async getJobStatus(jobId: string): Promise<ApiResponse<GenerationJob>> {
     return this.request('GET', `/api/agent/jobs/${jobId}`);
   }
 
-  async getAgentStats(): Promise<ApiResponse<AgentStats>> {
-    return this.request('GET', '/api/agent/stats');
+  async completeJob(jobId: string): Promise<ApiResponse<GenerationJob>> {
+    return this.request('POST', `/api/agent/jobs/${jobId}/complete`);
+  }
+
+  async getJobsByStudent(studentId: string): Promise<ApiResponse<GenerationJob[]>> {
+    return this.request('GET', `/api/agent/jobs/student/${studentId}`);
+  }
+
+  async getGlobalStats(): Promise<ApiResponse<AgentStats>> {
+    return this.request('GET', '/api/agent/stats/global');
+  }
+
+  async getAgentLogs(studentId: string): Promise<ApiResponse> {
+    return this.request('GET', `/api/agent/logs/${studentId}`);
   }
 
   async retryMaterial(materialId: string): Promise<ApiResponse> {
-    return this.request('POST', `/api/materials/${materialId}/retry`);
+    return this.request('POST', `/api/agent/retry/${materialId}`);
+  }
+
+  async getProgressByMaterial(materialId: string): Promise<ApiResponse<StudentProgress | null>> {
+    return this.request('GET', `/api/progress/material/${materialId}`);
+  }
+
+  async updateProgress(materialId: string, data: {
+    total_steps?: number;
+    completed_step?: number;
+    active_step?: number;
+    quiz_score?: number;
+    completed_all?: boolean;
+  }): Promise<ApiResponse<StudentProgress>> {
+    return this.request('PUT', `/api/progress/material/${materialId}`, data);
+  }
+
+  async getProgressByStudent(studentId: string): Promise<ApiResponse<StudentProgress[]>> {
+    return this.request('GET', `/api/progress/student/${studentId}`);
+  }
+
+  async getProgressStats(studentId: string): Promise<ApiResponse<ProgressStats>> {
+    return this.request('GET', `/api/progress/student/${studentId}/stats`);
   }
 }
 
@@ -288,4 +371,6 @@ export type {
   Assessment,
   QuizQuestion,
   AgentStats,
+  StudentProgress,
+  ProgressStats,
 };
