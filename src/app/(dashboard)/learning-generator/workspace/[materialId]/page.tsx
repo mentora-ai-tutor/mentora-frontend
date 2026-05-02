@@ -101,7 +101,7 @@ export default function MaterialWorkspace() {
       return (
         <div key={idx} className={`${idx > 0 ? 'mt-3' : ''} ${isList ? 'flex gap-2 items-start' : ''}`}>
           {isList && (
-            <span className="text-teal-500 font-bold shrink-0 text-xs mt-0.5">{bullet.replace(/\s$/, '')}</span>
+            <span className="text-teal-500 font-bold shrink-0 text-xs mt-0.5">{typeof bullet === 'string' ? bullet.replace(/\s$/, '') : bullet}</span>
           )}
           <span className="text-sm text-white/80 leading-relaxed">{parts}</span>
         </div>
@@ -269,15 +269,34 @@ export default function MaterialWorkspace() {
   };
 
   const handleExplainSimpler = async () => {
-    const exampleCode = currentStepId === "example" && material?.structured_material.lesson.examples?.example_1
-      ? material.structured_material.lesson.examples.example_1.code
-      : code;
-    if (!exampleCode) return;
+    const lesson = material?.structured_material.lesson;
+    const stepId = steps[activeStep]?.id;
+    let contextText = "";
+
+    if (stepId === "example" && lesson?.examples?.example_1) {
+      contextText = lesson.examples.example_1.code;
+    } else if (stepId === "intro" && lesson?.introduction) {
+      contextText = `${lesson.introduction.what_is_it}\n\nWhy learn this: ${lesson.introduction.why_learn_it}`;
+    } else if (stepId === "concepts" && lesson?.concept_explained) {
+      contextText = `${lesson.concept_explained.core_definition}\n\n${lesson.concept_explained.how_java_handles_it || ""}\n\n${lesson.concept_explained.misconceptions_corrected || ""}`;
+    } else if (stepId === "guide" && lesson?.step_by_step_guide) {
+      contextText = lesson.step_by_step_guide.steps.map((s: any) => `Step ${s.step_number}: ${s.instruction}`).join("\n\n");
+    } else if (stepId === "mistakes" && lesson?.common_mistakes && lesson.common_mistakes.length > 0) {
+      contextText = lesson.common_mistakes.map((m: any) => `Mistake: ${m.title}\n${m.description}\nBad: ${m.bad_code}\nGood: ${m.good_code}`).join("\n\n");
+    } else if (stepId === "practice" && material?.structured_material.assessment.practice_challenge) {
+      contextText = `${material.structured_material.assessment.practice_challenge.problem_statement}\n\nStarter code:\n${material.structured_material.assessment.practice_challenge.starter_code}`;
+    } else if (stepId === "debug" && lesson?.debugging_exercise) {
+      contextText = `Scenario: ${lesson.debugging_exercise.scenario}\n\nBroken code:\n${lesson.debugging_exercise.broken_code}`;
+    } else {
+      contextText = code;
+    }
+
+    if (!contextText) return;
     setInsightType("simpler");
     setInsightActiveTab("simpler");
     setAiInsight(null);
     try {
-      const res = await aiEngineApi.explainSimpler(exampleCode, sm?.topic);
+      const res = await aiEngineApi.explainSimpler(contextText, sm?.topic, stepId);
       if (res.data) {
         setAiInsight(res.data.insight);
         saveInsightToStorage("simpler", res.data.insight);
@@ -291,15 +310,34 @@ export default function MaterialWorkspace() {
   };
 
   const handleRealLifeAnalogy = async () => {
-    const exampleCode = currentStepId === "example" && material?.structured_material.lesson.examples?.example_1
-      ? material.structured_material.lesson.examples.example_1.code
-      : code;
-    if (!exampleCode) return;
+    const lesson = material?.structured_material.lesson;
+    const stepId = steps[activeStep]?.id;
+    let contextText = "";
+
+    if (stepId === "example" && lesson?.examples?.example_1) {
+      contextText = lesson.examples.example_1.code;
+    } else if (stepId === "intro" && lesson?.introduction) {
+      contextText = `${lesson.introduction.what_is_it}\n\nWhy learn this: ${lesson.introduction.why_learn_it}`;
+    } else if (stepId === "concepts" && lesson?.concept_explained) {
+      contextText = `${lesson.concept_explained.core_definition}\n\n${lesson.concept_explained.how_java_handles_it || ""}\n\n${lesson.concept_explained.misconceptions_corrected || ""}`;
+    } else if (stepId === "guide" && lesson?.step_by_step_guide) {
+      contextText = lesson.step_by_step_guide.steps.map((s: any) => `Step ${s.step_number}: ${s.instruction}`).join("\n\n");
+    } else if (stepId === "mistakes" && lesson?.common_mistakes && lesson.common_mistakes.length > 0) {
+      contextText = lesson.common_mistakes.map((m: any) => `Mistake: ${m.title}\n${m.description}\nBad: ${m.bad_code}\nGood: ${m.good_code}`).join("\n\n");
+    } else if (stepId === "practice" && material?.structured_material.assessment.practice_challenge) {
+      contextText = `${material.structured_material.assessment.practice_challenge.problem_statement}\n\nStarter code:\n${material.structured_material.assessment.practice_challenge.starter_code}`;
+    } else if (stepId === "debug" && lesson?.debugging_exercise) {
+      contextText = `Scenario: ${lesson.debugging_exercise.scenario}\n\nBroken code:\n${lesson.debugging_exercise.broken_code}`;
+    } else {
+      contextText = code;
+    }
+
+    if (!contextText) return;
     setInsightType("analogy");
     setInsightActiveTab("analogy");
     setAiInsight(null);
     try {
-      const res = await aiEngineApi.getAnalogy(exampleCode, sm?.topic);
+      const res = await aiEngineApi.getAnalogy(contextText, sm?.topic, stepId);
       if (res.data) {
         setAiInsight(res.data.insight);
         saveInsightToStorage("analogy", res.data.insight);
@@ -454,9 +492,9 @@ export default function MaterialWorkspace() {
                 </div>
 
                 <div className="space-y-6">
-                  {assessment.quiz.map((q, qIndex) => (
+                  {assessment.quiz.filter(Boolean).map((q, qIndex) => (
                     <div key={qIndex} className="p-6 bg-[#334155]/20 border border-white/10 rounded-2xl">
-                      <p className="text-sm font-bold text-teal-400 mb-2">Question {q.question_number} ({q.type.replace('_', ' ')})</p>
+                      <p className="text-sm font-bold text-teal-400 mb-2">Question {q.question_number} ({typeof q.type === 'string' ? q.type.replace('_', ' ') : q.type})</p>
                       <h3 className="text-lg font-medium text-white mb-4 whitespace-pre-wrap">{q.question}</h3>
                       {q.code_snippet && (
                         <pre className="p-3 bg-[#0F172A] rounded-xl text-teal-200 text-sm font-mono mb-4 border border-white/5">
@@ -573,13 +611,13 @@ export default function MaterialWorkspace() {
                           <pre className="p-4 bg-[#0F172A] border border-white/5 rounded-xl text-teal-200 font-mono text-sm">
                             {lesson.syntax_reference.basic_syntax}
                           </pre>
-                          {lesson.syntax_reference.syntax_breakdown && lesson.syntax_reference.syntax_breakdown.length > 0 && (
-                            <ul className="space-y-3 mt-4 text-white/70 text-sm list-decimal pl-5">
-                              {lesson.syntax_reference.syntax_breakdown.map((rule, i) => (
-                                <li key={i}>{rule.replace(/^\d+\.\s*/, '')}</li>
-                              ))}
-                            </ul>
-                          )}
+                            {lesson.syntax_reference.syntax_breakdown && lesson.syntax_reference.syntax_breakdown.length > 0 && (
+                              <ul className="space-y-3 mt-4 text-white/70 text-sm list-decimal pl-5">
+                                {lesson.syntax_reference.syntax_breakdown.map((rule, i) => (
+                                  <li key={i}>{typeof rule === 'string' ? rule.replace(/^\d+\.\s*/, '') : String(rule)}</li>
+                                ))}
+                              </ul>
+                            )}
                         </>
                       )}
                     </>
