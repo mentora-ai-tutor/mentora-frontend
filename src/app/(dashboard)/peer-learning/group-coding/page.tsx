@@ -59,7 +59,7 @@ export default function GroupCodingSessionPage() {
               <h2 className="font-bold text-lg mb-2">PROBLEM STATEMENT:</h2>
               <h3 className="font-bold text-md text-white/90 mb-2">Find All Pairs with Given Sum</h3>
               <p className="text-sm text-white/80 mb-4 leading-relaxed">
-                Given an array of integers and a target sum, find all unique pairs (i, j)<br/>
+                Given an array of integers and a target sum, find all unique pairs (i, j)<br />
                 where i {"<"} j and arr[i] + arr[j] = target.
               </p>
               <div className="grid grid-cols-2 gap-4">
@@ -154,7 +154,7 @@ export default function GroupCodingSessionPage() {
                 <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> Bob (Reviewer)</span>
               </div>
             </div>
-            
+
             <div className="p-4 flex-1 overflow-auto space-y-4 text-sm">
               <div className="space-y-1">
                 <span className="font-bold text-blue-400">Alice (Solver):</span>
@@ -172,9 +172,9 @@ export default function GroupCodingSessionPage() {
 
             <div className="p-3 border-t border-white/5 bg-black/20">
               <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Type your message..." 
+                <input
+                  type="text"
+                  placeholder="Type your message..."
                   className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50"
                 />
                 <Button size="icon" className="bg-purple-600 hover:bg-purple-500 text-white shrink-0">

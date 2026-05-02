@@ -269,7 +269,7 @@ export default function SessionSeriesPerformancePage() {
               <p className="text-xs text-white/50 uppercase font-bold mb-1">Your next weak topic:</p>
               <p className="text-lg font-bold text-white flex items-center gap-2">RECURSION <span className="text-sm font-normal text-white/60">(Current score: 30%)</span></p>
             </div>
-            
+
             <div className="space-y-3">
               <p className="text-sm font-bold text-white/80">You will now:</p>
               <div className="flex items-start gap-3">
@@ -285,7 +285,7 @@ export default function SessionSeriesPerformancePage() {
                 <p className="text-sm text-white/70">Continue teaching Loops to other students</p>
               </div>
             </div>
-            
+
             <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
               <Button className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold gap-2">
                 <Award className="w-4 h-4" /> VIEW CERTIFICATE
@@ -297,7 +297,7 @@ export default function SessionSeriesPerformancePage() {
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="flex gap-4 pt-4 justify-center">
         <Link href="/peer-learning">
           <Button variant="outline" className="border-white/10 hover:bg-white/5 text-white font-bold px-8">
