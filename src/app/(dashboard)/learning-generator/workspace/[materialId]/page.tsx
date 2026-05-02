@@ -1,26 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { learningGeneratorApi, type LearningMaterial } from "@/lib/api/learningGenerator";
+import { learningGeneratorApi, type LearningMaterial, type StudentProgress } from "@/lib/api/learningGenerator";
 import {
   CheckCircle2, Circle, Lock, Play, RotateCcw, Sparkles,
   Lightbulb, ChevronRight, Check, Target, Brain, Award,
   XCircle, ChevronLeft, Code2, Terminal, ShieldAlert, Loader2, ArrowLeft
 } from "lucide-react";
-
-const STEPS = [
-  { id: "intro", title: "Introduction", type: "read" },
-  { id: "concepts", title: "Concepts & Syntax", type: "read" },
-  { id: "guide", title: "Step-by-Step Guide", type: "read" },
-  { id: "example", title: "Code Examples", type: "code" },
-  { id: "mistakes", title: "Common Mistakes", type: "read" },
-  { id: "practice", title: "Practice Challenge", type: "code" },
-  { id: "debug", title: "Debugging", type: "code" },
-  { id: "quiz", title: "Mastery Quiz", type: "quiz" },
-];
 
 export default function MaterialWorkspace() {
   const params = useParams();
@@ -32,6 +21,7 @@ export default function MaterialWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [steps, setSteps] = useState<Array<{ id: string; title: string; type: string }>>([]);
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [code, setCode] = useState("");
@@ -41,17 +31,48 @@ export default function MaterialWorkspace() {
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [quizScore, setQuizScore] = useState<number | null>(null);
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
+  const [savingProgress, setSavingProgress] = useState(false);
+
+  const buildSteps = useCallback((mat: LearningMaterial) => {
+    const s = mat.structured_material;
+    const result: Array<{ id: string; title: string; type: string }> = [];
+
+    if (s.lesson.introduction) result.push({ id: "intro", title: "Introduction", type: "read" });
+    if (s.lesson.concept_explained) result.push({ id: "concepts", title: "Concepts & Syntax", type: "read" });
+    if (s.lesson.step_by_step_guide) result.push({ id: "guide", title: "Step-by-Step Guide", type: "read" });
+    if (s.lesson.examples?.example_1) result.push({ id: "example", title: "Code Examples", type: "code" });
+    if (s.lesson.common_mistakes && s.lesson.common_mistakes.length > 0) result.push({ id: "mistakes", title: "Common Mistakes", type: "read" });
+    if (s.assessment.practice_challenge) result.push({ id: "practice", title: "Practice Challenge", type: "code" });
+    if (s.lesson.debugging_exercise) result.push({ id: "debug", title: "Debugging", type: "code" });
+    if (s.assessment.quiz && s.assessment.quiz.length > 0) result.push({ id: "quiz", title: "Mastery Quiz", type: "quiz" });
+
+    return result;
+  }, []);
 
   useEffect(() => {
     const loadMaterial = async () => {
       if (!materialId) return;
       try {
         setLoading(true);
-        const res = await learningGeneratorApi.getMaterial(materialId);
-        if (res.success && res.data) {
-          setMaterial(res.data);
+        const [materialRes, progressRes] = await Promise.all([
+          learningGeneratorApi.getMaterial(materialId),
+          learningGeneratorApi.getProgressByMaterial(materialId),
+        ]);
+
+        if (materialRes.success && materialRes.data) {
+          setMaterial(materialRes.data);
+          const builtSteps = buildSteps(materialRes.data);
+          setSteps(builtSteps);
+
+          if (progressRes.success && progressRes.data) {
+            setCompletedSteps(progressRes.data.completed_steps);
+            setActiveStep(progressRes.data.last_active_step || 0);
+            if (progressRes.data.quiz_score !== null && progressRes.data.quiz_score !== undefined) {
+              setQuizScore(progressRes.data.quiz_score);
+            }
+          }
         } else {
-          setError(res.message || "Material not found");
+          setError(materialRes.message || "Material not found");
         }
       } catch {
         setError("Failed to load material. Check LMG service.");
@@ -60,25 +81,46 @@ export default function MaterialWorkspace() {
       }
     };
     loadMaterial();
-  }, [materialId]);
+  }, [materialId, buildSteps]);
 
   useEffect(() => {
     if (!material) return;
     const lesson = material.structured_material.lesson;
     const assessment = material.structured_material.assessment;
 
-    if (activeStep === 3 && lesson.examples?.example_1) {
+    if (activeStep >= steps.length) return;
+    const currentStepId = steps[activeStep]?.id;
+
+    if (currentStepId === "example" && lesson.examples?.example_1) {
       setCode(lesson.examples.example_1.code);
-    } else if (activeStep === 5 && assessment.practice_challenge) {
+    } else if (currentStepId === "practice" && assessment.practice_challenge) {
       setCode(assessment.practice_challenge.starter_code);
-    } else if (activeStep === 6 && lesson.debugging_exercise) {
+    } else if (currentStepId === "debug" && lesson.debugging_exercise) {
       setCode(lesson.debugging_exercise.broken_code);
     } else {
       setCode("");
     }
     setAiFeedback(null);
     setOutput("");
-  }, [activeStep, material]);
+  }, [activeStep, material, steps]);
+
+  const saveProgress = useCallback(async (stepIndex: number, isComplete?: boolean) => {
+    if (!materialId) return;
+    try {
+      const payload: any = {
+        total_steps: steps.length,
+        active_step: stepIndex,
+      };
+      if (isComplete && !completedSteps.includes(stepIndex)) {
+        payload.completed_step = stepIndex;
+      }
+      setSavingProgress(true);
+      await learningGeneratorApi.updateProgress(materialId, payload);
+    } catch {
+    } finally {
+      setSavingProgress(false);
+    }
+  }, [materialId, steps.length, completedSteps]);
 
   const handleRunCode = () => {
     if (!material) return;
@@ -90,15 +132,19 @@ export default function MaterialWorkspace() {
       setIsExecuting(false);
       const lesson = material.structured_material.lesson;
       const assessment = material.structured_material.assessment;
+      const currentStepId = steps[activeStep]?.id;
 
-      if (activeStep === 6 && lesson.debugging_exercise) {
+      if (currentStepId === "debug" && lesson.debugging_exercise) {
         setOutput(lesson.debugging_exercise.error_output);
         simulateAiTyping(`I noticed something! ${lesson.debugging_exercise.hint}`);
-      } else if (activeStep === 5 && assessment.practice_challenge) {
+      } else if (currentStepId === "practice" && assessment.practice_challenge) {
         setOutput(assessment.practice_challenge.expected_output);
         simulateAiTyping("Great job! Your code executed successfully.");
-        if (!completedSteps.includes(5)) setCompletedSteps([...completedSteps, 5]);
-      } else if (activeStep === 3 && lesson.examples?.example_1) {
+        if (!completedSteps.includes(activeStep)) {
+          setCompletedSteps(prev => [...prev, activeStep]);
+          saveProgress(activeStep, true);
+        }
+      } else if (currentStepId === "example" && lesson.examples?.example_1) {
         setOutput(lesson.examples.example_1.output);
         simulateAiTyping("The example code executed successfully! Try modifying it.");
       }
@@ -119,20 +165,39 @@ export default function MaterialWorkspace() {
     }, 10);
   };
 
-  const handleNextStep = () => {
-    setCompletedSteps(prev => prev.includes(activeStep) ? prev : [...prev, activeStep]);
-    if (activeStep < STEPS.length - 1) setActiveStep(prev => prev + 1);
+  const handleNextStep = async () => {
+    if (!completedSteps.includes(activeStep)) {
+      setCompletedSteps(prev => [...prev, activeStep]);
+    }
+    await saveProgress(activeStep, true);
+    if (activeStep < steps.length - 1) {
+      const nextStep = activeStep + 1;
+      setActiveStep(nextStep);
+      await saveProgress(nextStep);
+    }
   };
 
-  const handleQuizSubmit = () => {
+  const handleQuizSubmit = async () => {
     if (!material) return;
     const assessment = material.structured_material.assessment;
     let correct = 0;
     assessment.quiz.forEach(q => {
       if (answers[q.question_number] === q.correct) correct++;
     });
-    setQuizScore(Math.round((correct / assessment.quiz.length) * 100));
+    const score = Math.round((correct / assessment.quiz.length) * 100);
+    setQuizScore(score);
+
+    if (!completedSteps.includes(activeStep)) {
+      setCompletedSteps(prev => [...prev, activeStep]);
+    }
+    await learningGeneratorApi.updateProgress(materialId, {
+      total_steps: steps.length,
+      quiz_score: score,
+      completed_all: true,
+    });
   };
+
+  const currentStepId = steps[activeStep]?.id;
 
   if (loading) {
     return (
@@ -167,7 +232,8 @@ export default function MaterialWorkspace() {
   const assessment = sm.assessment;
 
   return (
-    <div className="flex h-[calc(100vh-80px)] -mt-4 -mb-8 -mx-6 bg-[#0F172A] text-white overflow-hidden font-sans">
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-[#0F172A] text-white overflow-hidden font-sans">
+      <div className="flex flex-1 min-h-0">
       {/* ── SIDEBAR: LEARNING PATH ── */}
       <div className="w-72 flex-shrink-0 bg-[#0F172A] border-r border-white/5 flex flex-col z-10 hidden xl:flex">
         <div className="p-6 pb-2">
@@ -178,27 +244,31 @@ export default function MaterialWorkspace() {
             {sm.difficulty_level} Module
           </div>
           <h2 className="text-xl font-black mb-1 text-white">{sm.topic}</h2>
-          <p className="text-white/40 text-xs mb-6">Interactive Workspace</p>
+          <p className="text-white/40 text-xs mb-2">{steps.length} steps • {completedSteps.length} completed</p>
 
           <div className="w-full h-1.5 bg-[#334155]/50 rounded-full overflow-hidden mb-8">
             <div
               className="h-full bg-teal-500 rounded-full transition-all duration-500"
-              style={{ width: `${(completedSteps.length / STEPS.length) * 100}%` }}
+              style={{ width: `${steps.length > 0 ? (completedSteps.length / steps.length) * 100 : 0}%` }}
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-1 custom-scrollbar">
-          {STEPS.map((step, idx) => {
+          {steps.map((step, idx) => {
             const isCompleted = completedSteps.includes(idx);
             const isActive = activeStep === idx;
-            const isLocked = idx > Math.max(...completedSteps, -1) + 1;
+            const maxUnlocked = Math.max(...completedSteps, -1) + 1;
+            const isLocked = idx > maxUnlocked;
 
             return (
               <button
                 key={step.id}
                 disabled={isLocked}
-                onClick={() => setActiveStep(idx)}
+                onClick={() => {
+                  setActiveStep(idx);
+                  saveProgress(idx);
+                }}
                 className={`w-full flex items-center gap-3 p-3 text-left rounded-xl transition-all ${
                   isActive
                     ? "bg-[#334155]/40 border border-teal-500/30 shadow-[0_0_15px_rgba(13,148,136,0.1)]"
@@ -223,9 +293,8 @@ export default function MaterialWorkspace() {
       </div>
 
       {/* ── MAIN CONTENT AREA ── */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#0F172A] relative">
-        {/* QUIZ + MASTERY PAGE */}
-        {activeStep === 7 ? (
+      <div className="flex-1 flex flex-col min-w-0 bg-[#0F172A] relative min-h-0">
+        {currentStepId === "quiz" ? (
           <div className={`flex-1 overflow-y-auto p-8 lg:p-12 animate-fade-in flex justify-center ${quizScore === null ? 'items-start' : 'items-center'}`}>
             {quizScore === null ? (
               <div className="max-w-3xl w-full my-auto pb-10">
@@ -274,9 +343,10 @@ export default function MaterialWorkspace() {
                 <div className="mt-8 flex justify-end">
                   <button
                     onClick={handleQuizSubmit}
-                    disabled={Object.keys(answers).length < assessment.quiz.length}
-                    className="px-6 py-3 bg-teal-600 disabled:bg-teal-800 disabled:opacity-50 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(13,148,136,0.3)] hover:bg-teal-500 transition-all"
+                    disabled={Object.keys(answers).length < assessment.quiz.length || savingProgress}
+                    className="px-6 py-3 bg-teal-600 disabled:bg-teal-800 disabled:opacity-50 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(13,148,136,0.3)] hover:bg-teal-500 transition-all flex items-center gap-2"
                   >
+                    {savingProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                     Submit Answers
                   </button>
                 </div>
@@ -308,20 +378,20 @@ export default function MaterialWorkspace() {
             )}
           </div>
         ) : (
-          /* INTERACTIVE LEARNING (SPLIT SCREEN) */
-          <div className="flex-1 flex flex-col lg:flex-row h-full">
+          /* INTERACTIVE LEARNING */
+          <div className="flex flex-col lg:flex-row min-h-0">
             {/* LEFT PANE: Content & Explanation */}
             <div className="flex-1 p-6 lg:p-10 overflow-y-auto border-b lg:border-b-0 lg:border-r border-white/5 custom-scrollbar">
               <div className="max-w-2xl mx-auto">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
-                    {activeStep === 6 ? <ShieldAlert className="w-5 h-5 text-red-400" /> : <Brain className="w-5 h-5 text-teal-400" />}
+                    {currentStepId === "debug" ? <ShieldAlert className="w-5 h-5 text-red-400" /> : <Brain className="w-5 h-5 text-teal-400" />}
                   </div>
-                  <h1 className="text-2xl font-black text-white">{STEPS[activeStep].title}</h1>
+                  <h1 className="text-2xl font-black text-white">{steps[activeStep]?.title}</h1>
                 </div>
 
                 <div className="prose prose-invert prose-teal max-w-none">
-                  {activeStep === 0 && lesson.introduction && (
+                  {currentStepId === "intro" && lesson.introduction && (
                     <>
                       <p className="text-white/80 text-lg leading-relaxed mb-6 font-medium">
                         {lesson.introduction.what_is_it}
@@ -340,7 +410,7 @@ export default function MaterialWorkspace() {
                     </>
                   )}
 
-                  {activeStep === 1 && lesson.concept_explained && (
+                  {currentStepId === "concepts" && lesson.concept_explained && (
                     <>
                       <p className="text-white/80 text-lg leading-relaxed mb-6">
                         <strong>Core Definition:</strong> {lesson.concept_explained.core_definition}
@@ -368,7 +438,7 @@ export default function MaterialWorkspace() {
                     </>
                   )}
 
-                  {activeStep === 2 && lesson.step_by_step_guide && (
+                  {currentStepId === "guide" && lesson.step_by_step_guide && (
                     <>
                       <p className="text-white/80 text-lg leading-relaxed mb-6 font-medium">
                         {lesson.step_by_step_guide.overview}
@@ -389,7 +459,7 @@ export default function MaterialWorkspace() {
                     </>
                   )}
 
-                  {activeStep === 3 && lesson.examples?.example_1 && (
+                  {currentStepId === "example" && lesson.examples?.example_1 && (
                     <>
                       <p className="text-white/70 text-lg leading-relaxed mb-6">
                         {lesson.examples.example_1.description}
@@ -400,7 +470,7 @@ export default function MaterialWorkspace() {
                     </>
                   )}
 
-                  {activeStep === 4 && lesson.common_mistakes && lesson.common_mistakes.length > 0 && (
+                  {currentStepId === "mistakes" && lesson.common_mistakes && lesson.common_mistakes.length > 0 && (
                     <>
                       <h3 className="text-xl font-bold text-white mb-6">Common Pitfalls</h3>
                       <div className="space-y-6">
@@ -432,7 +502,7 @@ export default function MaterialWorkspace() {
                     </>
                   )}
 
-                  {activeStep === 5 && assessment.practice_challenge && (
+                  {currentStepId === "practice" && assessment.practice_challenge && (
                     <>
                       <p className="text-white/80 text-lg leading-relaxed mb-6">
                         {assessment.practice_challenge.problem_statement.split("\n")[0]}
@@ -450,7 +520,7 @@ export default function MaterialWorkspace() {
                     </>
                   )}
 
-                  {activeStep === 6 && lesson.debugging_exercise && (
+                  {currentStepId === "debug" && lesson.debugging_exercise && (
                     <>
                       <p className="text-white/80 text-lg leading-relaxed">
                         {lesson.debugging_exercise.scenario}
@@ -479,7 +549,8 @@ export default function MaterialWorkspace() {
               </div>
             </div>
 
-            {/* RIGHT PANE: Code Editor & AI Feedback */}
+            {/* RIGHT PANE: Code Editor & AI Feedback (only for code steps) */}
+            {(currentStepId === "example" || currentStepId === "practice" || currentStepId === "debug") && (
             <div className="flex-[1.2] flex flex-col bg-[#0b1021]">
               {/* Editor Header */}
               <div className="flex items-center justify-between px-4 py-2 bg-[#0F172A] border-b border-white/5">
@@ -489,15 +560,15 @@ export default function MaterialWorkspace() {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => {
-                    if (activeStep === 3 && lesson.examples?.example_1) setCode(lesson.examples.example_1.code);
-                    if (activeStep === 5 && assessment.practice_challenge) setCode(assessment.practice_challenge.starter_code);
-                    if (activeStep === 6 && lesson.debugging_exercise) setCode(lesson.debugging_exercise.broken_code);
+                    if (currentStepId === "example" && lesson.examples?.example_1) setCode(lesson.examples.example_1.code);
+                    if (currentStepId === "practice" && assessment.practice_challenge) setCode(assessment.practice_challenge.starter_code);
+                    if (currentStepId === "debug" && lesson.debugging_exercise) setCode(lesson.debugging_exercise.broken_code);
                   }} className="p-1.5 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="Reset">
                     <RotateCcw className="w-4 h-4" />
                   </button>
                   <button
                     onClick={handleRunCode}
-                    disabled={activeStep !== 3 && activeStep !== 5 && activeStep !== 6 || isExecuting}
+                    disabled={currentStepId !== "example" && currentStepId !== "practice" && currentStepId !== "debug" || isExecuting}
                     className="flex items-center gap-1.5 px-4 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 disabled:cursor-wait text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-teal-900/20"
                   >
                     <Play className="w-3 h-3 fill-current" /> {isExecuting ? "Running..." : "Run Code"}
@@ -507,7 +578,7 @@ export default function MaterialWorkspace() {
 
               {/* Editor Workspace */}
               <div className="flex-1 relative">
-                {(activeStep !== 3 && activeStep !== 5 && activeStep !== 6) ? (
+                {(currentStepId !== "example" && currentStepId !== "practice" && currentStepId !== "debug") ? (
                   <div className="absolute inset-0 flex items-center justify-center text-white/20 flex-col gap-3 pointer-events-none">
                     <Terminal className="w-12 h-12 opacity-50" />
                     <p className="text-sm">Interactive editor unlocked via coding steps.</p>
@@ -563,34 +634,42 @@ export default function MaterialWorkspace() {
                     </div>
                   )}
 
-                  {!output && !aiFeedback && !isExecuting && (activeStep === 3 || activeStep === 5 || activeStep === 6) && (
+                  {!output && !aiFeedback && !isExecuting && (currentStepId === "example" || currentStepId === "practice" || currentStepId === "debug") && (
                     <p className="text-sm text-white/30 italic px-2">Ready. Hit Run Code to execute your logic and get AI feedback.</p>
                   )}
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
 
         {/* ── BOTTOM NAVIGATION PROGRESS ── */}
         <div className="h-20 bg-[#0F172A] border-t border-white/5 flex items-center justify-between px-6 lg:px-10 shrink-0 z-20">
           <button
-            onClick={() => setActiveStep(prev => Math.max(0, prev - 1))}
+            onClick={async () => {
+              const prev = Math.max(0, activeStep - 1);
+              setActiveStep(prev);
+              await saveProgress(prev);
+            }}
             disabled={activeStep === 0}
             className="px-5 py-2.5 text-white/50 font-semibold hover:text-white disabled:opacity-30 transition-colors"
           >
             Previous
           </button>
 
-          {activeStep < 7 && (
+          {activeStep < steps.length - 1 && (
             <button
               onClick={handleNextStep}
-              className="px-8 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(13,148,136,0.2)] flex items-center gap-2 group"
+              disabled={savingProgress}
+              className="px-8 py-3 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(13,148,136,0.2)] flex items-center gap-2 group"
             >
+              {savingProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Next Concept <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
