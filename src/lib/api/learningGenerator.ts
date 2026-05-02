@@ -1,0 +1,291 @@
+const LMG_API_URL = process.env.NEXT_PUBLIC_LMG_API_URL || 'http://localhost:3002';
+
+interface ApiResponse<T = any> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  code?: string;
+  details?: any[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  error?: string;
+}
+
+interface KnowledgeGap {
+  topic: string;
+  topic_id: string;
+  gap_type: 'FUNDAMENTAL_GAP' | 'PARTIAL_GAP' | 'SURFACE_GAP';
+  confidence?: number;
+  misconceptions?: string[];
+  observed_error_patterns?: Record<string, string[]>;
+  evidence_summary?: string;
+  prerequisite_topics?: string[];
+  related_topics?: string[];
+  suggested_intervention?: {
+    primary: string;
+    secondary: string[];
+    difficulty_level: string;
+    estimated_time_minutes: number;
+    learning_objectives: string[];
+  };
+}
+
+type StrengthItem = string | {
+  topic: string;
+  topic_id: string;
+  confidence?: number;
+  mastery_level?: string;
+  evidence_summary?: string;
+  can_teach_others?: boolean;
+};
+
+interface MasteryProfile {
+  overall_mastery_score: number;
+  knowledge_gaps: KnowledgeGap[];
+  strengths: StrengthItem[];
+}
+
+interface SubmitProfilePayload {
+  student_id: string;
+  analysis_timestamp?: string;
+  mastery_profile: MasteryProfile;
+  recommendations?: {
+    priority_order?: string[];
+    general_advice?: string;
+    for_instructor?: string;
+  };
+  data_sources?: Record<string, string>;
+}
+
+interface GenerationJob {
+  job_id: string;
+  student_id: string;
+  profile_id: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'partial';
+  gaps_total: number;
+  gaps_completed: number;
+  gaps_failed: number;
+  materials_generated: number;
+  materials_failed: number;
+  created_at: string;
+  completed_at?: string;
+  error?: string;
+}
+
+interface Lesson {
+  page_title?: string;
+  introduction?: {
+    what_is_it: string;
+    why_learn_it: string;
+    prerequisite_note: string;
+  };
+  concept_explained?: {
+    core_definition: string;
+    analogy: string;
+    how_java_handles_it: string;
+    misconceptions_corrected: string;
+  };
+  syntax_reference?: {
+    basic_syntax: string;
+    syntax_breakdown: string[];
+    important_rules: string[];
+  };
+  examples?: Record<string, {
+    title: string;
+    description: string;
+    code: string;
+    output: string;
+    explanation: string;
+  }>;
+  step_by_step_guide?: {
+    overview: string;
+    steps: Array<{
+      step_number: number;
+      title: string;
+      instruction: string;
+      java_tip: string;
+    }>;
+  };
+  common_mistakes?: Array<{
+    mistake_number: number;
+    title: string;
+    description: string;
+    bad_code: string;
+    good_code: string;
+    explanation: string;
+  }>;
+  debugging_exercise?: {
+    title: string;
+    scenario: string;
+    broken_code: string;
+    error_output: string;
+    hint: string;
+    solution_code: string;
+    solution_explanation: string;
+  };
+  quick_reference?: {
+    cheat_sheet: string;
+    important_rules: string[];
+  };
+  connections?: any;
+}
+
+interface QuizQuestion {
+  question_number: number;
+  type: string;
+  question: string;
+  options: string[];
+  correct: string;
+  explanation: string;
+  misconception_targeted: string;
+  difficulty: string;
+  code_snippet?: string;
+}
+
+interface Assessment {
+  quiz: QuizQuestion[];
+  concept_summary: string;
+  practice_challenge: {
+    title: string;
+    difficulty: string;
+    time_estimate: string;
+    problem_statement: string;
+    requirements: string[];
+    starter_code: string;
+    example_input: string;
+    expected_output: string;
+    bonus?: string;
+  };
+  self_check?: {
+    can_you: string[];
+    if_stuck: string;
+  };
+}
+
+interface LearningMaterial {
+  _id: string;
+  structured_material: {
+    material_id: string;
+    student_id: string;
+    topic: string;
+    topic_id: string;
+    gap_type: string;
+    difficulty_level: string;
+    generated_at: string;
+    generation_models?: {
+      llm?: string;
+      slm?: string;
+    };
+    lesson: Lesson;
+    assessment: Assessment;
+    personalisation?: any;
+    study_plan?: any;
+    agentic_metadata?: any;
+    quality_flags?: any;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+interface AgentStats {
+  total_jobs: number;
+  active_jobs: number;
+  completed_jobs: number;
+  failed_jobs: number;
+  materials_generated: number;
+  latest_profile?: {
+    overall_mastery_score: number;
+    gaps_count: number;
+  };
+}
+
+class LearningGeneratorApi {
+  private getAccessToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('accessToken');
+  }
+
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: any,
+  ): Promise<ApiResponse<T>> {
+    const token = this.getAccessToken();
+    const url = `${LMG_API_URL}${path}`;
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      ...(body && { body: JSON.stringify(body) }),
+    });
+
+    const result = await response.json();
+    return result;
+  }
+
+  async checkHealth(): Promise<{ status: string; service: string }> {
+    const response = await fetch(`${LMG_API_URL}/health`);
+    return response.json();
+  }
+
+  async submitProfile(payload: SubmitProfilePayload): Promise<ApiResponse<{
+    job_id: string;
+    student_id: string;
+    gaps_queued: number;
+    topics: string[];
+    check_status_at: string;
+    materials_available_at: string;
+  }>> {
+    return this.request('POST', '/api/mastery/submit', payload);
+  }
+
+  async getProfile(studentId: string): Promise<ApiResponse> {
+    return this.request('GET', `/api/mastery/${studentId}`);
+  }
+
+  async getProfileHistory(studentId: string, page = 1, limit = 10): Promise<ApiResponse> {
+    return this.request('GET', `/api/mastery/${studentId}/history?page=${page}&limit=${limit}`);
+  }
+
+  async getMaterials(studentId: string): Promise<ApiResponse<LearningMaterial[]>> {
+    return this.request('GET', `/api/materials/student/${studentId}`);
+  }
+
+  async getMaterial(materialId: string): Promise<ApiResponse<LearningMaterial>> {
+    return this.request('GET', `/api/materials/${materialId}`);
+  }
+
+  async getJobStatus(jobId: string): Promise<ApiResponse<GenerationJob>> {
+    return this.request('GET', `/api/agent/jobs/${jobId}`);
+  }
+
+  async getAgentStats(): Promise<ApiResponse<AgentStats>> {
+    return this.request('GET', '/api/agent/stats');
+  }
+
+  async retryMaterial(materialId: string): Promise<ApiResponse> {
+    return this.request('POST', `/api/materials/${materialId}/retry`);
+  }
+}
+
+export const learningGeneratorApi = new LearningGeneratorApi();
+export type {
+  ApiResponse,
+  KnowledgeGap,
+  StrengthItem,
+  MasteryProfile,
+  SubmitProfilePayload,
+  GenerationJob,
+  LearningMaterial,
+  Lesson,
+  Assessment,
+  QuizQuestion,
+  AgentStats,
+};
