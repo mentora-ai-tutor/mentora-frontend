@@ -1,4 +1,4 @@
-const AI_ENGINE_API_URL = process.env.NEXT_PUBLIC_AI_ENGINE_API_URL || 'http://localhost:3005';
+const AI_ENGINE_API_URL = process.env.NEXT_PUBLIC_AI_ENGINE_API_URL || 'http://localhost:5010';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -75,12 +75,12 @@ class AIEngineApi {
     }
   }
 
-  async explainSimpler(code: string, topic?: string): Promise<ApiResponse<AIInsightResult>> {
-    return this.request('POST', '/api/explain-simpler', { code, topic });
+  async explainSimpler(content: string, topic?: string, stepType?: string): Promise<ApiResponse<AIInsightResult>> {
+    return this.request('POST', '/api/explain-simpler', { content, topic, stepType });
   }
 
-  async getAnalogy(code: string, topic?: string): Promise<ApiResponse<AIInsightResult>> {
-    return this.request('POST', '/api/analogy', { code, topic });
+  async getAnalogy(content: string, topic?: string, stepType?: string): Promise<ApiResponse<AIInsightResult>> {
+    return this.request('POST', '/api/analogy', { content, topic, stepType });
   }
 }
 
