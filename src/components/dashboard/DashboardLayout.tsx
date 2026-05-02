@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Menu, X, Search, Bell, Settings, LogOut,
-  LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp, User
+  LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp, User, ChevronDown
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MentoraLogo from "@/components/auth/MentoraLogo";
@@ -36,7 +36,16 @@ const navItems = [
       { name: "Mastery", href: "/knowledge-assist/mastery" },
     ],
   },
-  { name: "Material Generator", href: "/learning-generator", icon: BookOpen },
+  {
+    name: "Material Generator",
+    icon: BookOpen,
+    subItems: [
+      { name: "Overview", href: "/learning-generator" },
+      { name: "Knowledge Gaps", href: "/learning-generator/knowledge-gaps" },
+      { name: "Materials", href: "/learning-generator/materials" },
+      { name: "Workspace", href: "/learning-generator/workspace" },
+    ],
+  },
   { name: "Assessment", href: "/assessment", icon: Target },
   { name: "Peer Learning", href: "/peer-learning", icon: Users },
   { name: "Progress", href: "/progress", icon: TrendingUp },
@@ -47,15 +56,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [scrolled, setScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
 
   useEffect(() => {
+    setMounted(true);
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
 
-    // Auto-collapse on small screens
     if (window.innerWidth < 1024) setSidebarOpen(false);
 
     return () => window.removeEventListener("scroll", handleScroll);
@@ -102,9 +112,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-teal-500 rounded-r-full shadow-[0_0_10px_rgba(13,148,136,0.8)]" />
                     )}
                     <item.icon className="w-5 h-5 shrink-0" />
-                    <span className={`font-semibold text-sm whitespace-nowrap transition-opacity duration-300 ${!sidebarOpen && "lg:opacity-0 lg:hidden"}`}>
+                    <span className={`font-semibold text-sm whitespace-nowrap transition-opacity duration-300 flex-1 ${!sidebarOpen && "lg:opacity-0 lg:hidden"}`}>
                       {item.name}
                     </span>
+                    {!sidebarOpen ? null : (
+                      <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                    )}
                   </button>
 
                   <div className={`${!isExpanded || !sidebarOpen ? "hidden" : ""} pl-6 space-y-1`}>
@@ -204,11 +217,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 onClick={() => setProfileOpen(!profileOpen)}
               >
                 <div className="hidden md:block text-right">
-                  <p className="text-sm font-bold text-white group-hover:text-teal-200 transition-colors">{user?.name || "User"}</p>
-                  <p className="text-[10px] text-teal-400 uppercase tracking-widest font-semibold pb-0.5">{user?.role || "Student"}</p>
+                  <p className="text-sm font-bold text-white group-hover:text-teal-200 transition-colors">{mounted ? (user?.name || "User") : "User"}</p>
+                  <p className="text-[10px] text-teal-400 uppercase tracking-widest font-semibold pb-0.5">{mounted ? (user?.role || "Student") : "Student"}</p>
                 </div>
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-teal-800 border-2 border-[#0F172A] shadow-[0_0_0_1px_rgba(255,255,255,0.1)] flex items-center justify-center font-bold relative overflow-hidden transition-transform group-hover:scale-105">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                  {mounted && user?.name ? user.name.charAt(0).toUpperCase() : "U"}
                 </div>
               </div>
 
