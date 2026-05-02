@@ -108,23 +108,87 @@ export default function LearningGeneratorDashboard() {
         student_id: user.student_id,
         analysis_timestamp: new Date().toISOString(),
         mastery_profile: {
-          overall_mastery_score: 45,
+          overall_mastery_score: 48,
           knowledge_gaps: [
             {
-              topic: "Recursion",
-              topic_id: "java-recursion-001",
+              topic: "Object-Oriented Programming (Polymorphism & Inheritance)",
+              topic_id: "CS102-OOP",
               gap_type: "FUNDAMENTAL_GAP" as const,
-              misconceptions: ["Thinks the base case is optional", "Confuses stack frame with heap allocation"],
-              evidence_summary: "Student scored 18/60 on Recursion quiz",
+              misconceptions: [
+                "Confuses method overloading with overriding",
+                "Does not understand dynamic dispatch",
+                "Misuses abstract classes vs interfaces",
+              ],
+              evidence_summary:
+                "GitHub shows a single massive commit (+420 lines) introducing a complete polymorphism implementation (AI probability 91%). Sandbox tasks on OOP had 0% success rate with completion under 60s. Quiz scores on OOP topics are 18%, with specific misconceptions on dynamic dispatch and interface contracts.",
+              prerequisite_topics: ["Classes and Objects", "Methods", "Encapsulation"],
+              related_topics: ["Design Patterns", "Generics"],
+            },
+            {
+              topic: "Linked Lists",
+              topic_id: "CS201-LL",
+              gap_type: "FUNDAMENTAL_GAP" as const,
+              misconceptions: [
+                "Pointer/reference manipulation during insertion/deletion",
+                "Handling edge cases (empty list, single node, head/tail updates)",
+                "Doubly vs singly linked list differences",
+              ],
+              evidence_summary:
+                "GitHub reveals a single commit with complete linked list implementation (AI probability 89%). Sandbox shows 100% success but suspiciously fast (25s). Quiz scores are 22%, with major misconceptions on pointer updates and edge case handling. Student cannot manually trace insert/delete operations.",
+              prerequisite_topics: ["Arrays", "Classes and Objects", "References/Pointers"],
+              related_topics: ["Stacks and Queues", "Trees"],
+            },
+            {
+              topic: "Exception Handling",
+              topic_id: "CS102-EXC",
+              gap_type: "PARTIAL_GAP" as const,
+              misconceptions: [
+                "Checked vs unchecked exceptions",
+                "try-catch-finally flow control",
+                "When to throw vs catch vs suppress",
+              ],
+              evidence_summary:
+                "GitHub shows exception handling appearing fully formed without evolution (medium risk). Sandbox success rate 55% with errors on exception types. Quiz score 48%, with misconceptions on checked/unchecked distinction and finally block behavior.",
+              prerequisite_topics: ["Control Flow", "Methods", "File I/O"],
+              related_topics: ["Logging", "Custom Exceptions"],
+            },
+            {
+              topic: "Generics",
+              topic_id: "CS201-GEN",
+              gap_type: "PARTIAL_GAP" as const,
+              misconceptions: [
+                "Type erasure concept",
+                "Bounded vs unbounded type parameters",
+                "Generic methods vs generic classes",
+              ],
+              evidence_summary:
+                "GitHub commits show generic code appearing complete without prior attempts (medium risk). Sandbox tasks 60% success with type mismatch errors. Quiz score 52%, struggling with bounded type parameters and wildcard usage.",
+              prerequisite_topics: ["Object-Oriented Programming", "Inheritance"],
+              related_topics: ["Collections Framework", "Polymorphism"],
             },
           ],
-          strengths: ["Understands basic syntax", "Can write simple loops"],
+          strengths: [
+            "Understands basic syntax and can write simple methods",
+            "Can implement basic loops and conditionals",
+            "Familiar with primitive data types and arrays",
+          ],
         },
         recommendations: {
-          priority_order: ["Recursion"],
-          general_advice: "Focus on fundamental gaps first.",
+          priority_order: [
+            "Object-Oriented Programming (Polymorphism & Inheritance)",
+            "Linked Lists",
+            "Exception Handling",
+            "Generics",
+          ],
+          general_advice:
+            "Focus on fundamental gaps first (OOP and Linked Lists) as they are prerequisites for many advanced topics. Use interactive tutorials and peer tutoring. For Exception Handling and Generics, targeted quizzes and practice exercises should suffice.",
+          for_instructor:
+            "Student may be using AI for difficult topics. Verify understanding with proctored tasks. Encourage incremental commits and descriptive commit messages.",
         },
         data_sources: {
+          github: "available",
+          sandbox: "available",
+          quizzes: "available",
           quiz_results: new Date().toISOString().split("T")[0],
         },
       };
