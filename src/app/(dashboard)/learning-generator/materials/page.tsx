@@ -197,7 +197,7 @@ export default function MaterialsPage() {
 
                 {/* Action */}
                 <Link
-                  href={`/learning-generator/workspace/${material._id}`}
+                  href={`/learning-generator/materials/${material._id}`}
                   className="w-full py-2.5 bg-teal-600/20 border border-teal-500/30 text-teal-400 text-xs font-bold rounded-xl hover:bg-teal-600/30 transition-colors flex items-center justify-center gap-2"
                 >
                   <Eye className="w-3.5 h-3.5" /> Open Workspace

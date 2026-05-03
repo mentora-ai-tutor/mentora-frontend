@@ -492,7 +492,7 @@ export default function LearningGeneratorDashboard() {
                       </div>
                       {material ? (
                         <Link
-                          href={`/learning-generator/workspace/${material._id}`}
+                          href={`/learning-generator/materials/${material._id}`}
                           className="px-3 py-1.5 bg-teal-600/20 border border-teal-500/30 text-teal-400 text-[10px] font-bold rounded-lg hover:bg-teal-600/30 transition-colors flex items-center gap-1"
                         >
                           {progress?.completed_at ? 'Review' : 'Continue'} <ExternalLink className="w-2.5 h-2.5" />
@@ -557,7 +557,7 @@ export default function LearningGeneratorDashboard() {
                   const pct = p.total_steps > 0 ? Math.round((p.completed_steps.length / p.total_steps) * 100) : 0;
                   const isComplete = !!p.completed_at;
                   return (
-                    <Link key={i} href={`/learning-generator/workspace/${p.material_id}`} className="block p-3 bg-[#334155]/20 border border-white/5 rounded-lg hover:border-white/20 transition-all">
+                    <Link key={i} href={`/learning-generator/materials/${p.material_id}`} className="block p-3 bg-[#334155]/20 border border-white/5 rounded-lg hover:border-white/20 transition-all">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-bold text-white">{p.topic}</p>
                         {isComplete && <CheckCircle2 className="w-4 h-4 text-green-400" />}
