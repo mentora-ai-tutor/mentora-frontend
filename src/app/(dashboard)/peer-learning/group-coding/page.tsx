@@ -106,7 +106,7 @@ export default function GroupCodingSessionPage() {
                 </Link>
               </div>
             </div>
-            <div className="p-6 flex-1 font-mono text-sm bg-[#0F172A] text-gray-400 overflow-auto leading-relaxed">
+            <div className="p-6 flex-1 font-mono text-sm bg-black text-gray-400 overflow-auto leading-relaxed shadow-inner">
               <div className="text-teal-400 font-bold inline">public class</div> <div className="text-white inline">PairSum</div> {"{\n"}
               {"  "}<div className="text-teal-400 inline font-bold opacity-80">public static void</div> <div className="text-[#B45309] inline font-bold">main</div>(String[] args) {"{\n"}
               {"    "}<div className="text-teal-400 inline">int</div>[] arr = {"{"}2, 4, 3, 5, 7, 8, 1{"}"};\n
@@ -130,7 +130,7 @@ export default function GroupCodingSessionPage() {
               <div className="p-3 border-b border-white/5 bg-[#0F172A]/80 px-5">
                 <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Telemetry Output</h3>
               </div>
-              <div className="p-6 font-mono text-xs space-y-2 bg-black/20">
+              <div className="p-5 font-mono text-xs space-y-2 bg-black min-h-[120px]">
                 <p className="text-white/30 italic">{">"} Running PairSum.java unit...</p>
                 <div className="pl-4 py-1 border-l border-white/5 space-y-1">
                   <p className="text-white/80">(2,7)</p>

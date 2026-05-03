@@ -145,7 +145,7 @@ export default function GroupDebuggingSessionPage() {
                 </Link>
               </div>
             </div>
-            <div className="p-6 flex-1 font-mono text-sm bg-[#0F172A] text-gray-400 overflow-auto leading-relaxed relative">
+            <div className="p-8 flex-1 font-mono text-sm bg-black text-gray-400 overflow-auto leading-relaxed shadow-inner">
               <div className="text-teal-400 font-bold inline">public class</div> <div className="text-white inline">BuggyArraySum</div> {"{\n"}
               {"  "}<div className="text-teal-400 inline opacity-80">public static void</div> <div className="text-[#B45309] inline font-bold">main</div>(String[] args) {"{\n"}
               {"    "}<div className="text-teal-400 inline">int</div>[] numbers = {"{"}1, 2, 3, 4, 5{"}"};\n
@@ -183,7 +183,7 @@ export default function GroupDebuggingSessionPage() {
               <div className="p-3 border-b border-white/5 bg-[#0F172A]/80 px-5">
                 <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Telemetry Output</h3>
               </div>
-              <div className="p-5 font-mono text-xs space-y-2 bg-black/20 min-h-[150px]">
+              <div className="p-8 font-mono text-xs space-y-2 bg-black min-h-[120px]">
                 <p className="text-white/30 italic">{">"} Initializing BuggyArraySum diagnostic...</p>
                 <div className="py-2 space-y-1">
                   <p className="text-white/80 font-bold">Sum is: 15</p>
