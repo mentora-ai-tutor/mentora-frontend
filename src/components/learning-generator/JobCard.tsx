@@ -15,7 +15,7 @@ export default function JobCard({ job, onDismiss, closingJobs }: JobCardProps) {
   const isCompleted = job.status === "completed" || job.status === "partial";
 
   return (
-    <div className="p-5 bg-[#1e293b]/90 border border-teal-500/20 rounded-2xl animate-fade-in">
+    <div className="p-5 bg-[#1e293b]/90 backdrop-blur-xl border border-teal-500/20 rounded-2xl transition-all hover:scale-[1.01]">
       <div className="flex items-center gap-3 mb-3">
         {isProcessing ? (
           <Sparkles className="w-5 h-5 text-teal-400 animate-spin-slow" />
@@ -24,19 +24,19 @@ export default function JobCard({ job, onDismiss, closingJobs }: JobCardProps) {
         ) : (
           <XCircle className="w-5 h-5 text-red-400" />
         )}
-        <div className="flex-1">
-          <h3 className="text-sm font-bold text-white">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-bold text-white truncate">
             {isProcessing ? "Generating Materials..." : isCompleted ? "Generation Complete" : "Generation Failed"}
           </h3>
-          <p className="text-xs text-white/40">{job.job_id} • {job.status}</p>
+          <p className="text-xs text-white/40 truncate">{job.job_id}</p>
         </div>
-        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase shrink-0 ${
           isProcessing ? "bg-teal-500/20 text-teal-400" : isCompleted ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
         }`}>{job.status}</span>
         <button
           onClick={() => onDismiss(job.job_id)}
           disabled={closingJobs.includes(job.job_id)}
-          className="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+          className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 shrink-0"
           title="Hide from view"
         >
           {closingJobs.includes(job.job_id) ? (
@@ -58,7 +58,7 @@ export default function JobCard({ job, onDismiss, closingJobs }: JobCardProps) {
         <div className="flex justify-between text-xs text-white/40">
           <span>{job.gaps_completed}/{job.gaps_total} topics processed</span>
           {job.materials_generated > 0 && (
-            <span className="text-teal-400">{job.materials_generated} materials ready</span>
+            <span className="text-teal-400 font-medium">{job.materials_generated} materials ready</span>
           )}
         </div>
       </div>
