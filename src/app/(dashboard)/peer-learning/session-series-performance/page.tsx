@@ -260,13 +260,13 @@ export default function SessionSeriesPerformancePage() {
 
       <div className="flex flex-wrap gap-4 pt-8 justify-center">
         <Link href="/peer-learning">
-          <Button variant="outline" className="border-white/10 hover:bg-white/5 text-white/40 hover:text-white font-black px-10 h-12 rounded-2xl text-[10px] uppercase tracking-widest transition-all">
+          <button className="border border-white/10 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white font-black px-10 h-12 rounded-2xl text-[10px] uppercase tracking-widest transition-all flex items-center justify-center">
             RETURN TO COMMAND CENTER
-          </Button>
+          </button>
         </Link>
-        <Button variant="outline" className="border-white/10 hover:bg-white/5 text-white/40 hover:text-white font-black px-10 h-12 rounded-2xl text-[10px] uppercase tracking-widest transition-all">
+        <button className="border border-white/10 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white font-black px-10 h-12 rounded-2xl text-[10px] uppercase tracking-widest transition-all flex items-center justify-center">
           ACCESS VERIFIED POOL
-        </Button>
+        </button>
       </div>
     </div>
   );
