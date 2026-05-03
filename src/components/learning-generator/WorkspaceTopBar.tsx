@@ -10,8 +10,8 @@ interface WorkspaceTopBarProps {
   code: string;
   isExecuting: boolean;
   onToggleStdin: () => void;
-  onGenerateFlashcards: () => void;
-  onGenerateTests: () => void;
+  onOpenFlashcards: () => void;
+  onOpenTests: () => void;
   onToggleTimeline: () => void;
   onCodeReview: () => void;
   onResetCode: () => void;
@@ -20,7 +20,7 @@ interface WorkspaceTopBarProps {
 
 export default function WorkspaceTopBar({
   showStdin, reviewMode, showTimeline, code, isExecuting,
-  onToggleStdin, onGenerateFlashcards, onGenerateTests,
+  onToggleStdin, onOpenFlashcards, onOpenTests,
   onToggleTimeline, onCodeReview, onResetCode, onRunCode,
 }: WorkspaceTopBarProps) {
   return (
@@ -41,10 +41,10 @@ export default function WorkspaceTopBar({
         <button onClick={onToggleStdin} className={`p-1.5 rounded-lg transition-colors text-xs ${showStdin ? "bg-teal-500/20 text-teal-400" : "text-white/30 hover:text-white hover:bg-white/5"}`} title="Stdin Input">
           <Terminal className="w-3.5 h-3.5" />
         </button>
-        <button onClick={onGenerateFlashcards} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors" title="Concept Flashcards">
+        <button onClick={onOpenFlashcards} className="p-1.5 rounded-lg text-white/30 hover:text-teal-400 hover:bg-white/5 transition-colors" title="Concept Flashcards">
           <Layers className="w-3.5 h-3.5" />
         </button>
-        <button onClick={onGenerateTests} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors" title="Generate Tests">
+        <button onClick={onOpenTests} className="p-1.5 rounded-lg text-white/30 hover:text-teal-400 hover:bg-white/5 transition-colors" title="JUnit Test Generator">
           <TestTube className="w-3.5 h-3.5" />
         </button>
         <button onClick={onToggleTimeline} className={`p-1.5 rounded-lg transition-colors text-xs ${showTimeline ? "bg-teal-500/20 text-teal-400" : "text-white/30 hover:text-white hover:bg-white/5"}`} title="Execution Timeline">
@@ -54,7 +54,7 @@ export default function WorkspaceTopBar({
         <button onClick={onCodeReview} className={`p-1.5 rounded-lg transition-colors text-xs flex items-center gap-1 ${reviewMode ? "bg-purple-500/20 text-purple-400" : "text-white/30 hover:text-white hover:bg-white/5"}`} title="Code Review">
           <Eye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Review</span>
         </button>
-        <button onClick={onResetCode} className="p-1.5 text-white/30 hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="Reset">
+        <button onClick={onResetCode} className="p-1.5 text-white/30 hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="Reset All">
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
         <button onClick={onRunCode} disabled={!code.trim() || isExecuting} className="flex items-center gap-1.5 px-4 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 disabled:cursor-wait text-white text-xs font-bold rounded-lg transition-colors">

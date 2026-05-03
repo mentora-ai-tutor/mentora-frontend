@@ -42,6 +42,7 @@ interface CodeReviewResult {
   summary: string;
   overall_score: number;
   model: string;
+  is_error?: boolean;
 }
 
 interface Flashcard {

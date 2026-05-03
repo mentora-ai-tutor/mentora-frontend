@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Mentora - AI-Powered Learning Platform",
   description: "Personalized learning system with AI components",
   icons: {
-    icon: "/icon.png",
+    icon: "/Logo.svg",
   },
 };
 

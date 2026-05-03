@@ -10,14 +10,17 @@ interface FlashcardsPanelProps {
   activeCard: number;
   onClose: () => void;
   onCardSelect: (index: number) => void;
+  onGenerate: () => void;
   onRegenerate: () => void;
 }
 
 export default function FlashcardsPanel({
   show, flashcards, isLoading, activeCard,
-  onClose, onCardSelect, onRegenerate,
+  onClose, onCardSelect, onGenerate, onRegenerate,
 }: FlashcardsPanelProps) {
   if (!show) return null;
+
+  const hasData = flashcards.length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -33,7 +36,7 @@ export default function FlashcardsPanel({
         <div className="flex-1 p-4 overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center gap-2 text-sm text-teal-400/60 justify-center py-12"><Loader2 className="w-4 h-4 animate-spin" /> Generating flashcards...</div>
-          ) : flashcards.length > 0 ? (
+          ) : hasData ? (
             <div className="space-y-3">
               {flashcards.map((card, i) => (
                 <div
@@ -57,13 +60,17 @@ export default function FlashcardsPanel({
                   )}
                 </div>
               ))}
+              <button onClick={onRegenerate} className="w-full py-2 bg-teal-600/20 border border-teal-500/30 text-teal-400 text-xs font-bold rounded-lg hover:bg-teal-600/30 transition-colors flex items-center justify-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" /> Regenerate Flashcards
+              </button>
             </div>
           ) : (
             <div className="text-center py-12">
               <Layers className="w-8 h-8 text-white/10 mx-auto mb-3" />
-              <p className="text-sm text-white/40 mb-3">No concepts detected.</p>
-              <button onClick={onRegenerate} className="px-4 py-2 bg-teal-600/20 border border-teal-500/30 text-teal-400 text-xs font-bold rounded-lg hover:bg-teal-600/30">
-                Regenerate
+              <p className="text-sm text-white/40 mb-1">AI-generated concept flashcards</p>
+              <p className="text-xs text-white/25 mb-4">Key concepts extracted from your code</p>
+              <button onClick={onGenerate} className="px-6 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition-all hover:scale-105 shadow-lg shadow-teal-600/20">
+                Generate Flashcards
               </button>
             </div>
           )}

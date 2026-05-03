@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiEngineApi, type CodeExecutionResult, type CodeReviewResult, type Flashcard } from "@/lib/api/aiEngine";
+import { useWorkspaceSession } from "@/hooks/useWorkspaceSession";
 import WorkspaceTopBar from "@/components/learning-generator/WorkspaceTopBar";
 import StdinBar from "@/components/learning-generator/StdinBar";
 import WorkspaceEditor from "@/components/learning-generator/WorkspaceEditor";
@@ -13,88 +14,42 @@ import TestsPanel from "@/components/learning-generator/TestsPanel";
 
 export default function WorkspaceSandbox() {
   const { user } = useAuth();
-  const [code, setCode] = useState(
-    `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Mentora!");\n    }\n}`
-  );
-  const [output, setOutput] = useState<string | null>(null);
-  const [executionError, setExecutionError] = useState<string | null>(null);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [isCompilationError, setIsCompilationError] = useState(false);
-  const [aiFeedback, setAiFeedback] = useState<string | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"output" | "feedback" | "review" | "fix">("output");
-  const [stdinInput, setStdinInput] = useState("");
-  const [showStdin, setShowStdin] = useState(false);
-
-  const [highlightedCode, setHighlightedCode] = useState("");
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [isExplaining, setIsExplaining] = useState(false);
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [explanationPosition, setExplanationPosition] = useState({ top: 0, left: 0 });
-
-  const [fixSuggestion, setFixSuggestion] = useState<{ suggested_fix: string; fixed_code: string; explanation: string } | null>(null);
-  const [isFixing, setIsFixing] = useState(false);
-
-  const [reviewMode, setReviewMode] = useState(false);
-  const [reviewData, setReviewData] = useState<CodeReviewResult | null>(null);
-  const [isReviewing, setIsReviewing] = useState(false);
-
-  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [showFlashcards, setShowFlashcards] = useState(false);
-  const [isLoadingFlashcards, setIsLoadingFlashcards] = useState(false);
-  const [activeFlashcard, setActiveFlashcard] = useState(0);
-
-  const [testCode, setTestCode] = useState<string | null>(null);
-  const [testExplanation, setTestExplanation] = useState<string | null>(null);
-  const [showTests, setShowTests] = useState(false);
-  const [isGeneratingTests, setIsGeneratingTests] = useState(false);
-
-  const [structuredOutput, setStructuredOutput] = useState<object | null>(null);
-  const [showTimeline, setShowTimeline] = useState(false);
-  const [executionTimeline, setExecutionTimeline] = useState<{ method: string; duration: string }[]>([]);
+  const { session, update, reset } = useWorkspaceSession();
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
   const handleRunCode = async () => {
-    if (!code.trim()) return;
-    setIsExecuting(true);
-    setOutput(null);
-    setExecutionError(null);
-    setAiFeedback(null);
-    setStructuredOutput(null);
-    setFixSuggestion(null);
-    setReviewData(null);
-    setActiveTab("output");
+    if (!session.code.trim()) return;
+    update({ isExecuting: true, output: null, executionError: null, aiFeedback: null, structuredOutput: null, fixSuggestion: null, reviewData: null, activeTab: "output" });
 
     try {
-      const res = await aiEngineApi.executeCode(code, "sandbox", stdinInput || undefined);
+      const res = await aiEngineApi.executeCode(session.code, "sandbox", session.stdinInput || undefined);
       if (res.data) {
         const { success, output: runOutput, error: runError, is_compilation_error: isCompError } = res.data;
-        setIsCompilationError(isCompError);
+        update({ isCompilationError: isCompError });
 
         if (runError) {
-          setExecutionError(runError);
-          setActiveTab("fix");
+          update({ executionError: runError, activeTab: "fix" });
         } else if (runOutput) {
-          setOutput(runOutput);
-          tryAutoFormatOutput(runOutput);
-          extractTimeline(runOutput);
+          const structured = tryAutoFormatOutput(runOutput);
+          const timeline = extractTimeline(runOutput);
+          update({ output: runOutput, structuredOutput: structured, executionTimeline: timeline });
         }
 
         try {
-          setIsAiLoading(true);
-          const fbRes = await aiEngineApi.getFeedback(code, runOutput || undefined, runError || undefined, "sandbox");
-          if (fbRes.data) setAiFeedback(fbRes.data.feedback);
+          update({ isAiLoading: true });
+          const fbRes = await aiEngineApi.getFeedback(session.code, runOutput || undefined, runError || undefined, "sandbox");
+          if (fbRes.data) update({ aiFeedback: fbRes.data.feedback });
         } catch {
-          setAiFeedback("AI feedback unavailable right now.");
+          update({ aiFeedback: "AI feedback unavailable right now." });
         } finally {
-          setIsAiLoading(false);
+          update({ isAiLoading: false });
         }
       }
     } catch {
-      setExecutionError("Execution service unavailable. Please try again.");
+      update({ executionError: "Execution service unavailable. Please try again." });
     } finally {
-      setIsExecuting(false);
+      update({ isExecuting: false });
     }
   };
 
@@ -102,31 +57,24 @@ export default function WorkspaceSandbox() {
     const trimmed = raw.trim();
     if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
       try {
-        setStructuredOutput(JSON.parse(trimmed));
+        return JSON.parse(trimmed);
       } catch {
-        setStructuredOutput(null);
+        return null;
       }
     }
+    return null;
   };
 
   const extractTimeline = (raw: string) => {
     const lines = raw.split("\n").filter(Boolean);
-    const timeline = lines.map((line, i) => ({
+    return lines.map((line, i) => ({
       method: i === 0 ? "main()" : `line ${i + 1}`,
       duration: `${Math.floor(Math.random() * 50 + 5)}ms`,
     }));
-    setExecutionTimeline(timeline);
   };
 
   const handleResetCode = () => {
-    setCode(`public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Mentora!");\n    }\n}`);
-    setOutput(null);
-    setExecutionError(null);
-    setAiFeedback(null);
-    setFixSuggestion(null);
-    setReviewData(null);
-    setStructuredOutput(null);
-    setShowExplanation(false);
+    reset();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -135,7 +83,7 @@ export default function WorkspaceSandbox() {
       const target = e.currentTarget;
       const start = target.selectionStart;
       const end = target.selectionEnd;
-      setCode((prev) => prev.substring(0, start) + "    " + prev.substring(end));
+      update({ code: session.code.substring(0, start) + "    " + session.code.substring(end) });
       setTimeout(() => { target.selectionStart = target.selectionEnd = start + 4; }, 0);
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -148,182 +96,183 @@ export default function WorkspaceSandbox() {
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed) {
       const selected = sel.toString().trim();
-      if (selected.length > 5 && selected.length < 500 && code.includes(selected)) {
-        setHighlightedCode(selected);
+      if (selected.length > 5 && selected.length < 500 && session.code.includes(selected)) {
+        update({ highlightedCode: selected });
         const range = sel.getRangeAt(0);
         const rect = range.getBoundingClientRect();
-        setExplanationPosition({ top: rect.bottom + 8, left: rect.left });
+        update({ explanationPosition: { top: rect.bottom + 8, left: rect.left } });
       }
     } else {
-      setHighlightedCode("");
+      update({ highlightedCode: "" });
     }
-  }, [code]);
+  }, [session.code, update]);
 
   const handleExplainSelected = async () => {
-    if (!highlightedCode) return;
-    setIsExplaining(true);
-    setShowExplanation(true);
-    setAiExplanation(null);
+    if (!session.highlightedCode) return;
+    update({ isExplaining: true, showExplanation: true, aiExplanation: null });
     try {
-      const res = await aiEngineApi.explainHighlightedCode(code, highlightedCode);
-      if (res.data) setAiExplanation(res.data.explanation);
+      const res = await aiEngineApi.explainHighlightedCode(session.code, session.highlightedCode);
+      if (res.data) update({ aiExplanation: res.data.explanation });
     } catch {
-      setAiExplanation("Unable to explain right now.");
+      update({ aiExplanation: "Unable to explain right now." });
     } finally {
-      setIsExplaining(false);
+      update({ isExplaining: false });
     }
   };
 
   const handleFixError = async () => {
-    if (!executionError) return;
-    setIsFixing(true);
-    setFixSuggestion(null);
+    if (!session.executionError) return;
+    update({ isFixing: true, fixSuggestion: null });
     try {
-      const res = await aiEngineApi.fixError(code, executionError);
-      if (res.data) setFixSuggestion({ suggested_fix: res.data.suggested_fix, fixed_code: res.data.fixed_code, explanation: res.data.explanation });
+      const res = await aiEngineApi.fixError(session.code, session.executionError);
+      if (res.data) update({ fixSuggestion: { suggested_fix: res.data.suggested_fix, fixed_code: res.data.fixed_code, explanation: res.data.explanation } });
     } catch {
-      setFixSuggestion({ suggested_fix: "Unable to generate fix.", fixed_code: code, explanation: "Try reviewing the error message." });
+      update({ fixSuggestion: { suggested_fix: "Unable to generate fix.", fixed_code: session.code, explanation: "Try reviewing the error message." } });
     } finally {
-      setIsFixing(false);
+      update({ isFixing: false });
     }
   };
 
   const handleApplyFix = () => {
-    if (fixSuggestion?.fixed_code) {
-      setCode(fixSuggestion.fixed_code);
-      setFixSuggestion(null);
-      setExecutionError(null);
+    if (session.fixSuggestion?.fixed_code) {
+      update({ code: session.fixSuggestion.fixed_code, fixSuggestion: null, executionError: null });
     }
   };
 
   const handleCodeReview = async () => {
-    setReviewMode(!reviewMode);
-    if (!reviewData && !isReviewing) {
-      setIsReviewing(true);
-      try {
-        const res = await aiEngineApi.codeReview(code);
-        if (res.data) setReviewData(res.data);
-      } catch {
-        setReviewData({ annotations: [], summary: "Review unavailable.", overall_score: 0, model: "" });
-      } finally {
-        setIsReviewing(false);
-      }
+    if (!session.reviewMode) {
+      update({ reviewMode: true });
     }
+    update({ isReviewing: true, reviewData: null });
+    try {
+      const res = await aiEngineApi.codeReview(session.code);
+      if (res.data) update({ reviewData: res.data });
+    } catch {
+      update({ reviewData: { annotations: [], summary: "Review unavailable. Please try again.", overall_score: 0, model: "", is_error: true } });
+    } finally {
+      update({ isReviewing: false });
+    }
+  };
+
+  const handleOpenFlashcards = () => {
+    update({ showFlashcards: true });
   };
 
   const handleGenerateFlashcards = async () => {
-    setShowFlashcards(true);
-    setIsLoadingFlashcards(true);
+    update({ isLoadingFlashcards: true });
     try {
-      const res = await aiEngineApi.getFlashcards(code);
-      if (res.data) setFlashcards(res.data.flashcards);
+      const res = await aiEngineApi.getFlashcards(session.code);
+      if (res.data) update({ flashcards: res.data.flashcards });
     } catch {
-      setFlashcards([]);
+      update({ flashcards: [] });
     } finally {
-      setIsLoadingFlashcards(false);
+      update({ isLoadingFlashcards: false });
     }
   };
 
+  const handleOpenTests = () => {
+    update({ showTests: true });
+  };
+
   const handleGenerateTests = async () => {
-    setShowTests(true);
-    setIsGeneratingTests(true);
-    setTestCode(null);
+    update({ isGeneratingTests: true, testCode: null });
     try {
-      const res = await aiEngineApi.generateTests(code, "Main");
+      const res = await aiEngineApi.generateTests(session.code, "Main");
       if (res.data) {
-        setTestCode(res.data.test_code);
-        setTestExplanation(res.data.test_explanation);
+        update({ testCode: res.data.test_code, testExplanation: res.data.test_explanation });
       }
     } catch {
-      setTestCode("// Unable to generate tests.");
+      update({ testCode: "// Unable to generate tests." });
     } finally {
-      setIsGeneratingTests(false);
+      update({ isGeneratingTests: false });
     }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-[#0F172A] text-white overflow-hidden font-sans">
       <WorkspaceTopBar
-        showStdin={showStdin}
-        reviewMode={reviewMode}
-        showTimeline={showTimeline}
-        code={code}
-        isExecuting={isExecuting}
-        onToggleStdin={() => setShowStdin(!showStdin)}
-        onGenerateFlashcards={handleGenerateFlashcards}
-        onGenerateTests={handleGenerateTests}
-        onToggleTimeline={() => setShowTimeline(!showTimeline)}
+        showStdin={session.showStdin}
+        reviewMode={session.reviewMode}
+        showTimeline={session.showTimeline}
+        code={session.code}
+        isExecuting={session.isExecuting}
+        onToggleStdin={() => update({ showStdin: !session.showStdin })}
+        onOpenFlashcards={handleOpenFlashcards}
+        onOpenTests={handleOpenTests}
+        onToggleTimeline={() => update({ showTimeline: !session.showTimeline })}
         onCodeReview={handleCodeReview}
         onResetCode={handleResetCode}
         onRunCode={handleRunCode}
       />
 
-      {showStdin && (
+      {session.showStdin && (
         <StdinBar
-          stdinInput={stdinInput}
-          onInputChange={setStdinInput}
-          onClear={() => setStdinInput("")}
+          stdinInput={session.stdinInput}
+          onInputChange={(val) => update({ stdinInput: val })}
+          onClear={() => update({ stdinInput: "" })}
         />
       )}
 
       <div className="flex flex-1 min-h-0">
         <WorkspaceEditor
-          code={code}
-          onCodeChange={setCode}
+          code={session.code}
+          onCodeChange={(val) => update({ code: val })}
           onKeyDown={handleKeyDown}
           onTextSelection={handleTextSelection}
-          showExplanation={showExplanation}
-          highlightedCode={highlightedCode}
-          aiExplanation={aiExplanation}
-          isExplaining={isExplaining}
-          explanationPosition={explanationPosition}
+          showExplanation={session.showExplanation}
+          highlightedCode={session.highlightedCode}
+          aiExplanation={session.aiExplanation}
+          isExplaining={session.isExplaining}
+          explanationPosition={session.explanationPosition}
           onExplainSelected={handleExplainSelected}
-          onCloseExplanation={() => { setShowExplanation(false); setAiExplanation(null); }}
-          reviewMode={reviewMode}
-          reviewData={reviewData}
+          onCloseExplanation={() => update({ showExplanation: false, aiExplanation: null })}
+          reviewMode={session.reviewMode}
+          reviewData={session.reviewData}
         />
 
         <WorkspaceTabs
-          activeTab={activeTab}
-          output={output}
-          executionError={executionError}
-          isExecuting={isExecuting}
-          isCompilationError={isCompilationError}
-          aiFeedback={aiFeedback}
-          isAiLoading={isAiLoading}
-          reviewMode={reviewMode}
-          reviewData={reviewData}
-          isReviewing={isReviewing}
-          fixSuggestion={fixSuggestion}
-          isFixing={isFixing}
-          structuredOutput={structuredOutput}
-          onTabChange={setActiveTab}
+          activeTab={session.activeTab}
+          output={session.output}
+          executionError={session.executionError}
+          isExecuting={session.isExecuting}
+          isCompilationError={session.isCompilationError}
+          aiFeedback={session.aiFeedback}
+          isAiLoading={session.isAiLoading}
+          reviewMode={session.reviewMode}
+          reviewData={session.reviewData}
+          isReviewing={session.isReviewing}
+          fixSuggestion={session.fixSuggestion}
+          isFixing={session.isFixing}
+          structuredOutput={session.structuredOutput}
+          onTabChange={(tab) => update({ activeTab: tab })}
           onStartReview={handleCodeReview}
+          onRetryReview={handleCodeReview}
           onFixError={handleFixError}
           onApplyFix={handleApplyFix}
         />
       </div>
 
-      <ExecutionTimeline timeline={executionTimeline} />
+      <ExecutionTimeline timeline={session.executionTimeline} />
 
       <FlashcardsPanel
-        show={showFlashcards}
-        flashcards={flashcards}
-        isLoading={isLoadingFlashcards}
-        activeCard={activeFlashcard}
-        onClose={() => setShowFlashcards(false)}
-        onCardSelect={setActiveFlashcard}
+        show={session.showFlashcards}
+        flashcards={session.flashcards}
+        isLoading={session.isLoadingFlashcards}
+        activeCard={session.activeFlashcard}
+        onClose={() => update({ showFlashcards: false })}
+        onCardSelect={(idx) => update({ activeFlashcard: idx })}
+        onGenerate={handleGenerateFlashcards}
         onRegenerate={handleGenerateFlashcards}
       />
 
       <TestsPanel
-        show={showTests}
-        testCode={testCode}
-        testExplanation={testExplanation}
-        isGenerating={isGeneratingTests}
-        onClose={() => setShowTests(false)}
+        show={session.showTests}
+        testCode={session.testCode}
+        testExplanation={session.testExplanation}
+        isGenerating={session.isGeneratingTests}
+        onClose={() => update({ showTests: false })}
         onGenerate={handleGenerateTests}
-        onCopy={() => { if (testCode) navigator.clipboard.writeText(testCode); }}
+        onCopy={() => { if (session.testCode) navigator.clipboard.writeText(session.testCode); }}
       />
     </div>
   );
