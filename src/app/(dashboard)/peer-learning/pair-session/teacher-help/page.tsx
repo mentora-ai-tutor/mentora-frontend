@@ -43,7 +43,7 @@ export default function TeacherHelpPage() {
                 <div className="w-2.5 h-2.5 rounded-full bg-white/20" />
               </div>
             </div>
-            <div className="p-6 font-mono text-sm bg-brand-tertiary/40 text-white/80 overflow-auto leading-relaxed">
+            <div className="p-6 font-mono text-sm bg-black text-white/80 overflow-auto leading-relaxed shadow-inner">
               <div className="text-brand-primary inline">for</div>(<div className="text-brand-secondary inline">int</div> i = 2; i {"<"} 20; i = i + 2) {"{\n"}
               {"  "}System.out.println(i);\n
               {"}"}
@@ -134,7 +134,7 @@ export default function TeacherHelpPage() {
                     
                     <div className="space-y-3">
                       <p className="text-xs font-black text-white/40 uppercase tracking-widest">Solution:</p>
-                      <pre className="text-xs font-mono bg-brand-tertiary/80 p-4 rounded-xl border border-brand-primary/20 shadow-xl overflow-x-auto">
+                      <pre className="text-xs font-mono bg-black p-4 rounded-xl border border-brand-primary/20 shadow-xl overflow-x-auto">
                         <span className="text-brand-primary font-bold">for</span>(<span className="text-brand-secondary">int</span> i = 2; i <span className="text-brand-primary font-bold underline underline-offset-4">{"<="}</span> 20; i = i + 2) {"{\n"}
                         {"  "}System.out.println(i);\n
                         {"}"}

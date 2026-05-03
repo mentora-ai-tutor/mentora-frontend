@@ -72,7 +72,7 @@ export default function PairSessionPage() {
                 </Link>
               </div>
             </div>
-            <div className="p-4 flex-1 font-mono text-sm bg-[#0F172A] text-gray-300 overflow-auto">
+            <div className="p-4 flex-1 font-mono text-sm bg-black text-gray-300 overflow-auto">
               <div className="text-teal-400">public class</div> <div className="text-teal-200 inline">EvenNumbers</div> {"{\n"}
               {"  "}<div className="text-teal-400 inline">public static void</div> <div className="text-amber-200 inline">main</div>(String[] args) {"{\n"}
               {"    "}<div className="text-[#B45309] inline">for</div>(<div className="text-teal-400 inline">int</div> i = 2; i {"<"} 20; i = i + 2) {"{\n"}
@@ -89,7 +89,7 @@ export default function PairSessionPage() {
               <div className="p-2 border-b border-white/5 bg-[#0F172A]/80">
                 <h3 className="text-xs font-bold text-white/50 uppercase ml-2 tracking-wider">OUTPUT:</h3>
               </div>
-              <div className="p-4 font-mono text-xs space-y-1 bg-[#0F172A]/50">
+              <div className="p-4 font-mono text-xs space-y-1 bg-black">
                 <p className="text-white/50">{">"} Compiling EvenNumbers.java...</p>
                 <p className="text-white/50">{">"} Running EvenNumbers...</p>
                 <p className="text-white/80">2\n4\n6\n8\n10\n12\n14\n16\n18</p>

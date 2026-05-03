@@ -46,7 +46,7 @@ export default function MiniProjectSessionPage() {
               
               <div className="space-y-2">
                 <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Source Code Audit:</span>
-                <div className="p-4 font-mono text-xs bg-black/40 text-gray-400 rounded-xl border border-white/5 max-h-[150px] overflow-auto leading-relaxed shadow-inner">
+                <div className="p-4 font-mono text-xs bg-black text-gray-400 rounded-xl border border-white/5 max-h-[150px] overflow-auto leading-relaxed shadow-inner">
                   <div className="text-teal-400 inline">public static double</div> <div className="text-[#B45309] inline">calculateAverage</div>(ArrayList{"<"}Student{">"} s) {"{\n"}
                   {"  "}<div className="text-teal-400 inline">if</div>(s.isEmpty()) <div className="text-teal-400 inline">return</div> 0;\n
                   {"  "}<div className="text-teal-400 inline">int</div> sum = 0;\n
@@ -160,7 +160,7 @@ export default function MiniProjectSessionPage() {
                 </Link>
               </div>
             </div>
-            <div className="p-6 flex-1 font-mono text-sm bg-[#0F172A] text-gray-400 overflow-auto leading-relaxed">
+            <div className="p-8 flex-1 font-mono text-sm bg-black text-gray-400 overflow-auto leading-relaxed shadow-inner">
               <div className="text-teal-400 font-bold inline">import</div> java.util.*;\n\n
               <div className="text-teal-400 inline font-bold opacity-80">class</div> <div className="text-white inline">Student</div> {"{\n"}
               {"  "}String name;\n
@@ -202,7 +202,7 @@ export default function MiniProjectSessionPage() {
               <div className="p-3 border-b border-white/5 bg-[#0F172A]/80 px-5">
                 <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Telemetry Output</h3>
               </div>
-              <div className="p-5 font-mono text-xs space-y-2 bg-black/20 min-h-[120px]">
+              <div className="p-8 font-mono text-xs space-y-2 bg-black min-h-[120px]">
                 <p className="text-white/30 italic">{">"} Initializing GradeManager runtime...</p>
                 <p className="text-white/80 font-bold tracking-tight">Average grade: 81.2</p>
                 <p className="text-white/30 italic">{">"} Sequence finalized.</p>

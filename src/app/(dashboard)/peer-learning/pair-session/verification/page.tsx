@@ -46,7 +46,7 @@ export default function VerificationPage() {
               <p className="text-sm md:text-base font-bold text-white leading-relaxed mb-6">
                 Develop a <span className="text-[#B45309]">for loop sequence</span> that generates all odd numerical values within the range [1, 15] inclusive.
               </p>
-              <div className="bg-black/40 p-5 rounded-2xl border border-white/5 inline-block w-full max-w-sm shadow-inner group">
+              <div className="bg-black p-5 rounded-2xl border border-white/5 inline-block w-full max-w-sm shadow-inner group">
                 <h3 className="text-[10px] font-black text-white/20 mb-3 uppercase tracking-widest group-hover:text-teal-400 transition-colors">Target Telemetry Output:</h3>
                 <pre className="text-xs font-mono text-teal-400 font-black leading-relaxed">1\n3\n5\n7\n9\n11\n13\n15</pre>
               </div>
@@ -71,7 +71,7 @@ export default function VerificationPage() {
                 </Link>
               </div>
             </div>
-            <div className="p-8 flex-1 font-mono text-sm bg-[#0F172A] text-gray-400 overflow-auto leading-relaxed">
+            <div className="p-8 flex-1 font-mono text-sm bg-black text-gray-400 overflow-auto leading-relaxed">
               <div className="text-teal-400 font-bold inline opacity-80">public class</div> <div className="text-white inline">OddNumbers</div> {"{\n"}
               {"  "}<div className="text-teal-400 inline font-bold opacity-80">public static void</div> <div className="text-[#B45309] inline font-bold">main</div>(String[] args) {"{\n"}
               {"    "}<div className="text-teal-400 inline font-bold">for</div>(<div className="text-teal-400 inline">int</div> i = 1; i {"<="} 15; i = i + 2) {"{\n"}
@@ -89,7 +89,7 @@ export default function VerificationPage() {
                 <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Diagnostic Output</h3>
                 <span className="text-[10px] font-black text-[#B45309] uppercase tracking-widest bg-[#B45309]/10 px-2 py-0.5 rounded border border-[#B45309]/20">Attempts: 2 / 3</span>
               </div>
-              <div className="p-8 font-mono text-xs space-y-2 bg-black/20">
+              <div className="p-8 font-mono text-xs space-y-2 bg-black">
                 <p className="text-white/30 italic">{">"} Initializing OddNumbers sequence...</p>
                 <p className="font-bold text-white tracking-tight leading-relaxed">1\n3\n5\n7\n9\n11\n13\n15</p>
                 <p className="text-white/30 italic">{">"} Sequence finalized.</p>
