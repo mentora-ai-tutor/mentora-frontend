@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats } from "@/lib/api/learningGenerator";
@@ -261,41 +262,13 @@ export default function LearningGeneratorDashboard() {
   }
 
   return (
-    <div className="space-y-6 animate-slide-up">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
-            <BookOpen className="w-6 h-6 text-teal-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-white">Material Generator</h1>
-            <p className="text-sm text-white/50">AI-powered personalized learning materials based on your knowledge gaps.</p>
-          </div>
-        </div>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="px-4 py-2 bg-[#334155]/30 border border-white/10 rounded-xl text-sm font-bold text-white/70 hover:bg-[#334155]/50 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
-
-      {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-red-200 text-sm font-medium">{error}</p>
-            <button onClick={handleRefresh} className="text-red-400 text-xs font-bold mt-1 hover:text-red-300">Retry</button>
-          </div>
-        </div>
-      )}
-
-      {/* Active Jobs */}
+    <div className="space-y-6">
+      {/* Active Generation Jobs */}
       {activeJobs.length > 0 && (
         <div className="space-y-3">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-teal-400" /> Active Jobs
+          </h2>
           {activeJobs.map((job) => {
             const isProcessing = ['queued', 'processing'].includes(job.status);
             const isCompleted = job.status === 'completed' || job.status === 'partial';
@@ -666,8 +639,8 @@ export default function LearningGeneratorDashboard() {
       </div>
 
       {/* Submit Profile Dialog */}
-      {showSubmitDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {showSubmitDialog && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !submitting && setShowSubmitDialog(false)} />
           <div className="relative max-w-lg w-full bg-[#1e293b] border border-white/10 rounded-2xl shadow-2xl p-6 animate-slide-up">
             <h2 className="text-xl font-black text-white mb-2 flex items-center gap-2">
@@ -712,7 +685,7 @@ export default function LearningGeneratorDashboard() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }
