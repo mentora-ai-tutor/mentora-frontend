@@ -15,7 +15,7 @@ export function QuickActions({ onGenerateClick }: QuickActionsProps) {
       </h2>
       <button
         onClick={onGenerateClick}
-        className="w-full p-4 bg-linear-to-br from-teal-900/40 to-[#0F172A] border border-teal-500/30 rounded-xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(13,148,136,0.15)] transition-all text-left flex items-start gap-3"
+        className="w-full p-4 bg-[#1e293b]/90 border border-teal-500/20 rounded-xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(13,148,136,0.15)] transition-all text-left flex items-start gap-3"
       >
         <div className="w-10 h-10 rounded-full bg-teal-500/20 border border-teal-500/40 flex items-center justify-center shrink-0">
           <Plus className="w-5 h-5 text-teal-400" />
@@ -25,7 +25,7 @@ export function QuickActions({ onGenerateClick }: QuickActionsProps) {
           <p className="text-xs text-teal-100/60">Submit mastery profile to AI engine</p>
         </div>
       </button>
-      <Link href="/learning-generator/materials" className="w-full p-4 bg-[#334155]/20 border border-white/5 rounded-xl hover:border-white/20 transition-all flex items-start gap-3">
+      <Link href="/learning-generator/materials" className="w-full p-4 bg-[#1e293b]/90 border border-white/5 rounded-xl hover:border-white/20 transition-all flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
           <BookOpen className="w-5 h-5 text-white/60" />
         </div>
@@ -62,13 +62,13 @@ export function ModuleProgressList({ progress }: ModuleProgressListProps) {
           const pct = p.total_steps > 0 ? Math.round((p.completed_steps.length / p.total_steps) * 100) : 0;
           const isComplete = !!p.completed_at;
           return (
-            <Link key={i} href={`/learning-generator/materials/${p.material_id}`} className="block p-3 bg-[#334155]/20 border border-white/5 rounded-lg hover:border-white/20 transition-all">
+            <Link key={i} href={`/learning-generator/materials/${p.material_id}`} className="block p-3 bg-[#1e293b]/90 border border-white/5 rounded-lg hover:border-white/20 transition-all">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-bold text-white">{p.topic}</p>
                 {isComplete && <CheckCircle2 className="w-4 h-4 text-green-400" />}
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-[#334155] rounded-full overflow-hidden">
+                <div className="flex-1 h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${isComplete ? "bg-green-500" : "bg-teal-500"}`}
                     style={{ width: `${pct}%` }}
@@ -113,7 +113,7 @@ export function ScoreHistory({ history }: ScoreHistoryProps) {
       </h2>
       <div className="space-y-2">
         {history.map((entry, i) => (
-          <div key={i} className="p-3 bg-[#334155]/20 border border-white/5 rounded-lg flex items-center justify-between">
+          <div key={i} className="p-3 bg-[#1e293b]/90 border border-white/5 rounded-lg flex items-center justify-between">
             <div>
               <p className={`text-sm font-bold ${getScoreColor(entry.overall_mastery_score || entry.overall_score || 0)}`}>
                 {entry.overall_mastery_score || entry.overall_score || "—"}%

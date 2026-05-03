@@ -284,7 +284,7 @@ export default function LearningGeneratorDashboard() {
               })}
             </div>
           ) : (
-            <div className="p-8 bg-[#334155]/10 border border-white/5 rounded-xl text-center">
+            <div className="p-8 bg-[#1e293b]/90 border border-white/5 rounded-xl text-center">
               <Brain className="w-10 h-10 text-white/20 mx-auto mb-3" />
               <p className="text-sm text-white/40 mb-1">No knowledge gaps detected</p>
               <p className="text-xs text-white/30">Submit a learning profile to identify gaps.</p>
