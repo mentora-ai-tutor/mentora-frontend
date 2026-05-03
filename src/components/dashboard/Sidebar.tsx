@@ -115,7 +115,15 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
               <div key={item.name} className="space-y-1">
                 <button
                   type="button"
-                  onClick={() => setExpandedMenu(isExpanded ? null : item.name)}
+                  onClick={() => {
+                    if (!sidebarOpen) {
+                      router.push("/learning-generator");
+                      onMobileClose();
+                    } else if (!isExpanded) {
+                      router.push("/learning-generator");
+                    }
+                    setExpandedMenu(isExpanded ? null : item.name);
+                  }}
                   className={`relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300
                     ${active
                       ? "bg-teal-500/10 text-teal-400 shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
