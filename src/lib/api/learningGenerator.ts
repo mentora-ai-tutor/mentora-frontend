@@ -69,7 +69,7 @@ interface GenerationJob {
   job_id: string;
   student_id: string;
   profile_id: string;
-  status: 'queued' | 'processing' | 'completed' | 'failed' | 'partial';
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'partial' | 'closed';
   gaps_total: number;
   gaps_completed: number;
   gaps_failed: number;

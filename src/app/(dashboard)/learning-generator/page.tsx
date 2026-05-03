@@ -336,7 +336,7 @@ export default function LearningGeneratorDashboard() {
                   <div className="flex-1 h-2 bg-[#334155] rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        isProcessing ? 'bg-gradient-to-r from-teal-600 to-teal-400' : isCompleted ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-red-500'
+                        isProcessing ? 'bg-linear-to-r from-teal-600 to-teal-400' : isCompleted ? 'bg-linear-to-r from-green-600 to-green-400' : 'bg-red-500'
                       }`}
                       style={{ width: `${job.gaps_total > 0 ? (job.gaps_completed / job.gaps_total) * 100 : 0}%` }}
                     />
@@ -399,7 +399,7 @@ export default function LearningGeneratorDashboard() {
 
       {/* Learning Progress Overview */}
       {progressStats && (
-        <div className="p-6 bg-gradient-to-br from-[#334155]/30 to-[#0F172A] border border-white/5 rounded-2xl">
+        <div className="p-6 bg-linear-to-br from-[#334155]/30 to-[#0F172A] border border-white/5 rounded-2xl">
           <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-teal-400" /> Learning Progress
           </h2>
@@ -411,7 +411,7 @@ export default function LearningGeneratorDashboard() {
               </div>
               <div className="w-full h-3 bg-[#334155] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-700"
+                  className="h-full bg-linear-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-700"
                   style={{ width: `${progressStats.progress_percentage}%` }}
                 />
               </div>
@@ -552,7 +552,7 @@ export default function LearningGeneratorDashboard() {
             </h2>
             <button
               onClick={() => setShowSubmitDialog(true)}
-              className="w-full p-4 bg-gradient-to-br from-teal-900/40 to-[#0F172A] border border-teal-500/30 rounded-xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(13,148,136,0.15)] transition-all text-left flex items-start gap-3"
+              className="w-full p-4 bg-linear-to-br from-teal-900/40 to-[#0F172A] border border-teal-500/30 rounded-xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(13,148,136,0.15)] transition-all text-left flex items-start gap-3"
             >
               <div className="w-10 h-10 rounded-full bg-teal-500/20 border border-teal-500/40 flex items-center justify-center shrink-0">
                 <Plus className="w-5 h-5 text-teal-400" />

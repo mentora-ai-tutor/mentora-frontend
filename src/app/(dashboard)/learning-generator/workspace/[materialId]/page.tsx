@@ -420,7 +420,7 @@ export default function MaterialWorkspace() {
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-[#0F172A] text-white overflow-hidden font-sans">
       <div className="flex flex-1 min-h-0">
       {/* ── SIDEBAR: LEARNING PATH ── */}
-      <div className="w-72 flex-shrink-0 bg-[#0F172A] border-r border-white/5 flex flex-col z-10 hidden xl:flex">
+      <div className="w-72 shrink-0 bg-[#0F172A] border-r border-white/5 flex-col z-10 hidden xl:flex">
         <div className="p-6 pb-2">
           <Link href="/learning-generator" className="inline-flex items-center gap-2 text-teal-400 hover:text-teal-300 text-sm font-bold mb-8 transition-colors">
             <ChevronLeft className="w-4 h-4" /> Back to Plan
@@ -539,16 +539,16 @@ export default function MaterialWorkspace() {
             ) : (
               <div className="max-w-md w-full text-center space-y-6 animate-slide-up">
                 <div className="relative mx-auto w-32 h-32 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-[#B45309]/20 rounded-full blur-[40px] animate-pulse" />
+                  <div className="absolute inset-0 bg-[#B45309]/20 rounded-full blur-2xl animate-pulse" />
                   <div className="absolute inset-2 border-2 border-[#B45309]/50 rounded-full animate-spin-slow" />
                   <Award className="w-16 h-16 text-[#B45309] relative z-10" />
                 </div>
                 <div>
-                  <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-[#B45309]">{quizScore >= 80 ? "Mastery Achieved!" : "Good Try!"}</h2>
+                  <h2 className="text-4xl font-black text-transparent bg-clip-text bg-linear-to-r from-amber-200 to-[#B45309]">{quizScore >= 80 ? "Mastery Achieved!" : "Good Try!"}</h2>
                   <p className="text-white/60 mt-3">You scored <span className="text-white font-bold">{quizScore}%</span> on the {sm.topic} module.</p>
                 </div>
 
-                <div className="p-4 bg-gradient-to-br from-[#B45309]/10 to-transparent border border-[#B45309]/20 rounded-xl inline-block mx-auto text-left">
+                <div className="p-4 bg-linear-to-br from-[#B45309]/10 to-transparent border border-[#B45309]/20 rounded-xl inline-block mx-auto text-left">
                   <p className="text-xs text-[#B45309] font-bold uppercase tracking-wider mb-1">Rewards Gained</p>
                   <p className="text-sm text-white flex items-center gap-2"><Check className="w-4 h-4 text-green-400" /> +{quizScore} Mastery Points</p>
                   {quizScore >= 80 && <p className="text-sm text-white flex items-center gap-2"><Check className="w-4 h-4 text-green-400" /> Badge: {sm.topic} Initiate</p>}
@@ -655,19 +655,21 @@ export default function MaterialWorkspace() {
                       <div className="mb-4 relative group">
                         <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2 font-bold">Reference Code</p>
                         <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(lesson.examples.example_1.code);
-                            setCopiedCode(true);
-                            setTimeout(() => setCopiedCode(false), 2000);
-                          }}
-                          className="absolute top-8 right-3 p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                          title="Copy Code"
-                        >
-                          {copiedCode ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Code2 className="w-3.5 h-3.5 text-white/50" />}
-                        </button>
-                        <pre className="p-4 bg-[#0F172A] border border-white/10 rounded-xl font-mono text-sm text-teal-200/90 whitespace-pre-wrap break-words leading-relaxed overflow-x-auto">
-                          {lesson.examples.example_1.code}
-                        </pre>
+                           onClick={() => {
+                             if (lesson.examples) {
+                               navigator.clipboard.writeText(lesson.examples.example_1.code);
+                               setCopiedCode(true);
+                               setTimeout(() => setCopiedCode(false), 2000);
+                             }
+                           }}
+                           className="absolute top-8 right-3 p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                           title="Copy Code"
+                         >
+                           {copiedCode ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Code2 className="w-3.5 h-3.5 text-white/50" />}
+                         </button>
+                         <pre className="p-4 bg-[#0F172A] border border-white/10 rounded-xl font-mono text-sm text-teal-200/90 whitespace-pre-wrap wrap-break-word leading-relaxed overflow-x-auto">
+                           {lesson.examples?.example_1.code}
+                         </pre>
                       </div>
                       <p className="text-xs text-white/40 italic">Use the code editor on the right to type, run, or modify this example.</p>
                     </>
@@ -688,14 +690,14 @@ export default function MaterialWorkspace() {
                                   <XCircle className="w-3.5 h-3.5 text-red-500" />
                                   <span className="text-[10px] uppercase text-red-500 font-black tracking-widest">Bad Pattern</span>
                                 </div>
-                                <code className="text-red-200/80 whitespace-pre-wrap break-words leading-relaxed block">{mistake.bad_code}</code>
+                                <code className="text-red-200/80 whitespace-pre-wrap wrap-break-word leading-relaxed block">{mistake.bad_code}</code>
                               </div>
                               <div className="p-4 bg-teal-900/40 rounded-xl border border-teal-500/20 font-mono text-xs">
                                 <div className="flex items-center gap-2 mb-2">
                                   <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
                                   <span className="text-[10px] uppercase text-teal-400 font-black tracking-widest">Correct Pattern</span>
                                 </div>
-                                <code className="text-teal-100/90 whitespace-pre-wrap break-words leading-relaxed block">{mistake.good_code}</code>
+                                <code className="text-teal-100/90 whitespace-pre-wrap wrap-break-word leading-relaxed block">{mistake.good_code}</code>
                               </div>
                             </div>
                             <p className="text-white/50 text-xs mt-3 italic">{mistake.explanation}</p>
@@ -748,7 +750,7 @@ export default function MaterialWorkspace() {
                     className={`px-4 py-2 border text-sm font-bold rounded-xl flex items-center gap-2 transition-all disabled:cursor-wait ${
                       insightActiveTab === "simpler"
                         ? "bg-teal-600/30 border-teal-400 text-teal-200 shadow-[0_0_15px_rgba(13,148,136,0.2)]"
-                        : "bg-gradient-to-r from-teal-600/20 to-teal-800/20 border-teal-500/30 text-teal-300 hover:bg-teal-500/20"
+                        : "bg-linear-to-r from-teal-600/20 to-teal-800/20 border-teal-500/30 text-teal-300 hover:bg-teal-500/20"
                     }`}
                   >
                     {insightType === "simpler" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Explain Simpler
@@ -922,7 +924,7 @@ export default function MaterialWorkspace() {
                             <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
                             <span className="text-xs text-green-400 font-bold">Exit code: 0</span>
                           </div>
-                          <pre className="font-mono text-xs text-white/70 bg-black/30 p-3 rounded-lg border border-white/5 whitespace-pre-wrap break-words leading-relaxed">
+                          <pre className="font-mono text-xs text-white/70 bg-black/30 p-3 rounded-lg border border-white/5 whitespace-pre-wrap wrap-break-word leading-relaxed">
                             {output}
                           </pre>
                         </div>
@@ -936,7 +938,7 @@ export default function MaterialWorkspace() {
                               {isCompilationError ? "Compilation Error" : "Runtime Error"}
                             </span>
                           </div>
-                          <pre className="font-mono text-xs text-red-200/80 bg-red-950/40 p-3 rounded-lg border border-red-500/20 whitespace-pre-wrap break-words leading-relaxed">
+                          <pre className="font-mono text-xs text-red-200/80 bg-red-950/40 p-3 rounded-lg border border-red-500/20 whitespace-pre-wrap wrap-break-word leading-relaxed">
                             {executionError}
                           </pre>
                         </div>
