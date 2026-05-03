@@ -3,11 +3,11 @@
 import { Filter } from "lucide-react";
 import type { KnowledgeGap } from "@/lib/api/learningGenerator";
 
-const gapColorMap: Record<string, { bg: string; border: string; text: string; badge: string }> = {
-  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/20", text: "text-red-400", badge: "bg-red-500/20 text-red-300" },
-  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-400", badge: "bg-amber-500/20 text-amber-300" },
-  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-400", badge: "bg-blue-500/20 text-blue-300" },
-  default: { bg: "bg-white/5", border: "border-white/10", text: "text-white/50", badge: "bg-white/10 text-white/60" },
+const gapColorMap: Record<string, { bg: string; border: string; text: string; badge: string; dot: string }> = {
+  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/20", text: "text-red-400", badge: "bg-red-500/20 text-red-300", dot: "bg-red-500" },
+  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-400", badge: "bg-amber-500/20 text-amber-300", dot: "bg-amber-500" },
+  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-400", badge: "bg-blue-500/20 text-blue-300", dot: "bg-blue-500" },
+  default: { bg: "bg-white/5", border: "border-white/10", text: "text-white/50", badge: "bg-white/10 text-white/60", dot: "bg-white/40" },
 };
 
 interface GapFiltersProps {

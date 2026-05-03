@@ -188,6 +188,10 @@ interface LearningMaterial {
     assessment: Assessment;
     personalisation?: any;
     study_plan?: any;
+    syntax_reference?: {
+      basic_syntax: string;
+      syntax_breakdown?: string[];
+    };
     agentic_metadata?: any;
     quality_flags?: any;
   };
