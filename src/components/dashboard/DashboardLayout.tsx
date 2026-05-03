@@ -90,7 +90,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1.5 scrollbar-hide">
           {navItems.map((item) => {
-            const subMenuActive = item.subItems?.some((subItem) => pathname === subItem.href) ?? false;
+            const subMenuActive = item.subItems?.some((subItem) => pathname === subItem.href || pathname.startsWith(subItem.href + '/')) ?? false;
             const active = item.href ? pathname === item.href : subMenuActive;
 
             if (item.subItems) {
@@ -122,7 +122,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                   <div className={`${!isExpanded || !sidebarOpen ? "hidden" : ""} pl-6 space-y-1`}>
                     {item.subItems.map((subItem) => {
-                      const subActive = pathname === subItem.href;
+                      const hasDynamicChildren = subItem.href === '/learning-generator/workspace';
+                      const subActive = pathname === subItem.href || (hasDynamicChildren && pathname.startsWith(subItem.href + '/'));
                       return (
                         <Link
                           key={subItem.href}
