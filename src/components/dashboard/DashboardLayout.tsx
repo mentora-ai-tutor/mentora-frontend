@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Menu, X, Search, Bell, Settings, LogOut,
-  LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp, User, ChevronDown
+  X, Search, Bell, Settings, LogOut,
+  LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp, User, ChevronDown, PanelLeftClose, PanelLeftOpen
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MentoraLogo from "@/components/auth/MentoraLogo";
@@ -43,7 +43,7 @@ const navItems = [
       { name: "Overview", href: "/learning-generator" },
       { name: "Knowledge Gaps", href: "/learning-generator/knowledge-gaps" },
       { name: "Materials", href: "/learning-generator/materials" },
-      { name: "Workspace", href: "/learning-generator/workspace" },
+      { name: "Learn Code", href: "/learning-generator/workspace" },
     ],
   },
   { name: "Assessment", href: "/assessment", icon: Target },
@@ -76,13 +76,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── SIDEBAR ── */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-[#0B1121] border-r border-white/5 transform transition-transform duration-300 ease-in-out flex flex-col ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-20"
-          }`}
+        className={`fixed lg:static inset-y-0 left-0 z-40 bg-[#0B1121] border-r border-white/5 transition-all duration-300 ease-in-out flex flex-col ${
+          sidebarOpen ? "w-64 translate-x-0" : "w-0 -translate-x-full lg:w-20 lg:translate-x-0"
+        }`}
       >
-        <div className="h-16 flex items-center justify-between px-4 border-b border-white/5 shrink-0">
+        <div className="h-16 flex items-center justify-between px-2 border-b border-white/5 shrink-0">
           <div className={`overflow-hidden transition-all ${!sidebarOpen && "lg:hidden"}`}>
             <MentoraLogo size="sm" />
           </div>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={`p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all shrink-0 ${!sidebarOpen && "lg:mx-auto"}`}
+            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            <div className="relative w-5 h-5">
+              <PanelLeftClose
+                className={`w-5 h-5 absolute inset-0 transition-all duration-300 ${sidebarOpen ? "opacity-100 rotate-0 scale-100" : "opacity-0 rotate-90 scale-75"}`}
+              />
+              <PanelLeftOpen
+                className={`w-5 h-5 absolute inset-0 transition-all duration-300 ${!sidebarOpen ? "opacity-100 rotate-0 scale-100" : "opacity-0 -rotate-90 scale-75"}`}
+              />
+            </div>
+          </button>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-white/50 hover:text-white">
             <X className="w-5 h-5" />
           </button>
@@ -90,7 +105,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1.5 scrollbar-hide">
           {navItems.map((item) => {
-            const subMenuActive = item.subItems?.some((subItem) => pathname === subItem.href || pathname.startsWith(subItem.href + '/')) ?? false;
+            const subMenuActive = item.subItems?.some((subItem) => {
+              if (subItem.href === '/learning-generator') return pathname === '/learning-generator';
+              return pathname === subItem.href || pathname.startsWith(subItem.href + '/');
+            }) ?? false;
             const active = item.href ? pathname === item.href : subMenuActive;
 
             if (item.subItems) {
@@ -122,8 +140,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                   <div className={`${!isExpanded || !sidebarOpen ? "hidden" : ""} pl-6 space-y-1`}>
                     {item.subItems.map((subItem) => {
-                      const hasDynamicChildren = subItem.href === '/learning-generator/workspace';
-                      const subActive = pathname === subItem.href || (hasDynamicChildren && pathname.startsWith(subItem.href + '/'));
+                      const isExactMatch = subItem.href === '/learning-generator';
+                      const subActive = isExactMatch ? pathname === subItem.href : (pathname === subItem.href || pathname.startsWith(subItem.href + '/'));
                       return (
                         <Link
                           key={subItem.href}
@@ -191,9 +209,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ${scrolled ? "bg-[#0F172A]/80 backdrop-blur-md border-white/10 shadow-lg" : "bg-transparent"}
         `}>
           <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 -ml-2 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors">
-              <Menu className="w-5 h-5" />
-            </button>
             <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-full focus-within:border-teal-500/50 focus-within:shadow-[0_0_15px_rgba(13,148,136,0.2)] transition-all">
               <Search className="w-4 h-4 text-white/40" />
               <input
