@@ -43,8 +43,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
 
         <main className="flex-1 overflow-y-auto scrollbar-hide relative bg-[#0F172A]">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-teal-600/5 rounded-full blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-amber-600/5 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-125 h-125 bg-teal-600/5 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-100 h-100 bg-amber-600/5 rounded-full blur-[100px] pointer-events-none" />
 
           <div className="p-4 md:p-8 max-w-7xl mx-auto w-full relative z-10 animate-slide-up pb-24">
             {children}

@@ -49,7 +49,7 @@ export default function Header({ scrolled, mounted, onProfileToggle, profileOpen
               <p className="text-sm font-bold text-white group-hover:text-teal-200 transition-colors">{mounted ? (user?.name || "User") : "User"}</p>
               <p className="text-[10px] text-teal-400 uppercase tracking-widest font-semibold pb-0.5">{mounted ? (user?.role || "Student") : "Student"}</p>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-teal-800 border-2 border-[#0F172A] shadow-[0_0_0_1px_rgba(255,255,255,0.1)] flex items-center justify-center font-bold relative overflow-hidden transition-transform group-hover:scale-105">
+            <div className="w-9 h-9 rounded-full bg-linear-to-br from-teal-500 to-teal-800 border-2 border-[#0F172A] shadow-[0_0_0_1px_rgba(255,255,255,0.1)] flex items-center justify-center font-bold relative overflow-hidden transition-transform group-hover:scale-105">
               {mounted && user?.name ? user.name.charAt(0).toUpperCase() : "U"}
             </div>
           </div>

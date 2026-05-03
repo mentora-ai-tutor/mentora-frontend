@@ -21,7 +21,7 @@ export default function TestsPanel({
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-[450px] h-full bg-[#0F172A] border-l border-white/10 animate-slide-up flex flex-col">
+      <div className="relative w-112.5 h-full bg-[#0F172A] border-l border-white/10 animate-slide-up flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
           <div className="flex items-center gap-2">
             <TestTube className="w-4 h-4 text-teal-400" />
