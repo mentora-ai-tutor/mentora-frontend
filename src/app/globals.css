@@ -67,6 +67,17 @@
   --sidebar-accent-foreground:    oklch(0.18 0.03 230);
   --sidebar-border:               oklch(0.88 0.01 200);
   --sidebar-ring:                 oklch(0.56 0.14 182);
+  /* generation job card palette */
+  --job-card-bg:       #1a2332;
+  --job-card-ring:     rgba(13, 148, 136, 0.3);
+  --job-primary:       #2dd4bf;
+  --job-primary-dim:   rgba(13, 148, 136, 0.15);
+  --job-success:       #4ade80;
+  --job-success-dim:   rgba(74, 222, 128, 0.15);
+  --job-failed:        #f87171;
+  --job-failed-dim:    rgba(248, 113, 113, 0.15);
+  --job-text:          #f1f5f9;
+  --job-muted:         rgba(255, 255, 255, 0.4);
 }
 
 .dark {
@@ -165,6 +176,18 @@
   --color-amber-600: var(--amber-600);
   --color-amber-700: var(--amber-700);
   --color-amber-800: var(--amber-800);
+
+  /* generation job card palette */
+  --color-job-card:        var(--job-card-bg);
+  --color-job-ring:        var(--job-card-ring);
+  --color-job-primary:     var(--job-primary);
+  --color-job-primary-dim: var(--job-primary-dim);
+  --color-job-success:     var(--job-success);
+  --color-job-success-dim: var(--job-success-dim);
+  --color-job-failed:      var(--job-failed);
+  --color-job-failed-dim:  var(--job-failed-dim);
+  --color-job-text:        var(--job-text);
+  --color-job-muted:       var(--job-muted);
 }
 
 @layer base {
