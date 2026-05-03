@@ -13,7 +13,7 @@ export default function ProgressStatsCards({ stats }: ProgressStatsProps) {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
+        <div className="p-5 bg-[#1e293b]/90 border border-white/5 rounded-2xl">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-teal-400" />
@@ -23,7 +23,7 @@ export default function ProgressStatsCards({ stats }: ProgressStatsProps) {
           <p className="text-xs text-white/40 mt-1">Overall Progress</p>
         </div>
 
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
+        <div className="p-5 bg-[#1e293b]/90 border border-white/5 rounded-2xl">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5 text-green-400" />
@@ -33,7 +33,7 @@ export default function ProgressStatsCards({ stats }: ProgressStatsProps) {
           <p className="text-xs text-white/40 mt-1">Modules Completed</p>
         </div>
 
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
+        <div className="p-5 bg-[#1e293b]/90 border border-white/5 rounded-2xl">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
               <BookOpen className="w-5 h-5 text-amber-400" />
@@ -43,7 +43,7 @@ export default function ProgressStatsCards({ stats }: ProgressStatsProps) {
           <p className="text-xs text-white/40 mt-1">In Progress</p>
         </div>
 
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
+        <div className="p-5 bg-[#1e293b]/90 border border-white/5 rounded-2xl">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
               <Award className="w-5 h-5 text-purple-400" />
@@ -64,7 +64,7 @@ export default function ProgressStatsCards({ stats }: ProgressStatsProps) {
               <span className="text-white/60">Steps Completed</span>
               <span className="text-white font-bold">{stats.completed_steps} / {stats.total_steps}</span>
             </div>
-            <div className="w-full h-3 bg-[#334155] rounded-full overflow-hidden">
+            <div className="w-full h-3 bg-[#0F172A] rounded-full overflow-hidden">
               <div
                 className="h-full bg-linear-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-700"
                 style={{ width: `${stats.progress_percentage}%` }}

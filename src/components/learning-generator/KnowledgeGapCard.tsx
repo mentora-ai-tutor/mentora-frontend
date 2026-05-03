@@ -22,7 +22,7 @@ export default function KnowledgeGapCard({ gap, index, material, progress }: Kno
   const colors = gapColorMap[gap.gap_type] || gapColorMap.default;
 
   return (
-    <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-xl hover:border-white/10 transition-all group">
+    <div className="p-5 bg-[#1e293b]/90 border border-white/5 rounded-xl hover:border-white/10 transition-all group">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-start gap-3">
           <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${colors.dot}`} />
@@ -62,7 +62,7 @@ export default function KnowledgeGapCard({ gap, index, material, progress }: Kno
             <span>{progress.completed_steps.length} / {progress.total_steps} steps</span>
             <span className="text-teal-400">{Math.round((progress.completed_steps.length / progress.total_steps) * 100)}%</span>
           </div>
-          <div className="w-full h-1.5 bg-[#334155] rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
             <div
               className="h-full bg-teal-500 rounded-full transition-all"
               style={{ width: `${(progress.completed_steps.length / progress.total_steps) * 100}%` }}
