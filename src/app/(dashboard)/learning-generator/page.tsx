@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats } from "@/lib/api/learningGenerator";
 import {
   BookOpen, Sparkles, Loader2, AlertCircle, TrendingUp, Target,
   Clock, CheckCircle2, XCircle, AlertTriangle, ChevronRight,
-  Brain, Layers, BarChart3, ExternalLink, Plus, RefreshCw, Award
+  Brain, Layers, BarChart3, ExternalLink, Plus, RefreshCw, Award, X
 } from "lucide-react";
 
 export default function LearningGeneratorDashboard() {
@@ -19,11 +19,13 @@ export default function LearningGeneratorDashboard() {
   const [profileHistory, setProfileHistory] = useState<any[]>([]);
   const [activeJobs, setActiveJobs] = useState<GenerationJob[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [dismissedJobs, setDismissedJobs] = useState<string[]>([]);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
-  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const dismissedJobsRef = useRef<string[]>([]);
   const [progressStats, setProgressStats] = useState<ProgressStats | null>(null);
   const [materialProgress, setMaterialProgress] = useState<StudentProgress[]>([]);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user?.student_id) return;
@@ -48,23 +50,43 @@ export default function LearningGeneratorDashboard() {
       }
       if (jobsRes.success && jobsRes.data) {
         const jobsData = (jobsRes.data as any) || [];
+        const dismissed = dismissedJobsRef.current;
         const active = Array.isArray(jobsData)
-          ? jobsData.filter((j: GenerationJob) => ['queued', 'processing'].includes(j.status))
+          ? jobsData.filter((j: GenerationJob) => ['queued', 'processing'].includes(j.status) && !dismissed.includes(j.job_id))
           : [];
         setActiveJobs(active);
 
         if (active.length > 0 && !pollingInterval) {
           const sid = user!.student_id!;
           const interval = setInterval(async () => {
+            const dismissedNow = dismissedJobsRef.current;
             for (const job of active) {
-              await learningGeneratorApi.completeJob(job.job_id);
+              if (dismissedNow.includes(job.job_id)) continue;
+              try {
+                const statusRes = await learningGeneratorApi.getJobStatus(job.job_id);
+                if (statusRes.success && statusRes.data) {
+                  const updated = statusRes.data;
+                  if (!['queued', 'processing'].includes(updated.status)) {
+                    setActiveJobs(prev => prev.filter(j => j.job_id !== job.job_id));
+                  }
+                }
+              } catch (err) {
+                console.error(`Failed to poll job ${job.job_id}:`, err);
+              }
             }
-            const jobsRes = await learningGeneratorApi.getJobsByStudent(sid);
+            const [materialsRes, jobsRes] = await Promise.all([
+              learningGeneratorApi.getMaterials(sid),
+              learningGeneratorApi.getJobsByStudent(sid),
+            ]);
+            if (materialsRes.success && materialsRes.data) {
+              const matData = materialsRes.data as any;
+              setMaterials(matData.items || []);
+            }
             if (jobsRes.success && jobsRes.data) {
               const allJobs = (jobsRes.data as any) || [];
-              const stillActive = allJobs.filter((j: GenerationJob) => ['queued', 'processing'].includes(j.status));
+              const stillActive = allJobs.filter((j: GenerationJob) => ['queued', 'processing'].includes(j.status) && !dismissedJobsRef.current.includes(j.job_id));
               setActiveJobs(stillActive);
-              if (stillActive.length === 0 && active.length > 0) {
+              if (stillActive.length === 0) {
                 clearInterval(interval);
                 setPollingInterval(null);
                 fetchData();
@@ -92,6 +114,12 @@ export default function LearningGeneratorDashboard() {
     if (user?.student_id) fetchData();
     return () => { if (pollingInterval) clearInterval(pollingInterval); };
   }, [user?.student_id, fetchData]);
+
+  const handleDismissJob = (jobId: string) => {
+    setDismissedJobs(prev => [...prev, jobId]);
+    dismissedJobsRef.current = [...dismissedJobs, jobId];
+    setActiveJobs(prev => prev.filter(j => j.job_id !== jobId));
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -295,6 +323,13 @@ export default function LearningGeneratorDashboard() {
                   <p className="text-xs text-white/40">{job.job_id} • {job.status}</p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-teal-500/20 text-teal-400 text-[10px] font-bold uppercase">{job.status}</span>
+                <button
+                  onClick={() => handleDismissJob(job.job_id)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all"
+                  title="Hide from view (generation continues in background)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
               <div className="space-y-2">
                 <div className="flex-1 h-2 bg-[#334155] rounded-full overflow-hidden">

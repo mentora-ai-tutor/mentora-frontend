@@ -1,4 +1,4 @@
-const LMG_API_URL = process.env.NEXT_PUBLIC_LMG_API_URL || 'http://localhost:3002';
+const LMG_API_URL = process.env.NEXT_PUBLIC_LMG_API_URL || 'http://localhost:5012';
 
 interface ApiResponse<T = any> {
   success: boolean;
