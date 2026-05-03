@@ -15,7 +15,7 @@ export default function VerificationPage() {
           <div>
             <h1 className="text-xl font-black text-orange-400 uppercase">Verification Phase - No Teacher Help</h1>
             <p className="text-sm text-orange-200/70 mt-1">
-              ⚠️ Teacher cannot help you during this phase ⚠️<br/>
+              ⚠️ Teacher cannot help you during this phase ⚠️<br />
               This is a SIMILAR question to test if you truly understood the concept.
             </p>
           </div>
@@ -96,7 +96,7 @@ export default function VerificationPage() {
             <div className="p-3 border-b border-white/5 bg-black/20 flex items-center justify-between">
               <h2 className="font-bold text-sm text-white/50">LIVE CHAT</h2>
             </div>
-            
+
             <div className="p-4 flex-1 overflow-auto flex items-center justify-center relative">
               <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center p-6 text-center z-10 rounded-lg">
                 <ShieldAlert className="w-8 h-8 text-orange-500/50 mb-2" />
@@ -107,9 +107,9 @@ export default function VerificationPage() {
 
             <div className="p-3 border-t border-white/5 bg-black/20">
               <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Type your message..." 
+                <input
+                  type="text"
+                  placeholder="Type your message..."
                   className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-orange-500/50"
                 />
                 <Button size="icon" className="bg-orange-600/50 hover:bg-orange-500/50 text-white shrink-0">
