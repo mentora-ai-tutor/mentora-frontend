@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats } from "@/lib/api/learningGenerator";
@@ -19,13 +19,12 @@ export default function LearningGeneratorDashboard() {
   const [profileHistory, setProfileHistory] = useState<any[]>([]);
   const [activeJobs, setActiveJobs] = useState<GenerationJob[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [dismissedJobs, setDismissedJobs] = useState<string[]>([]);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
-  const dismissedJobsRef = useRef<string[]>([]);
   const [progressStats, setProgressStats] = useState<ProgressStats | null>(null);
   const [materialProgress, setMaterialProgress] = useState<StudentProgress[]>([]);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [closingJobs, setClosingJobs] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!user?.student_id) return;
@@ -50,30 +49,12 @@ export default function LearningGeneratorDashboard() {
       }
       if (jobsRes.success && jobsRes.data) {
         const jobsData = (jobsRes.data as any) || [];
-        const dismissed = dismissedJobsRef.current;
-        const active = Array.isArray(jobsData)
-          ? jobsData.filter((j: GenerationJob) => ['queued', 'processing'].includes(j.status) && !dismissed.includes(j.job_id))
-          : [];
-        setActiveJobs(active);
+        const visible = jobsData.filter((j: GenerationJob) => j.status !== 'closed');
+        setActiveJobs(visible);
 
-        if (active.length > 0 && !pollingInterval) {
+        if (!pollingInterval) {
           const sid = user!.student_id!;
           const interval = setInterval(async () => {
-            const dismissedNow = dismissedJobsRef.current;
-            for (const job of active) {
-              if (dismissedNow.includes(job.job_id)) continue;
-              try {
-                const statusRes = await learningGeneratorApi.getJobStatus(job.job_id);
-                if (statusRes.success && statusRes.data) {
-                  const updated = statusRes.data;
-                  if (!['queued', 'processing'].includes(updated.status)) {
-                    setActiveJobs(prev => prev.filter(j => j.job_id !== job.job_id));
-                  }
-                }
-              } catch (err) {
-                console.error(`Failed to poll job ${job.job_id}:`, err);
-              }
-            }
             const [materialsRes, jobsRes] = await Promise.all([
               learningGeneratorApi.getMaterials(sid),
               learningGeneratorApi.getJobsByStudent(sid),
@@ -84,13 +65,8 @@ export default function LearningGeneratorDashboard() {
             }
             if (jobsRes.success && jobsRes.data) {
               const allJobs = (jobsRes.data as any) || [];
-              const stillActive = allJobs.filter((j: GenerationJob) => ['queued', 'processing'].includes(j.status) && !dismissedJobsRef.current.includes(j.job_id));
-              setActiveJobs(stillActive);
-              if (stillActive.length === 0) {
-                clearInterval(interval);
-                setPollingInterval(null);
-                fetchData();
-              }
+              const visibleJobs = allJobs.filter((j: GenerationJob) => j.status !== 'closed');
+              setActiveJobs(visibleJobs);
             }
           }, 5000);
           setPollingInterval(interval);
@@ -115,10 +91,16 @@ export default function LearningGeneratorDashboard() {
     return () => { if (pollingInterval) clearInterval(pollingInterval); };
   }, [user?.student_id, fetchData]);
 
-  const handleDismissJob = (jobId: string) => {
-    setDismissedJobs(prev => [...prev, jobId]);
-    dismissedJobsRef.current = [...dismissedJobs, jobId];
-    setActiveJobs(prev => prev.filter(j => j.job_id !== jobId));
+  const handleDismissJob = async (jobId: string) => {
+    setClosingJobs(prev => [...prev, jobId]);
+    try {
+      await learningGeneratorApi.closeJob(jobId);
+    } catch (err) {
+      console.error('Failed to close job:', err);
+    } finally {
+      setActiveJobs(prev => prev.filter(j => j.job_id !== jobId));
+      setClosingJobs(prev => prev.filter(id => id !== jobId));
+    }
   };
 
   const handleRefresh = () => {
@@ -314,39 +296,61 @@ export default function LearningGeneratorDashboard() {
       {/* Active Jobs */}
       {activeJobs.length > 0 && (
         <div className="space-y-3">
-          {activeJobs.map((job) => (
-            <div key={job.job_id} className="p-5 bg-gradient-to-r from-teal-900/40 to-[#0F172A] border border-teal-500/30 rounded-2xl animate-fade-in">
-              <div className="flex items-center gap-3 mb-3">
-                <Sparkles className="w-5 h-5 text-teal-400 animate-spin-slow" />
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-white">Generating Materials...</h3>
-                  <p className="text-xs text-white/40">{job.job_id} • {job.status}</p>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-teal-500/20 text-teal-400 text-[10px] font-bold uppercase">{job.status}</span>
-                <button
-                  onClick={() => handleDismissJob(job.job_id)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all"
-                  title="Hide from view (generation continues in background)"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="space-y-2">
-                <div className="flex-1 h-2 bg-[#334155] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-500"
-                    style={{ width: `${job.gaps_total > 0 ? (job.gaps_completed / job.gaps_total) * 100 : 0}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-white/40">
-                  <span>{job.gaps_completed}/{job.gaps_total} topics processed</span>
-                  {job.materials_generated > 0 && (
-                    <span className="text-teal-400">{job.materials_generated} materials ready</span>
+          {activeJobs.map((job) => {
+            const isProcessing = ['queued', 'processing'].includes(job.status);
+            const isCompleted = job.status === 'completed' || job.status === 'partial';
+
+            return (
+              <div key={job.job_id} className="p-5 bg-job-card border border-job-ring rounded-2xl animate-fade-in">
+                <div className="flex items-center gap-3 mb-3">
+                  {isProcessing ? (
+                    <Sparkles className="w-5 h-5 text-job-primary animate-spin-slow" />
+                  ) : isCompleted ? (
+                    <CheckCircle2 className="w-5 h-5 text-job-success" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-job-failed" />
                   )}
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-job-text">
+                      {isProcessing ? 'Generating Materials...' : isCompleted ? 'Generation Complete' : 'Generation Failed'}
+                    </h3>
+                    <p className="text-xs text-job-muted">{job.job_id} • {job.status}</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                    isProcessing ? 'bg-job-primary/20 text-job-primary' : isCompleted ? 'bg-job-success/20 text-job-success' : 'bg-job-failed/20 text-job-failed'
+                  }`}>{job.status}</span>
+                  <button
+                    onClick={() => handleDismissJob(job.job_id)}
+                    disabled={closingJobs.includes(job.job_id)}
+                    className="p-1.5 rounded-lg text-job-muted hover:text-job-failed hover:bg-job-failed/10 transition-all disabled:opacity-50"
+                    title="Hide from view"
+                  >
+                    {closingJobs.includes(job.job_id) ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex-1 h-2 bg-[#334155] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isProcessing ? 'bg-gradient-to-r from-teal-600 to-teal-400' : isCompleted ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${job.gaps_total > 0 ? (job.gaps_completed / job.gaps_total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-job-muted">
+                    <span>{job.gaps_completed}/{job.gaps_total} topics processed</span>
+                    {job.materials_generated > 0 && (
+                      <span className="text-job-primary">{job.materials_generated} materials ready</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -319,6 +319,10 @@ class LearningGeneratorApi {
     return this.request('POST', `/api/agent/jobs/${jobId}/complete`);
   }
 
+  async closeJob(jobId: string): Promise<ApiResponse<GenerationJob>> {
+    return this.request('PATCH', `/api/agent/jobs/${jobId}`, { status: 'closed' });
+  }
+
   async getJobsByStudent(studentId: string): Promise<ApiResponse<GenerationJob[]>> {
     return this.request('GET', `/api/agent/jobs/student/${studentId}`);
   }
