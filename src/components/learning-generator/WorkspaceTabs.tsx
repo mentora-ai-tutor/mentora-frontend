@@ -21,6 +21,7 @@ interface WorkspaceTabsProps {
   structuredOutput: object | null;
   onTabChange: (tab: TabId) => void;
   onStartReview: () => void;
+  onRetryReview: () => void;
   onFixError: () => void;
   onApplyFix: () => void;
 }
@@ -29,7 +30,7 @@ export default function WorkspaceTabs({
   activeTab, output, executionError, isExecuting, isCompilationError,
   aiFeedback, isAiLoading, reviewMode, reviewData, isReviewing,
   fixSuggestion, isFixing, structuredOutput,
-  onTabChange, onStartReview, onFixError, onApplyFix,
+  onTabChange, onStartReview, onRetryReview, onFixError, onApplyFix,
 }: WorkspaceTabsProps) {
   const tabs: Array<{ id: TabId; icon: React.ComponentType<{ className?: string }>; label: string; hasIndicator: boolean }> = [
     { id: "output", icon: Terminal, label: "Output", hasIndicator: !!executionError },
@@ -136,29 +137,41 @@ export default function WorkspaceTabs({
             )}
             {reviewData && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-purple-400 font-bold uppercase">Score: {reviewData.overall_score}/10</span>
-                  <div className="w-20 h-1.5 bg-[#334155] rounded-full overflow-hidden">
-                    <div className="h-full bg-purple-500 rounded-full" style={{ width: `${reviewData.overall_score * 10}%` }} />
+                {reviewData.is_error ? (
+                  <div className="text-center py-6">
+                    <XCircle className="w-6 h-6 text-red-400/30 mx-auto mb-2" />
+                    <p className="text-xs text-red-300/60 mb-3">{reviewData.summary}</p>
+                    <button onClick={onRetryReview} className="px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 text-purple-400 text-xs font-bold rounded-lg hover:bg-purple-500/30 flex items-center gap-1.5 mx-auto">
+                      <Loader2 className="w-3 h-3" /> Retry Review
+                    </button>
                   </div>
-                </div>
-                <p className="text-xs text-white/60">{reviewData.summary}</p>
-                {reviewData.annotations.map((ann, i) => (
-                  <div key={i} className={`p-2 rounded-lg border ${
-                    ann.severity === "high" ? "bg-red-500/10 border-red-500/20" : ann.severity === "medium" ? "bg-amber-500/10 border-amber-500/20" : "bg-blue-500/10 border-blue-500/20"
-                  }`}>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="text-[9px] font-bold text-white/40">L{ann.line_start}{ann.line_end !== ann.line_start ? `-L${ann.line_end}` : ""}</span>
-                      <span className={`text-[9px] font-bold px-1 rounded ${
-                        ann.severity === "high" ? "bg-red-500/30 text-red-300" : ann.severity === "medium" ? "bg-amber-500/30 text-amber-300" : "bg-blue-500/30 text-blue-300"
-                      }`}>{ann.severity}</span>
-                      <span className="text-[9px] text-white/30">{ann.category}</span>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-purple-400 font-bold uppercase">Score: {reviewData.overall_score}/10</span>
+                      <div className="w-20 h-1.5 bg-[#334155] rounded-full overflow-hidden">
+                        <div className="h-full bg-purple-500 rounded-full" style={{ width: `${reviewData.overall_score * 10}%` }} />
+                      </div>
                     </div>
-                    <p className="text-xs text-white/70">{ann.message}</p>
-                    <p className="text-[10px] text-teal-400/70 mt-1">{ann.suggestion}</p>
-                  </div>
-                ))}
-                {reviewData.annotations.length === 0 && <p className="text-xs text-white/30 text-center py-4">No issues found. Great code!</p>}
+                    <p className="text-xs text-white/60">{reviewData.summary}</p>
+                    {reviewData.annotations.map((ann, i) => (
+                      <div key={i} className={`p-2 rounded-lg border ${
+                        ann.severity === "high" ? "bg-red-500/10 border-red-500/20" : ann.severity === "medium" ? "bg-amber-500/10 border-amber-500/20" : "bg-blue-500/10 border-blue-500/20"
+                      }`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[9px] font-bold text-white/40">L{ann.line_start}{ann.line_end !== ann.line_start ? `-L${ann.line_end}` : ""}</span>
+                          <span className={`text-[9px] font-bold px-1 rounded ${
+                            ann.severity === "high" ? "bg-red-500/30 text-red-300" : ann.severity === "medium" ? "bg-amber-500/30 text-amber-300" : "bg-blue-500/30 text-blue-300"
+                          }`}>{ann.severity}</span>
+                          <span className="text-[9px] text-white/30">{ann.category}</span>
+                        </div>
+                        <p className="text-xs text-white/70">{ann.message}</p>
+                        <p className="text-[10px] text-teal-400/70 mt-1">{ann.suggestion}</p>
+                      </div>
+                    ))}
+                    {reviewData.annotations.length === 0 && <p className="text-xs text-white/30 text-center py-4">No issues found. Great code!</p>}
+                  </>
+                )}
               </div>
             )}
           </div>

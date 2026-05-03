@@ -116,10 +116,11 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
                 <button
                   type="button"
                   onClick={() => {
+                    const isInLearningGenerator = pathname.startsWith("/learning-generator");
                     if (!sidebarOpen) {
                       router.push("/learning-generator");
                       onMobileClose();
-                    } else if (!isExpanded) {
+                    } else if (!isInLearningGenerator) {
                       router.push("/learning-generator");
                     }
                     setExpandedMenu(isExpanded ? null : item.name);
