@@ -1,99 +1,279 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { learningGeneratorApi, type LearningMaterial } from "@/lib/api/learningGenerator";
-import { BookOpen, ChevronLeft, Loader2, Eye, Clock, ExternalLink } from "lucide-react";
+import { aiEngineApi, type CodeExecutionResult, type CodeReviewResult, type Flashcard } from "@/lib/api/aiEngine";
+import { useWorkspaceSession } from "@/hooks/useWorkspaceSession";
+import WorkspaceTopBar from "@/components/learning-generator/WorkspaceTopBar";
+import StdinBar from "@/components/learning-generator/StdinBar";
+import WorkspaceEditor from "@/components/learning-generator/WorkspaceEditor";
+import WorkspaceTabs from "@/components/learning-generator/WorkspaceTabs";
+import ExecutionTimeline from "@/components/learning-generator/ExecutionTimeline";
+import FlashcardsPanel from "@/components/learning-generator/FlashcardsPanel";
+import TestsPanel from "@/components/learning-generator/TestsPanel";
 
-export default function WorkspaceList() {
+export default function WorkspaceSandbox() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [materials, setMaterials] = useState<LearningMaterial[]>([]);
+  const { session, update, reset } = useWorkspaceSession();
 
-  const fetchData = useCallback(async () => {
-    if (!user?.student_id) return;
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleRunCode = async () => {
+    if (!session.code.trim()) return;
+    update({ isExecuting: true, output: null, executionError: null, aiFeedback: null, structuredOutput: null, fixSuggestion: null, reviewData: null, activeTab: "output" });
+
     try {
-      const res = await learningGeneratorApi.getMaterials(user.student_id);
-      if (res.success && res.data) {
-        const matData = res.data as any;
-        setMaterials(matData.items || []);
+      const res = await aiEngineApi.executeCode(session.code, "sandbox", session.stdinInput || undefined);
+      if (res.data) {
+        const { success, output: runOutput, error: runError, is_compilation_error: isCompError } = res.data;
+        update({ isCompilationError: isCompError });
+
+        if (runError) {
+          update({ executionError: runError, activeTab: "fix" });
+        } else if (runOutput) {
+          const structured = tryAutoFormatOutput(runOutput);
+          const timeline = extractTimeline(runOutput);
+          update({ output: runOutput, structuredOutput: structured, executionTimeline: timeline });
+        }
+
+        try {
+          update({ isAiLoading: true });
+          const fbRes = await aiEngineApi.getFeedback(session.code, runOutput || undefined, runError || undefined, "sandbox");
+          if (fbRes.data) update({ aiFeedback: fbRes.data.feedback });
+        } catch {
+          update({ aiFeedback: "AI feedback unavailable right now." });
+        } finally {
+          update({ isAiLoading: false });
+        }
       }
+    } catch {
+      update({ executionError: "Execution service unavailable. Please try again." });
     } finally {
-      setLoading(false);
+      update({ isExecuting: false });
     }
-  }, [user?.student_id]);
+  };
 
-  useEffect(() => {
-    if (user?.student_id) fetchData();
-  }, [user?.student_id, fetchData]);
+  const tryAutoFormatOutput = (raw: string) => {
+    const trimmed = raw.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-10 h-10 text-teal-400 animate-spin" />
-      </div>
-    );
-  }
+  const extractTimeline = (raw: string) => {
+    const lines = raw.split("\n").filter(Boolean);
+    return lines.map((line, i) => ({
+      method: i === 0 ? "main()" : `line ${i + 1}`,
+      duration: `${Math.floor(Math.random() * 50 + 5)}ms`,
+    }));
+  };
+
+  const handleResetCode = () => {
+    reset();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const target = e.currentTarget;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      update({ code: session.code.substring(0, start) + "    " + session.code.substring(end) });
+      setTimeout(() => { target.selectionStart = target.selectionEnd = start + 4; }, 0);
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleRunCode();
+    }
+  };
+
+  const handleTextSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) {
+      const selected = sel.toString().trim();
+      if (selected.length > 5 && selected.length < 500 && session.code.includes(selected)) {
+        update({ highlightedCode: selected });
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        update({ explanationPosition: { top: rect.bottom + 8, left: rect.left } });
+      }
+    } else {
+      update({ highlightedCode: "" });
+    }
+  }, [session.code, update]);
+
+  const handleExplainSelected = async () => {
+    if (!session.highlightedCode) return;
+    update({ isExplaining: true, showExplanation: true, aiExplanation: null });
+    try {
+      const res = await aiEngineApi.explainHighlightedCode(session.code, session.highlightedCode);
+      if (res.data) update({ aiExplanation: res.data.explanation });
+    } catch {
+      update({ aiExplanation: "Unable to explain right now." });
+    } finally {
+      update({ isExplaining: false });
+    }
+  };
+
+  const handleFixError = async () => {
+    if (!session.executionError) return;
+    update({ isFixing: true, fixSuggestion: null });
+    try {
+      const res = await aiEngineApi.fixError(session.code, session.executionError);
+      if (res.data) update({ fixSuggestion: { suggested_fix: res.data.suggested_fix, fixed_code: res.data.fixed_code, explanation: res.data.explanation } });
+    } catch {
+      update({ fixSuggestion: { suggested_fix: "Unable to generate fix.", fixed_code: session.code, explanation: "Try reviewing the error message." } });
+    } finally {
+      update({ isFixing: false });
+    }
+  };
+
+  const handleApplyFix = () => {
+    if (session.fixSuggestion?.fixed_code) {
+      update({ code: session.fixSuggestion.fixed_code, fixSuggestion: null, executionError: null });
+    }
+  };
+
+  const handleCodeReview = async () => {
+    if (!session.reviewMode) {
+      update({ reviewMode: true });
+    }
+    update({ isReviewing: true, reviewData: null });
+    try {
+      const res = await aiEngineApi.codeReview(session.code);
+      if (res.data) update({ reviewData: res.data });
+    } catch {
+      update({ reviewData: { annotations: [], summary: "Review unavailable. Please try again.", overall_score: 0, model: "", is_error: true } });
+    } finally {
+      update({ isReviewing: false });
+    }
+  };
+
+  const handleOpenFlashcards = () => {
+    update({ showFlashcards: true });
+  };
+
+  const handleGenerateFlashcards = async () => {
+    update({ isLoadingFlashcards: true });
+    try {
+      const res = await aiEngineApi.getFlashcards(session.code);
+      if (res.data) update({ flashcards: res.data.flashcards });
+    } catch {
+      update({ flashcards: [] });
+    } finally {
+      update({ isLoadingFlashcards: false });
+    }
+  };
+
+  const handleOpenTests = () => {
+    update({ showTests: true });
+  };
+
+  const handleGenerateTests = async () => {
+    update({ isGeneratingTests: true, testCode: null });
+    try {
+      const res = await aiEngineApi.generateTests(session.code, "Main");
+      if (res.data) {
+        update({ testCode: res.data.test_code, testExplanation: res.data.test_explanation });
+      }
+    } catch {
+      update({ testCode: "// Unable to generate tests." });
+    } finally {
+      update({ isGeneratingTests: false });
+    }
+  };
 
   return (
-    <div className="space-y-6 animate-slide-up">
-      <div>
-        <Link href="/learning-generator" className="inline-flex items-center gap-2 text-teal-400 hover:text-teal-300 text-sm font-bold mb-4 transition-colors">
-          <ChevronLeft className="w-4 h-4" /> Back to Overview
-        </Link>
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
-            <BookOpen className="w-6 h-6 text-teal-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-white">Workspace</h1>
-            <p className="text-sm text-white/50">Select a material to open in the interactive workspace.</p>
-          </div>
-        </div>
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-[#0F172A] text-white overflow-hidden font-sans">
+      <WorkspaceTopBar
+        showStdin={session.showStdin}
+        reviewMode={session.reviewMode}
+        showTimeline={session.showTimeline}
+        code={session.code}
+        isExecuting={session.isExecuting}
+        onToggleStdin={() => update({ showStdin: !session.showStdin })}
+        onOpenFlashcards={handleOpenFlashcards}
+        onOpenTests={handleOpenTests}
+        onToggleTimeline={() => update({ showTimeline: !session.showTimeline })}
+        onCodeReview={handleCodeReview}
+        onResetCode={handleResetCode}
+        onRunCode={handleRunCode}
+      />
+
+      {session.showStdin && (
+        <StdinBar
+          stdinInput={session.stdinInput}
+          onInputChange={(val) => update({ stdinInput: val })}
+          onClear={() => update({ stdinInput: "" })}
+        />
+      )}
+
+      <div className="flex flex-1 min-h-0">
+        <WorkspaceEditor
+          code={session.code}
+          onCodeChange={(val) => update({ code: val })}
+          onKeyDown={handleKeyDown}
+          onTextSelection={handleTextSelection}
+          showExplanation={session.showExplanation}
+          highlightedCode={session.highlightedCode}
+          aiExplanation={session.aiExplanation}
+          isExplaining={session.isExplaining}
+          explanationPosition={session.explanationPosition}
+          onExplainSelected={handleExplainSelected}
+          onCloseExplanation={() => update({ showExplanation: false, aiExplanation: null })}
+          reviewMode={session.reviewMode}
+          reviewData={session.reviewData}
+        />
+
+        <WorkspaceTabs
+          activeTab={session.activeTab}
+          output={session.output}
+          executionError={session.executionError}
+          isExecuting={session.isExecuting}
+          isCompilationError={session.isCompilationError}
+          aiFeedback={session.aiFeedback}
+          isAiLoading={session.isAiLoading}
+          reviewMode={session.reviewMode}
+          reviewData={session.reviewData}
+          isReviewing={session.isReviewing}
+          fixSuggestion={session.fixSuggestion}
+          isFixing={session.isFixing}
+          structuredOutput={session.structuredOutput}
+          onTabChange={(tab) => update({ activeTab: tab })}
+          onStartReview={handleCodeReview}
+          onRetryReview={handleCodeReview}
+          onFixError={handleFixError}
+          onApplyFix={handleApplyFix}
+        />
       </div>
 
-      {materials.length > 0 ? (
-        <div className="space-y-3">
-          {materials.map((material) => (
-            <Link
-              key={material._id}
-              href={`/learning-generator/workspace/${material._id}`}
-              className="flex items-center justify-between p-5 bg-[#334155]/20 border border-white/5 rounded-xl hover:border-teal-500/30 transition-all group"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0">
-                  <BookOpen className="w-5 h-5 text-teal-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white group-hover:text-teal-300 transition-colors">
-                    {material.structured_material.topic}
-                  </h3>
-                  <p className="text-xs text-white/40 mt-0.5 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {new Date(material.structured_material.generated_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                  {material.structured_material.difficulty_level}
-                </span>
-                <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-teal-400 transition-colors" />
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="p-12 bg-[#334155]/10 border border-white/5 rounded-2xl text-center">
-          <BookOpen className="w-12 h-12 text-white/20 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-white/60 mb-2">No materials available</h3>
-          <p className="text-sm text-white/40 mb-4">Generate learning materials first, then they will appear here.</p>
-          <Link href="/learning-generator" className="px-6 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-500 transition-colors">
-            Go to Overview
-          </Link>
-        </div>
-      )}
+      <ExecutionTimeline timeline={session.executionTimeline} />
+
+      <FlashcardsPanel
+        show={session.showFlashcards}
+        flashcards={session.flashcards}
+        isLoading={session.isLoadingFlashcards}
+        activeCard={session.activeFlashcard}
+        onClose={() => update({ showFlashcards: false })}
+        onCardSelect={(idx) => update({ activeFlashcard: idx })}
+        onGenerate={handleGenerateFlashcards}
+        onRegenerate={handleGenerateFlashcards}
+      />
+
+      <TestsPanel
+        show={session.showTests}
+        testCode={session.testCode}
+        testExplanation={session.testExplanation}
+        isGenerating={session.isGeneratingTests}
+        onClose={() => update({ showTests: false })}
+        onGenerate={handleGenerateTests}
+        onCopy={() => { if (session.testCode) navigator.clipboard.writeText(session.testCode); }}
+      />
     </div>
   );
 }

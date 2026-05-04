@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats } from "@/lib/api/learningGenerator";
-import {
-  BookOpen, Sparkles, Loader2, AlertCircle, TrendingUp, Target,
-  Clock, CheckCircle2, XCircle, AlertTriangle, ChevronRight,
-  Brain, Layers, BarChart3, ExternalLink, Plus, RefreshCw, Award
-} from "lucide-react";
+import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap } from "lucide-react";
+import { ActiveJobsList } from "@/components/learning-generator/JobCard";
+import ProgressStatsCards from "@/components/learning-generator/ProgressStats";
+import KnowledgeGapCard from "@/components/learning-generator/KnowledgeGapCard";
+import SubmitProfileDialog from "@/components/learning-generator/SubmitProfileDialog";
+import { QuickActions, ModuleProgressList, ScoreHistory, StrengthsList } from "@/components/learning-generator/OverviewSidebar";
 
 export default function LearningGeneratorDashboard() {
   const { user } = useAuth();
@@ -20,10 +21,11 @@ export default function LearningGeneratorDashboard() {
   const [activeJobs, setActiveJobs] = useState<GenerationJob[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
-  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [progressStats, setProgressStats] = useState<ProgressStats | null>(null);
   const [materialProgress, setMaterialProgress] = useState<StudentProgress[]>([]);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [closingJobs, setClosingJobs] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!user?.student_id) return;
@@ -48,27 +50,24 @@ export default function LearningGeneratorDashboard() {
       }
       if (jobsRes.success && jobsRes.data) {
         const jobsData = (jobsRes.data as any) || [];
-        const active = Array.isArray(jobsData)
-          ? jobsData.filter((j: GenerationJob) => ['queued', 'processing'].includes(j.status))
-          : [];
-        setActiveJobs(active);
+        const visible = jobsData.filter((j: GenerationJob) => j.status !== "closed");
+        setActiveJobs(visible);
 
-        if (active.length > 0 && !pollingInterval) {
+        if (!pollingInterval) {
           const sid = user!.student_id!;
           const interval = setInterval(async () => {
-            for (const job of active) {
-              await learningGeneratorApi.completeJob(job.job_id);
+            const [materialsRes, jobsRes] = await Promise.all([
+              learningGeneratorApi.getMaterials(sid),
+              learningGeneratorApi.getJobsByStudent(sid),
+            ]);
+            if (materialsRes.success && materialsRes.data) {
+              const matData = materialsRes.data as any;
+              setMaterials(matData.items || []);
             }
-            const jobsRes = await learningGeneratorApi.getJobsByStudent(sid);
             if (jobsRes.success && jobsRes.data) {
               const allJobs = (jobsRes.data as any) || [];
-              const stillActive = allJobs.filter((j: GenerationJob) => ['queued', 'processing'].includes(j.status));
-              setActiveJobs(stillActive);
-              if (stillActive.length === 0 && active.length > 0) {
-                clearInterval(interval);
-                setPollingInterval(null);
-                fetchData();
-              }
+              const visibleJobs = allJobs.filter((j: GenerationJob) => j.status !== "closed");
+              setActiveJobs(visibleJobs);
             }
           }, 5000);
           setPollingInterval(interval);
@@ -92,6 +91,18 @@ export default function LearningGeneratorDashboard() {
     if (user?.student_id) fetchData();
     return () => { if (pollingInterval) clearInterval(pollingInterval); };
   }, [user?.student_id, fetchData]);
+
+  const handleDismissJob = async (jobId: string) => {
+    setClosingJobs((prev) => [...prev, jobId]);
+    try {
+      await learningGeneratorApi.closeJob(jobId);
+    } catch (err) {
+      console.error("Failed to close job:", err);
+    } finally {
+      setActiveJobs((prev) => prev.filter((j) => j.job_id !== jobId));
+      setClosingJobs((prev) => prev.filter((id) => id !== jobId));
+    }
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -196,20 +207,23 @@ export default function LearningGeneratorDashboard() {
       const res = await learningGeneratorApi.submitProfile(payload);
 
       if (res.success && res.data) {
-        setActiveJobs(prev => {
-          if (prev.find(j => j.job_id === res.data!.job_id)) return prev;
-          return [...prev, {
-            job_id: res.data!.job_id,
-            student_id: res.data!.student_id,
-            profile_id: "",
-            status: "processing",
-            gaps_total: res.data!.gaps_queued,
-            gaps_completed: 0,
-            gaps_failed: 0,
-            materials_generated: 0,
-            materials_failed: 0,
-            created_at: new Date().toISOString(),
-          }];
+        setActiveJobs((prev) => {
+          if (prev.find((j) => j.job_id === res.data!.job_id)) return prev;
+          return [
+            ...prev,
+            {
+              job_id: res.data!.job_id,
+              student_id: res.data!.student_id,
+              profile_id: "",
+              status: "processing",
+              gaps_total: res.data!.gaps_queued,
+              gaps_completed: 0,
+              gaps_failed: 0,
+              materials_generated: 0,
+              materials_failed: 0,
+              created_at: new Date().toISOString(),
+            },
+          ];
         });
         setShowSubmitDialog(false);
       } else {
@@ -222,22 +236,16 @@ export default function LearningGeneratorDashboard() {
     }
   };
 
-  const getGapColor = (gapType: string) => {
-    switch (gapType) {
-      case "FUNDAMENTAL_GAP": return { bg: "bg-red-500/10", border: "border-red-500/20", text: "text-red-400", dot: "bg-red-500" };
-      case "PARTIAL_GAP": return { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-400", dot: "bg-amber-500" };
-      case "SURFACE_GAP": return { bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-400", dot: "bg-blue-500" };
-      default: return { bg: "bg-white/5", border: "border-white/10", text: "text-white/50", dot: "bg-white/30" };
-    }
-  };
-
   const getProgressForMaterial = (materialId: string) => {
-    return materialProgress.find(p => p.material_id === materialId);
+    return materialProgress.find((p) => p.material_id === materialId);
   };
 
   const getMaterialByTopic = (topic: string) => {
-    return materials.find(m => m.structured_material.topic.toLowerCase() === topic.toLowerCase());
+    return materials.find((m) => m.structured_material.topic.toLowerCase() === topic.toLowerCase());
   };
+
+  const totalGaps = profile?.knowledge_gaps?.length || 0;
+  const fundamentalGaps = profile?.knowledge_gaps?.filter((g: KnowledgeGap) => g.gap_type === "FUNDAMENTAL_GAP").length || 0;
 
   if (loading) {
     return (
@@ -251,159 +259,63 @@ export default function LearningGeneratorDashboard() {
   }
 
   return (
-    <div className="space-y-6 animate-slide-up">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
-            <BookOpen className="w-6 h-6 text-teal-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-white">Material Generator</h1>
-            <p className="text-sm text-white/50">AI-powered personalized learning materials based on your knowledge gaps.</p>
+    <div className="space-y-8 animate-slide-up">
+
+      {/* ── HERO CARD ── */}
+      <div className="relative p-[1px] rounded-3xl overflow-hidden group">
+        <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500 to-teal-500/0 group-hover:rotate-180 transition-transform duration-1000 ease-linear animate-pulse" />
+        <div className="relative bg-[#1e293b]/90 backdrop-blur-xl rounded-3xl p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-3 shadow-[0_0_10px_rgba(13,148,136,0.3)]">
+                <Sparkles className="w-3 h-3" /> AI-Powered Learning
+              </div>
+              <h1 className="text-2xl lg:text-3xl font-black text-white mb-2">
+                Material Generator
+              </h1>
+              <p className="text-white/50 text-sm lg:text-base max-w-xl">
+                Personalized tutorials, exercises, and assessments generated by AI based on your unique knowledge gaps and learning patterns.
+              </p>
+            </div>
+
+            <div className="flex gap-3 shrink-0">
+              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 text-center min-w-[100px]">
+                <p className="text-2xl font-black text-teal-400">{totalGaps}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Gaps Found</p>
+              </div>
+              {fundamentalGaps > 0 && (
+                <div className="bg-[#0F172A] border border-red-500/20 rounded-2xl p-4 text-center min-w-[100px]">
+                  <p className="text-2xl font-black text-red-400">{fundamentalGaps}</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Critical</p>
+                </div>
+              )}
+              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 text-center min-w-[100px]">
+                <p className="text-2xl font-black text-amber-400">{materials.length}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Materials</p>
+              </div>
+            </div>
           </div>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="px-4 py-2 bg-[#334155]/30 border border-white/10 rounded-xl text-sm font-bold text-white/70 hover:bg-[#334155]/50 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-red-200 text-sm font-medium">{error}</p>
-            <button onClick={handleRefresh} className="text-red-400 text-xs font-bold mt-1 hover:text-red-300">Retry</button>
-          </div>
-        </div>
-      )}
-
-      {/* Active Jobs */}
+      {/* ── ACTIVE JOBS ── */}
       {activeJobs.length > 0 && (
-        <div className="space-y-3">
-          {activeJobs.map((job) => (
-            <div key={job.job_id} className="p-5 bg-gradient-to-r from-teal-900/40 to-[#0F172A] border border-teal-500/30 rounded-2xl animate-fade-in">
-              <div className="flex items-center gap-3 mb-3">
-                <Sparkles className="w-5 h-5 text-teal-400 animate-spin-slow" />
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-white">Generating Materials...</h3>
-                  <p className="text-xs text-white/40">{job.job_id} • {job.status}</p>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-teal-500/20 text-teal-400 text-[10px] font-bold uppercase">{job.status}</span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex-1 h-2 bg-[#334155] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-500"
-                    style={{ width: `${job.gaps_total > 0 ? (job.gaps_completed / job.gaps_total) * 100 : 0}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-white/40">
-                  <span>{job.gaps_completed}/{job.gaps_total} topics processed</span>
-                  {job.materials_generated > 0 && (
-                    <span className="text-teal-400">{job.materials_generated} materials ready</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <ActiveJobsList jobs={activeJobs} onDismiss={handleDismissJob} closingJobs={closingJobs} />
       )}
 
-      {/* Progress Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-teal-400" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-white">{progressStats?.progress_percentage ?? 0}%</p>
-          <p className="text-xs text-white/40 mt-1">Overall Progress</p>
-        </div>
+      {/* ── PROGRESS STATS ── */}
+      <ProgressStatsCards stats={progressStats} progress={materialProgress} materials={materials} />
 
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-green-400" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-white">{progressStats?.completed_materials ?? 0}</p>
-          <p className="text-xs text-white/40 mt-1">Modules Completed</p>
-        </div>
-
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-amber-400" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-white">{progressStats?.in_progress_materials ?? 0}</p>
-          <p className="text-xs text-white/40 mt-1">In Progress</p>
-        </div>
-
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-              <Award className="w-5 h-5 text-purple-400" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-white">{progressStats?.avg_quiz_score ?? "—"}</p>
-          <p className="text-xs text-white/40 mt-1">Avg Quiz Score</p>
-        </div>
-      </div>
-
-      {/* Learning Progress Overview */}
-      {progressStats && (
-        <div className="p-6 bg-gradient-to-br from-[#334155]/30 to-[#0F172A] border border-white/5 rounded-2xl">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-teal-400" /> Learning Progress
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-white/60">Steps Completed</span>
-                <span className="text-white font-bold">{progressStats.completed_steps} / {progressStats.total_steps}</span>
-              </div>
-              <div className="w-full h-3 bg-[#334155] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-700"
-                  style={{ width: `${progressStats.progress_percentage}%` }}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/5">
-              <div className="text-center">
-                <p className="text-2xl font-black text-green-400">{progressStats.completed_materials}</p>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Completed</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-black text-amber-400">{progressStats.in_progress_materials}</p>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">In Progress</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-black text-white/50">{progressStats.not_started_materials}</p>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Not Started</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Knowledge Gaps & Materials */}
+      {/* ── MAIN CONTENT ── */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Knowledge Gaps */}
+
+        {/* ── LEFT: Knowledge Gaps ── */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-400" /> Knowledge Gaps
             </h2>
-            <Link href="/learning-generator/knowledge-gaps" className="text-xs text-teal-400 font-bold hover:text-teal-300 flex items-center gap-1">
+            <Link href="/learning-generator/knowledge-gaps" className="text-xs text-teal-400 font-bold hover:text-teal-300 flex items-center gap-1 transition-colors">
               View All <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
@@ -411,269 +323,47 @@ export default function LearningGeneratorDashboard() {
           {profile?.knowledge_gaps && profile.knowledge_gaps.length > 0 ? (
             <div className="space-y-3">
               {profile.knowledge_gaps.map((gap: KnowledgeGap, i: number) => {
-                const colors = getGapColor(gap.gap_type);
                 const material = getMaterialByTopic(gap.topic);
                 const progress = material ? getProgressForMaterial(material._id) : null;
-
                 return (
-                  <div key={i} className="p-5 bg-[#334155]/20 border border-white/5 rounded-xl hover:border-white/10 transition-all group">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${colors.dot}`} />
-                        <div>
-                          <h3 className="font-bold text-white group-hover:text-teal-300 transition-colors">{gap.topic}</h3>
-                          <p className="text-xs text-white/40 mt-0.5">{gap.topic_id}</p>
-                        </div>
-                      </div>
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${colors.bg} ${colors.border} ${colors.text}`}>
-                        {gap.gap_type.replace("_", " ")}
-                      </span>
-                    </div>
-
-                    {gap.evidence_summary && (
-                      <p className="text-sm text-white/60 mb-3 line-clamp-2">{gap.evidence_summary}</p>
-                    )}
-
-                    {gap.misconceptions && gap.misconceptions.length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1.5">Misconceptions</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {gap.misconceptions.slice(0, 3).map((m: string, mi: number) => (
-                            <span key={mi} className="px-2 py-0.5 bg-red-500/10 border border-red-500/10 rounded text-[10px] text-red-300/80">
-                              {m.length > 40 ? m.substring(0, 40) + "..." : m}
-                            </span>
-                          ))}
-                          {gap.misconceptions.length > 3 && (
-                            <span className="px-2 py-0.5 bg-white/5 rounded text-[10px] text-white/40">+{gap.misconceptions.length - 3} more</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {material && progress && (
-                      <div className="mb-3">
-                        <div className="flex justify-between text-xs text-white/40 mb-1">
-                          <span>{progress.completed_steps.length} / {progress.total_steps} steps</span>
-                          <span className="text-teal-400">{Math.round((progress.completed_steps.length / progress.total_steps) * 100)}%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-[#334155] rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-teal-500 rounded-full transition-all"
-                            style={{ width: `${(progress.completed_steps.length / progress.total_steps) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                      <div className="flex items-center gap-4 text-xs text-white/40">
-                        {gap.confidence && (
-                          <span className="flex items-center gap-1">
-                            <Brain className="w-3 h-3" /> {Math.round(gap.confidence * 100)}% confidence
-                          </span>
-                        )}
-                        {progress?.completed_at && (
-                          <span className="flex items-center gap-1 text-green-400">
-                            <CheckCircle2 className="w-3 h-3" /> Completed
-                          </span>
-                        )}
-                      </div>
-                      {material ? (
-                        <Link
-                          href={`/learning-generator/workspace/${material._id}`}
-                          className="px-3 py-1.5 bg-teal-600/20 border border-teal-500/30 text-teal-400 text-[10px] font-bold rounded-lg hover:bg-teal-600/30 transition-colors flex items-center gap-1"
-                        >
-                          {progress?.completed_at ? 'Review' : 'Continue'} <ExternalLink className="w-2.5 h-2.5" />
-                        </Link>
-                      ) : (
-                        <span className="text-[10px] text-white/30 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> Pending generation
-                        </span>
-                      )}
-                    </div>
+                  <div key={i} className="animate-slide-up" style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'backwards' }}>
+                    <KnowledgeGapCard gap={gap} index={i} material={material} progress={progress || null} />
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="p-8 bg-[#334155]/10 border border-white/5 rounded-xl text-center">
-              <Brain className="w-10 h-10 text-white/20 mx-auto mb-3" />
-              <p className="text-sm text-white/40 mb-1">No knowledge gaps detected</p>
-              <p className="text-xs text-white/30">Submit a learning profile to identify gaps.</p>
+            <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-10 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mx-auto mb-4">
+                <Brain className="w-8 h-8 text-teal-400" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">All Clear!</h3>
+              <p className="text-sm text-white/40 mb-6 max-w-sm mx-auto">No knowledge gaps detected yet. Submit a learning profile to start your personalized journey.</p>
+              <button
+                onClick={() => setShowSubmitDialog(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(13,148,136,0.4)]"
+              >
+                <Zap className="w-4 h-4" /> Submit Profile
+              </button>
             </div>
           )}
         </div>
 
-        {/* Sidebar: Quick Actions + Recent Activity */}
+        {/* ── RIGHT: Sidebar ── */}
         <div className="space-y-6">
-          {/* Quick Actions */}
-          <div className="space-y-3">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-teal-400" /> Quick Actions
-            </h2>
-            <button
-              onClick={() => setShowSubmitDialog(true)}
-              className="w-full p-4 bg-gradient-to-br from-teal-900/40 to-[#0F172A] border border-teal-500/30 rounded-xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(13,148,136,0.15)] transition-all text-left flex items-start gap-3"
-            >
-              <div className="w-10 h-10 rounded-full bg-teal-500/20 border border-teal-500/40 flex items-center justify-center shrink-0">
-                <Plus className="w-5 h-5 text-teal-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white mb-0.5">Generate Materials</h3>
-                <p className="text-xs text-teal-100/60">Submit mastery profile to AI engine</p>
-              </div>
-            </button>
-            <Link href="/learning-generator/materials" className="w-full p-4 bg-[#334155]/20 border border-white/5 rounded-xl hover:border-white/20 transition-all flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                <BookOpen className="w-5 h-5 text-white/60" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white/80 mb-0.5">Browse Materials</h3>
-                <p className="text-xs text-white/40">View all generated content</p>
-              </div>
-            </Link>
-          </div>
-
-          {/* Material Progress List */}
-          {materialProgress.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Target className="w-5 h-5 text-teal-400" /> Your Modules
-              </h2>
-              <div className="space-y-2">
-                {materialProgress.map((p, i) => {
-                  const pct = p.total_steps > 0 ? Math.round((p.completed_steps.length / p.total_steps) * 100) : 0;
-                  const isComplete = !!p.completed_at;
-                  return (
-                    <Link key={i} href={`/learning-generator/workspace/${p.material_id}`} className="block p-3 bg-[#334155]/20 border border-white/5 rounded-lg hover:border-white/20 transition-all">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-bold text-white">{p.topic}</p>
-                        {isComplete && <CheckCircle2 className="w-4 h-4 text-green-400" />}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-[#334155] rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${isComplete ? 'bg-green-500' : 'bg-teal-500'}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-white/40 font-bold">{pct}%</span>
-                      </div>
-                      {p.quiz_score !== null && (
-                        <p className="text-[10px] text-purple-400 mt-1">Quiz: {p.quiz_score}%</p>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Profile History */}
-          {profileHistory.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-400" /> Score History
-              </h2>
-              <div className="space-y-2">
-                {profileHistory.map((entry: any, i: number) => {
-                  const getScoreColor = (score: number) => {
-                    if (score >= 80) return "text-green-400";
-                    if (score >= 60) return "text-amber-400";
-                    if (score >= 40) return "text-orange-400";
-                    return "text-red-400";
-                  };
-                  return (
-                    <div key={i} className="p-3 bg-[#334155]/20 border border-white/5 rounded-lg flex items-center justify-between">
-                      <div>
-                        <p className={`text-sm font-bold ${getScoreColor(entry.overall_mastery_score || entry.overall_score || 0)}`}>
-                          {entry.overall_mastery_score || entry.overall_score || "—"}%
-                        </p>
-                        <p className="text-[10px] text-white/30">{entry.gaps_count || 0} gaps</p>
-                      </div>
-                      <p className="text-[10px] text-white/30">
-                        {new Date(entry.submitted_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Strengths */}
-          {profile?.strengths && profile.strengths.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-green-400" /> Strengths
-              </h2>
-              <div className="space-y-2">
-                {profile.strengths.map((s: any, i: number) => (
-                  <div key={i} className="p-3 bg-green-500/5 border border-green-500/10 rounded-lg">
-                    <p className="text-sm font-bold text-white">
-                      {typeof s === 'string' ? s : s.topic}
-                    </p>
-                    {typeof s !== 'string' && s.confidence && (
-                      <p className="text-[10px] text-green-400/60 mt-0.5">
-                        {Math.round(s.confidence * 100)}% confidence • {s.mastery_level || 'proficient'}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <QuickActions onGenerateClick={() => setShowSubmitDialog(true)} />
+          <ModuleProgressList progress={materialProgress} />
+          <ScoreHistory history={profileHistory} />
+          <StrengthsList strengths={profile?.strengths || []} />
         </div>
       </div>
 
-      {/* Submit Profile Dialog */}
-      {showSubmitDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !submitting && setShowSubmitDialog(false)} />
-          <div className="relative max-w-lg w-full bg-[#1e293b] border border-white/10 rounded-2xl shadow-2xl p-6 animate-slide-up">
-            <h2 className="text-xl font-black text-white mb-2 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-teal-400" /> Generate Materials
-            </h2>
-            <p className="text-sm text-white/50 mb-6">
-              This will send your knowledge gaps to the AI engine. Processing takes 2-10 minutes.
-            </p>
-
-            <div className="p-4 bg-[#0F172A]/50 border border-white/5 rounded-xl mb-6">
-              <p className="text-xs text-white/40 uppercase tracking-wider mb-2">What gets sent:</p>
-              <ul className="text-sm text-white/70 space-y-1.5">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-teal-400 shrink-0" /> Knowledge gaps with misconceptions</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-teal-400 shrink-0" /> Strengths and skill level</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-teal-400 shrink-0" /> Evidence from quizzes, sandbox, and GitHub</li>
-              </ul>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowSubmitDialog(false)}
-                disabled={submitting}
-                className="flex-1 py-3 bg-[#334155]/30 border border-white/10 text-white font-bold rounded-xl hover:bg-[#334155]/50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitProfile}
-                disabled={submitting}
-                className="flex-1 py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-500 transition-colors shadow-[0_0_20px_rgba(13,148,136,0.3)] disabled:opacity-50 disabled:cursor-wait flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" /> Submit & Generate
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SubmitProfileDialog
+        isOpen={showSubmitDialog}
+        isSubmitting={submitting}
+        onSubmit={handleSubmitProfile}
+        onClose={() => setShowSubmitDialog(false)}
+      />
     </div>
   );
 }

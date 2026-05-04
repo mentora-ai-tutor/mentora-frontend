@@ -1,4 +1,4 @@
-const LMG_API_URL = process.env.NEXT_PUBLIC_LMG_API_URL || 'http://localhost:3002';
+const LMG_API_URL = process.env.NEXT_PUBLIC_LMG_API_URL || 'http://localhost:5012';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -69,7 +69,7 @@ interface GenerationJob {
   job_id: string;
   student_id: string;
   profile_id: string;
-  status: 'queued' | 'processing' | 'completed' | 'failed' | 'partial';
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'partial' | 'closed';
   gaps_total: number;
   gaps_completed: number;
   gaps_failed: number;
@@ -188,6 +188,10 @@ interface LearningMaterial {
     assessment: Assessment;
     personalisation?: any;
     study_plan?: any;
+    syntax_reference?: {
+      basic_syntax: string;
+      syntax_breakdown?: string[];
+    };
     agentic_metadata?: any;
     quality_flags?: any;
   };
@@ -317,6 +321,10 @@ class LearningGeneratorApi {
 
   async completeJob(jobId: string): Promise<ApiResponse<GenerationJob>> {
     return this.request('POST', `/api/agent/jobs/${jobId}/complete`);
+  }
+
+  async closeJob(jobId: string): Promise<ApiResponse<GenerationJob>> {
+    return this.request('PATCH', `/api/agent/jobs/${jobId}`, { status: 'closed' });
   }
 
   async getJobsByStudent(studentId: string): Promise<ApiResponse<GenerationJob[]>> {
