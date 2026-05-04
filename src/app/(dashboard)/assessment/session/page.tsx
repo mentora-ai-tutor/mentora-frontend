@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,31 @@ import {
   Zap
 } from "lucide-react";
 import FeedbackPanel from "../components/FeedbackPanel";
+
+interface StoredQA {
+  id: string;
+  number: number;
+  question: string;
+  type: "mcq" | "code_completion" | "code_tracing" | "debugging" | "coding_challenge";
+  code_snippet?: string;
+  options?: string[];
+  learner_answer: string;
+  correct_answer: string;
+  is_correct: boolean;
+  explanation: string;
+  topic: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  bloom_level: number;
+  time_spent: number;
+  timestamp: number;
+}
+
+const saveQA = (qa: StoredQA) => {
+  const stored = localStorage.getItem("assessment_qa");
+  const qaList: StoredQA[] = stored ? JSON.parse(stored) : [];
+  qaList.push(qa);
+  localStorage.setItem("assessment_qa", JSON.stringify(qaList));
+};
 
 interface Topic {
   name: string;
@@ -198,6 +223,28 @@ export default function SessionPage({
       next_action: "continue",
       next_topic_name: "Java Collections Framework"
     };
+
+    // Save Q&A to localStorage
+    const qaItem: StoredQA = {
+      id: sessionData.currentQuestion.id,
+      number: sessionData.currentQuestion.number,
+      question: sessionData.currentQuestion.text,
+      type: sessionData.currentQuestion.type,
+      code_snippet: sessionData.currentQuestion.code_snippet,
+      options: sessionData.currentQuestion.options,
+      learner_answer: answer,
+      correct_answer: sessionData.currentQuestion.type === "mcq"
+        ? sessionData.currentQuestion.options![sessionData.currentQuestion.options!.indexOf(answer)]
+        : "See explanation",
+      is_correct: isCorrect,
+      explanation: mockFeedback.correct_explanation,
+      topic: sessionData.currentQuestion.topic,
+      difficulty: sessionData.currentQuestion.difficulty,
+      bloom_level: sessionData.bloomLevel,
+      time_spent: 45,
+      timestamp: Date.now()
+    };
+    saveQA(qaItem);
 
     setFeedbackData(mockFeedback);
     setShowFeedback(true);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "../dashboard/Sidebar";
 import Header from "../dashboard/Header";
 import Footer from "../dashboard/Footer";
@@ -11,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [profileOpen, setProfileOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
@@ -21,6 +23,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (pathname.startsWith("/assessment")) {
+      setExpandedMenu("Assessment");
+    } else if (pathname.startsWith("/learning-generator")) {
+      setExpandedMenu("Material Generator");
+    } else if (pathname.startsWith("/knowledge-assist")) {
+      setExpandedMenu("Knowledge Assist");
+    }
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-white flex overflow-hidden">
