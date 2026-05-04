@@ -262,34 +262,105 @@ export default function FeedbackPanel({
       </div>
 
       {/* Mastery Progress Update */}
-      <Card className="bg-slate-800/30 border-slate-700">
+      <Card className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 overflow-hidden">
         <CardContent className="p-6">
-          <h4 className="text-white font-semibold mb-4">Mastery Progress Update</h4>
-
-          <div className="mb-4">
-            <p className="text-white font-medium">{data.mastery_update.topic}</p>
-            <div className="flex items-center gap-4 mt-2">
-              <span className="text-slate-400">Before: {data.mastery_update.before_mastery}%</span>
-              <ArrowRight className="w-4 h-4 text-slate-400" />
-              <span className="text-white font-bold">After: {data.mastery_update.after_mastery}%</span>
+          <div className="flex items-center gap-3 mb-6">
+            <div className={`p-2 rounded-xl ${
+              data.mastery_update.after_mastery >= data.mastery_update.target
+                ? "bg-emerald-500/10"
+                : "bg-teal-500/10"
+            }`}>
+              <Target className={`w-5 h-5 ${
+                data.mastery_update.after_mastery >= data.mastery_update.target
+                  ? "text-emerald-400"
+                  : "text-teal-400"
+              }`} />
             </div>
+            <div>
+              <h4 className="text-white font-bold">Mastery Progress</h4>
+              <p className="text-white/40 text-xs">{data.mastery_update.topic}</p>
+            </div>
+            {data.mastery_update.after_mastery >= data.mastery_update.target && (
+              <div className="ml-auto px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+                <p className="text-emerald-400 text-xs font-bold">MASTERED</p>
+              </div>
+            )}
           </div>
 
-          <div className="mb-4">
-            <div className="w-full bg-slate-700 rounded-full h-2">
-              <div
-                className="bg-teal-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${data.mastery_update.after_mastery}%` }}
-              />
-              <div
-                className="w-1 h-4 bg-amber-400 absolute -mt-1"
-                style={{ left: `${data.mastery_update.target}%`, marginLeft: '-2px' }}
-              />
+          {/* Progress Visualization */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-center">
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">Before</p>
+                <p className="text-2xl font-black text-white/60">{data.mastery_update.before_mastery}%</p>
+              </div>
+
+              <div className="flex-1 mx-6 relative">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <ArrowRight className="w-5 h-5 text-teal-400" />
+                </div>
+              </div>
+
+              <div className="text-center">
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">After</p>
+                <p className={`text-2xl font-black ${
+                  data.mastery_update.after_mastery >= data.mastery_update.target
+                    ? "text-emerald-400"
+                    : "text-teal-400"
+                }`}>{data.mastery_update.after_mastery}%</p>
+              </div>
             </div>
-            <p className="text-slate-400 text-sm mt-1">
+
+            {/* Progress Bar */}
+            <div className="relative mt-4">
+              <div className="w-full h-3 bg-[#0F172A] rounded-full overflow-visible">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    data.mastery_update.after_mastery >= data.mastery_update.target
+                      ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                      : "bg-gradient-to-r from-teal-500 to-teal-400"
+                  }`}
+                  style={{ width: `${Math.min(data.mastery_update.after_mastery, 100)}%` }}
+                />
+              </div>
+
+              {/* Target Marker */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -mt-0.5"
+                style={{ left: `${data.mastery_update.target}%` }}
+              >
+                <div className="relative -translate-x-1/2">
+                  <div className="w-0.5 h-5 bg-amber-400 rounded-full" />
+                  <p className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] text-amber-400 font-bold whitespace-nowrap">
+                    TARGET {data.mastery_update.target}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Current Position Marker */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -mt-0.5"
+                style={{ left: `${Math.min(data.mastery_update.after_mastery, 100)}%` }}
+              >
+                <div className="relative -translate-x-1/2">
+                  <div className={`w-3 h-3 rounded-full border-2 border-[#0F172A] ${
+                    data.mastery_update.after_mastery >= data.mastery_update.target
+                      ? "bg-emerald-400"
+                      : "bg-teal-400"
+                  } shadow-lg`} />
+                </div>
+              </div>
+            </div>
+
+            {/* Status Message */}
+            <p className={`text-center text-sm font-medium mt-8 ${
+              data.mastery_update.after_mastery >= data.mastery_update.target
+                ? "text-emerald-400"
+                : "text-white/60"
+            }`}>
               {data.mastery_update.after_mastery >= data.mastery_update.target
-                ? "Topic Mastered!"
-                : `${data.mastery_update.target - data.mastery_update.after_mastery}% more to master this topic`}
+                ? "🎉 Congratulations! You've mastered this topic!"
+                : `Keep going! Just ${data.mastery_update.target - data.mastery_update.after_mastery}% more to reach your target.`}
             </p>
           </div>
         </CardContent>
