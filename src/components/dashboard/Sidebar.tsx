@@ -51,6 +51,7 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Overview", href: "/assessment" },
       { name: "Questions & Answers", href: "/assessment/questions-answers" },
+      { name: "Report", href: "/assessment/report" },
       { name: "Suggested Resources", href: "/assessment/resources" },
     ],
   },
