@@ -17,7 +17,10 @@ import {
   Clock,
   TrendingUp,
   HelpCircle,
-  Trash2
+  Trash2,
+  FolderOpen,
+  Trophy,
+  BarChart3
 } from "lucide-react";
 
 interface QAItem {
@@ -97,6 +100,18 @@ export default function QuestionsAnswersPage() {
     return true;
   });
 
+  // Group questions by topic
+  const groupedByTopic = filteredData.reduce((acc, item) => {
+    const topic = item.topic || "Uncategorized";
+    if (!acc[topic]) {
+      acc[topic] = [];
+    }
+    acc[topic].push(item);
+    return acc;
+  }, {} as Record<string, QAItem[]>);
+
+  const topicKeys = Object.keys(groupedByTopic);
+
   const correctCount = qaData.filter(q => q.is_correct).length;
   const totalCount = qaData.length;
   const accuracy = Math.round((correctCount / totalCount) * 100);
@@ -158,7 +173,7 @@ export default function QuestionsAnswersPage() {
         </div>
       </div>
 
-      {/* Questions List */}
+      {/* Questions List - Grouped by Topic */}
       {totalCount === 0 ? (
         <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-12 text-center">
           <HelpCircle className="w-16 h-16 text-white/20 mx-auto mb-4" />
@@ -167,7 +182,7 @@ export default function QuestionsAnswersPage() {
             Complete an assessment to see your questions and answers here.
           </p>
           <a
-            href="/assessment/launch"
+            href="/assessment"
             className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-semibold transition-colors"
           >
             Start Assessment
@@ -175,184 +190,233 @@ export default function QuestionsAnswersPage() {
           </a>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredData.map((item) => {
-          const isExpanded = expandedItems[item.id];
+        <div className="space-y-6">
+          {topicKeys.map((topic) => {
+            const topicQuestions = groupedByTopic[topic];
+            const topicCorrect = topicQuestions.filter(q => q.is_correct).length;
+            const topicTotal = topicQuestions.length;
+            const topicAccuracy = Math.round((topicCorrect / topicTotal) * 100);
 
-          return (
-            <div
-              key={item.id}
-              className={`bg-[#1e293b]/90 backdrop-blur-xl border rounded-2xl overflow-hidden transition-all ${
-                item.is_correct ? "border-teal-500/20" : "border-red-500/20"
-              }`}
-            >
-              {/* Question Header */}
-              <div
-                className="p-6 cursor-pointer hover:bg-white/[0.02] transition-colors"
-                onClick={() => toggleExpand(item.id)}
-              >
-                <div className="flex items-start gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    item.is_correct ? "bg-teal-500/10" : "bg-red-500/10"
-                  }`}>
-                    {item.is_correct ? (
-                      <CheckCircle className="w-5 h-5 text-teal-400" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-400" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className="text-xs font-bold text-white/40">Q{item.number}</span>
-                      <Badge className={getDifficultyColor(item.difficulty)}>
-                        {item.difficulty}
-                      </Badge>
-                      <Badge className={getTypeColor(item.type)}>
-                        {getTypeLabel(item.type)}
-                      </Badge>
-                      <Badge variant="outline" className="border-blue-500/30 text-blue-300">
-                        {item.topic}
-                      </Badge>
-                      <Badge variant="outline" className="border-white/10 text-white/40">
-                        L{item.bloom_level}
-                      </Badge>
+            return (
+              <div key={topic} className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
+                {/* Topic Header */}
+                <div className="p-5 border-b border-white/5 bg-[#0F172A]/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-blue-500/10">
+                        <FolderOpen className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">{topic}</h3>
+                        <p className="text-xs text-white/40">
+                          {topicTotal} question{topicTotal !== 1 ? 's' : ''} answered
+                        </p>
+                      </div>
                     </div>
 
-                    <h3 className="text-white font-semibold mb-2">{item.question}</h3>
-
-                    <div className="flex items-center gap-4 text-xs text-white/40">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {item.time_spent}s
-                      </span>
-                      <span className={`flex items-center gap-1 font-semibold ${
-                        item.is_correct ? "text-teal-400" : "text-red-400"
-                      }`}>
-                        {item.is_correct ? (
-                          <>
-                            <CheckCircle className="w-3 h-3" />
-                            Correct
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3 h-3" />
-                            Incorrect
-                          </>
-                        )}
-                      </span>
+                    <div className="flex items-center gap-4">
+                      <div className="text-center">
+                        <div className={`text-xl font-black ${
+                          topicAccuracy >= 70 ? "text-teal-400" :
+                          topicAccuracy >= 40 ? "text-amber-400" : "text-red-400"
+                        }`}>{topicAccuracy}%</div>
+                        <p className="text-[10px] text-white/40 uppercase">Accuracy</p>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xl font-black text-white">{topicTotal}</div>
+                        <p className="text-[10px] text-white/40 uppercase">Questions</p>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xl font-black text-emerald-400">{topicCorrect}</div>
+                        <p className="text-[10px] text-white/40 uppercase">Correct</p>
+                      </div>
+                      <div className="w-32 hidden md:block">
+                        <div className="h-2 bg-[#0F172A] rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              topicAccuracy >= 70 ? "bg-teal-500" :
+                              topicAccuracy >= 40 ? "bg-amber-500" : "bg-red-500"
+                            }`}
+                            style={{ width: `${topicAccuracy}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="shrink-0">
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-white/40" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-white/40" />
-                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* Expanded Content */}
-              {isExpanded && (
-                <div className="px-6 pb-6 pt-0 border-t border-white/5">
-                  <div className="mt-4 space-y-4">
+                {/* Questions in Topic */}
+                <div className="divide-y divide-white/5">
+                  {topicQuestions.map((item) => {
+                    const isExpanded = expandedItems[item.id];
 
-                    {/* Code Snippet */}
-                    {item.code_snippet && (
-                      <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Code className="w-4 h-4 text-teal-400" />
-                          <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">Code</span>
-                        </div>
-                        <pre className="text-green-400 text-sm overflow-x-auto">
-                          <code>{item.code_snippet}</code>
-                        </pre>
-                      </div>
-                    )}
+                    return (
+                      <div key={item.id}>
+                        {/* Question Header */}
+                        <div
+                          className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                          onClick={() => toggleExpand(item.id)}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                              item.is_correct ? "bg-teal-500/10" : "bg-red-500/10"
+                            }`}>
+                              {item.is_correct ? (
+                                <CheckCircle className="w-5 h-5 text-teal-400" />
+                              ) : (
+                                <XCircle className="w-5 h-5 text-red-400" />
+                              )}
+                            </div>
 
-                    {/* MCQ Options */}
-                    {item.options && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Options</p>
-                        {item.options.map((option, idx) => {
-                          const isLearnerAnswer = option === item.learner_answer;
-                          const isCorrectAnswer = option === item.correct_answer;
-                          return (
-                            <div
-                              key={idx}
-                              className={`p-3 rounded-lg border text-sm ${
-                                isCorrectAnswer
-                                  ? "bg-teal-500/10 border-teal-500/30 text-teal-300"
-                                  : isLearnerAnswer
-                                  ? "bg-red-500/10 border-red-500/30 text-red-300"
-                                  : "bg-[#0F172A] border-white/5 text-white/60"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold">{String.fromCharCode(65 + idx)}.</span>
-                                <span>{option}</span>
-                                {isCorrectAnswer && (
-                                  <CheckCircle className="w-4 h-4 text-teal-400 ml-auto shrink-0" />
-                                )}
-                                {isLearnerAnswer && !isCorrectAnswer && (
-                                  <XCircle className="w-4 h-4 text-red-400 ml-auto shrink-0" />
-                                )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <span className="text-xs font-bold text-white/40">Q{item.number}</span>
+                                <Badge className={getDifficultyColor(item.difficulty)}>
+                                  {item.difficulty}
+                                </Badge>
+                                <Badge className={getTypeColor(item.type)}>
+                                  {getTypeLabel(item.type)}
+                                </Badge>
+                              </div>
+
+                              <h4 className="text-white font-semibold mb-2">{item.question}</h4>
+
+                              <div className="flex items-center gap-4 text-xs text-white/40">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {item.time_spent}s
+                                </span>
+                                <span className={`flex items-center gap-1 font-semibold ${
+                                  item.is_correct ? "text-teal-400" : "text-red-400"
+                                }`}>
+                                  {item.is_correct ? (
+                                    <>
+                                      <CheckCircle className="w-3 h-3" />
+                                      Correct
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle className="w-3 h-3" />
+                                      Incorrect
+                                    </>
+                                  )}
+                                </span>
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
 
-                    {/* Learner Answer */}
-                    <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5">
-                      <div className="flex items-center gap-2 mb-2">
-                        {item.is_correct ? (
-                          <CheckCircle className="w-4 h-4 text-teal-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        )}
-                        <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">
-                          Your Answer
-                        </span>
-                      </div>
-                      <p className={`text-sm ${item.is_correct ? "text-teal-300" : "text-red-300"}`}>
-                        {item.learner_answer}
-                      </p>
-                    </div>
-
-                    {/* Correct Answer (only if incorrect) */}
-                    {!item.is_correct && (
-                      <div className="bg-teal-500/5 rounded-xl p-4 border border-teal-500/20">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CheckCircle className="w-4 h-4 text-teal-400" />
-                          <span className="text-xs font-semibold text-teal-400 uppercase tracking-wider">
-                            Correct Answer
-                          </span>
+                            <div className="shrink-0">
+                              {isExpanded ? (
+                                <ChevronUp className="w-5 h-5 text-white/40" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-white/40" />
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm text-teal-300">{item.correct_answer}</p>
-                      </div>
-                    )}
 
-                     {/* Explanation */}
-                    <div className="bg-amber-500/5 rounded-xl p-4 border border-amber-500/20">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Lightbulb className="w-4 h-4 text-amber-400" />
-                        <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
-                          Explanation
-                        </span>
+                        {/* Expanded Content */}
+                        {isExpanded && (
+                          <div className="px-5 pb-5 ml-14">
+                            <div className="pl-4 border-l-2 border-teal-500/30 space-y-4">
+
+                              {/* Code Snippet */}
+                              {item.code_snippet && (
+                                <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Code className="w-4 h-4 text-teal-400" />
+                                    <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">Code</span>
+                                  </div>
+                                  <pre className="text-green-400 text-sm overflow-x-auto">
+                                    <code>{item.code_snippet}</code>
+                                  </pre>
+                                </div>
+                              )}
+
+                              {/* MCQ Options */}
+                              {item.options && (
+                                <div className="space-y-2">
+                                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Options</p>
+                                  {item.options.map((option, idx) => {
+                                    const isLearnerAnswer = option === item.learner_answer;
+                                    const isCorrectAnswer = option === item.correct_answer;
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className={`p-3 rounded-lg border text-sm ${
+                                          isCorrectAnswer
+                                            ? "bg-teal-500/10 border-teal-500/30 text-teal-300"
+                                            : isLearnerAnswer
+                                            ? "bg-red-500/10 border-red-500/30 text-red-300"
+                                            : "bg-[#0F172A] border-white/5 text-white/60"
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-bold">{String.fromCharCode(65 + idx)}.</span>
+                                          <span>{option}</span>
+                                          {isCorrectAnswer && (
+                                            <CheckCircle className="w-4 h-4 text-teal-400 ml-auto shrink-0" />
+                                          )}
+                                          {isLearnerAnswer && !isCorrectAnswer && (
+                                            <XCircle className="w-4 h-4 text-red-400 ml-auto shrink-0" />
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Learner Answer */}
+                              <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5">
+                                <div className="flex items-center gap-2 mb-2">
+                                  {item.is_correct ? (
+                                    <CheckCircle className="w-4 h-4 text-teal-400" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4 text-red-400" />
+                                  )}
+                                  <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+                                    Your Answer
+                                  </span>
+                                </div>
+                                <p className={`text-sm ${item.is_correct ? "text-teal-300" : "text-red-300"}`}>
+                                  {item.learner_answer}
+                                </p>
+                              </div>
+
+                              {/* Correct Answer (only if incorrect) */}
+                              {!item.is_correct && (
+                                <div className="bg-teal-500/5 rounded-xl p-4 border border-teal-500/20">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <CheckCircle className="w-4 h-4 text-teal-400" />
+                                    <span className="text-xs font-semibold text-teal-400 uppercase tracking-wider">
+                                      Correct Answer
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-teal-300">{item.correct_answer}</p>
+                                </div>
+                              )}
+
+                              {/* Explanation */}
+                              <div className="bg-amber-500/5 rounded-xl p-4 border border-amber-500/20">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Lightbulb className="w-4 h-4 text-amber-400" />
+                                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
+                                    Explanation
+                                  </span>
+                                </div>
+                                <p className="text-sm text-amber-200/80 leading-relaxed">{item.explanation}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-sm text-amber-200/80 leading-relaxed">{item.explanation}</p>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Summary Footer */}
