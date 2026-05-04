@@ -8,6 +8,7 @@ import AuthInput from "@/components/auth/AuthInput";
 import AuthButton from "@/components/auth/AuthButton";
 import AuthDivider from "@/components/auth/AuthDivider";
 import SocialButton from "@/components/auth/SocialButton";
+import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/lib/api/auth";
 
 const GoogleIcon = () => (
@@ -27,6 +28,7 @@ const GitHubIcon = () => (
 
 export default function LoginForm() {
   const router = useRouter();
+  const { login } = useAuth();
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -49,9 +51,9 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      const result = await authApi.login({ email, password });
+      const result = await login({ email, password });
       if (result.success) {
-        router.push("/");
+        router.push("/dashboard");
       } else {
         setErrors({ general: result.message || "Invalid email or password" });
       }

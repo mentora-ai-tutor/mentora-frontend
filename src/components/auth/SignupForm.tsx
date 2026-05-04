@@ -11,7 +11,7 @@ import AuthButton from "@/components/auth/AuthButton";
 import AuthDivider from "@/components/auth/AuthDivider";
 import SocialButton from "@/components/auth/SocialButton";
 import PasswordStrength from "@/components/auth/PasswordStrength";
-import { authApi } from "@/lib/api/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none">
@@ -30,6 +30,7 @@ const GitHubIcon = () => (
 
 export default function SignupForm() {
   const router = useRouter();
+  const { register } = useAuth();
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -65,7 +66,7 @@ export default function SignupForm() {
     setLoading(true);
 
     try {
-      const result = await authApi.register({
+      const result = await register({
         name: form.name,
         email: form.email,
         password: form.password,
@@ -74,7 +75,7 @@ export default function SignupForm() {
 
       if (result.success) {
         setStep("success");
-        setTimeout(() => router.push("/"), 2000);
+        setTimeout(() => router.push("/dashboard"), 2000);
       } else {
         setErrors({ general: result.message || "Registration failed. Please try again." });
       }

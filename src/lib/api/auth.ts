@@ -4,24 +4,35 @@ interface AuthResponse {
   success: boolean;
   message?: string;
   data?: {
-    user: User;
-    accessToken: string;
-    refreshToken: string;
+    user?: User;
+    student?: User;
+    access_token?: string;
+    refresh_token?: string;
+    accessToken?: string;
+    refreshToken?: string;
   };
-  accessToken?: string;
-  refreshToken?: string;
 }
 
 interface User {
   _id: string;
+  name: string;
   email: string;
-  firstName: string;
-  lastName: string;
   role: 'student' | 'instructor' | 'admin';
-  studentId?: string;
-  isActive: boolean;
-  isEmailVerified: boolean;
-  javaLevel?: string;
+  student_id?: string;
+  is_active: boolean;
+  is_verified: boolean;
+  profile?: {
+    country: string;
+    avatar_url: string;
+    bio: string;
+    java_level: string;
+    institution: string;
+  };
+  stats?: {
+    overall_mastery_score: number;
+    total_materials_generated: number;
+    total_sessions: number;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -55,6 +66,22 @@ class AuthApi {
   private clearTokens() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+  }
+
+  private normalizeOutput(result: any) {
+     if (result.success && result.data) {
+        const at = result.data.access_token || result.data.accessToken;
+        const rt = result.data.refresh_token || result.data.refreshToken;
+        if (at && rt) this.setTokens(at, rt);
+
+        const userObj = result.data.student || result.data.user;
+        if (userObj) {
+           localStorage.setItem('user', JSON.stringify(userObj));
+           result.data.user = userObj; // normalize for UI contexts
+        }
+     }
+     return result;
   }
 
   async login(data: LoginData): Promise<AuthResponse> {
@@ -66,12 +93,7 @@ class AuthApi {
       });
 
       const result = await response.json();
-
-      if (result.success && result.data) {
-        this.setTokens(result.data.accessToken, result.data.refreshToken);
-      }
-
-      return result;
+      return this.normalizeOutput(result);
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
@@ -86,12 +108,7 @@ class AuthApi {
       });
 
       const result = await response.json();
-
-      if (result.success && result.data) {
-        this.setTokens(result.data.accessToken, result.data.refreshToken);
-      }
-
-      return result;
+      return this.normalizeOutput(result);
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
@@ -129,8 +146,12 @@ class AuthApi {
       const result = await response.json();
 
       if (result.success && result.data) {
-        this.setTokens(result.data.accessToken, result.data.refreshToken);
-        return true;
+        const at = result.data.access_token || result.data.accessToken;
+        const rt = result.data.refresh_token || result.data.refreshToken;
+        if (at && rt) {
+          this.setTokens(at, rt);
+          return true;
+        }
       }
 
       this.clearTokens();
@@ -159,13 +180,20 @@ class AuthApi {
             return this.getCurrentUser();
           }
         }
-        return null;
+        throw new Error("API failed");
       }
 
       const result = await response.json();
-      return result.data || result;
-    } catch {
+      const userObj = result.data?.student || result.data?.user || result.data || result;
+      if (userObj) {
+         localStorage.setItem('user', JSON.stringify(userObj));
+         return userObj;
+      }
       return null;
+    } catch {
+      // Fallback to local storage if offline/failing
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
     }
   }
 
