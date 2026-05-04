@@ -49,8 +49,9 @@ const navItems: NavItem[] = [
     name: "Assessment",
     icon: Target,
     subItems: [
-      { name: "Overview", href: "/assessment/launch" },
-      { name: "Review Questions", href: "/assessment/questions-answers" },
+      { name: "Overview", href: "/assessment" },
+      { name: "Questions & Answers", href: "/assessment/questions-answers" },
+      { name: "Suggested Resources", href: "/assessment/resources" },
     ],
   },
   { name: "Peer Learning", href: "/peer-learning", icon: Users },
