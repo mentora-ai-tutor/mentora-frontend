@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Mentora - AI-Powered Learning Platform",
   description: "Personalized learning system with AI components",
+  icons: {
+    icon: "/Logo.svg",
+  },
 };
 
 export default function RootLayout({

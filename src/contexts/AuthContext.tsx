@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { authApi, User, LoginData, RegisterData } from '@/lib/api/auth';
 
 interface AuthContextType {
@@ -22,12 +22,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const stored = localStorage.getItem('user');
         return stored ? JSON.parse(stored) : null;
       } catch {
-        return null; // handle parse errors
+        return null;
       }
     }
     return null;
   });
   const [isLoading, setIsLoading] = useState(true);
+  const redirectOnLogout = useRef(false);
 
   const refreshUser = async () => {
     const currentUser = await authApi.getCurrentUser();
@@ -43,6 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     initAuth();
   }, []);
+
+  useEffect(() => {
+    if (redirectOnLogout.current && user === null) {
+      window.location.href = '/login';
+      redirectOnLogout.current = false;
+    }
+  }, [user]);
 
   const login = async (data: LoginData) => {
     const result = await authApi.login(data);
@@ -63,7 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await authApi.logout();
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    redirectOnLogout.current = true;
+    try {
+      await authApi.logout();
+    } catch {}
     setUser(null);
   };
 
