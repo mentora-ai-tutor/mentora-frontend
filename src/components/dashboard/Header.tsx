@@ -33,10 +33,13 @@ export default function Header({ scrolled, mounted, onProfileToggle, profileOpen
       </div>
 
       <div className="flex items-center gap-3 md:gap-5">
-        <button className="relative p-2 rounded-full text-white/60 hover:text-teal-400 hover:bg-white/5 transition-all">
+        <Link 
+          href="/notification"
+          className="relative p-2 rounded-full text-white/60 hover:text-teal-400 hover:bg-white/5 transition-all"
+        >
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B45309] shadow-[0_0_8px_rgba(180,83,9,0.8)] animate-pulse" />
-        </button>
+        </Link>
 
         <div className="h-6 w-px bg-white/10" />
 
