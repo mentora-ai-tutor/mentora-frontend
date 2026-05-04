@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { authApi, User, LoginData, RegisterData } from '@/lib/api/auth';
 
 interface AuthContextType {
@@ -16,8 +16,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('user');
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
+  const redirectOnLogout = useRef(false);
 
   const refreshUser = async () => {
     const currentUser = await authApi.getCurrentUser();
@@ -34,10 +45,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
+  useEffect(() => {
+    if (redirectOnLogout.current && user === null) {
+      window.location.href = '/login';
+      redirectOnLogout.current = false;
+    }
+  }, [user]);
+
   const login = async (data: LoginData) => {
     const result = await authApi.login(data);
-    if (result.success && result.data) {
-      setUser(result.data.user);
+    if (result.success) {
+      if (result.data?.user) setUser(result.data.user);
       return { success: true };
     }
     return { success: false, message: result.message || 'Login failed' };
@@ -45,15 +63,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterData) => {
     const result = await authApi.register(data);
-    if (result.success && result.data) {
-      setUser(result.data.user);
+    if (result.success) {
+      if (result.data?.user) setUser(result.data.user);
       return { success: true };
     }
     return { success: false, message: result.message || 'Registration failed' };
   };
 
   const logout = async () => {
-    await authApi.logout();
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    redirectOnLogout.current = true;
+    try {
+      await authApi.logout();
+    } catch {}
     setUser(null);
   };
 
