@@ -14,8 +14,8 @@ export default function MentoraLogo({ size = "md" }: { size?: "sm" | "md" | "lg"
         className="relative flex items-center justify-center rounded-full overflow-hidden shadow-lg shadow-teal-900/20 transition-all duration-500 group-hover:shadow-[0_0_25px_rgba(13,148,136,0.5)]"
         style={{ width: s.icon, height: s.icon, perspective: "500px" }}
       >
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-teal-400 via-teal-600 to-emerald-500 opacity-90 animate-gradient-rotate group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="absolute inset-[2px] rounded-full bg-[#0B1121]" />
+        <div className="absolute inset-0 rounded-full bg-linear-to-br from-teal-400 via-teal-600 to-emerald-500 opacity-90 animate-gradient-rotate group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute inset-0.5 rounded-full bg-[#0B1121]" />
         <Image
           src="/Mentora2.svg"
           alt="Mentora Logo"
@@ -27,7 +27,7 @@ export default function MentoraLogo({ size = "md" }: { size?: "sm" | "md" | "lg"
       </div>
 
       <span
-        className={`${s.text} font-black tracking-widest bg-gradient-to-r from-white via-teal-200 to-teal-400 bg-[length:200%_auto] bg-clip-text text-transparent animate-text-shimmer group-hover:from-teal-300 group-hover:via-teal-100 group-hover:to-emerald-300 transition-all duration-500`}
+        className={`${s.text} font-black tracking-widest bg-linear-to-r from-white via-teal-200 to-teal-400 bg-size-[200%_auto] bg-clip-text text-transparent animate-text-shimmer group-hover:from-teal-300 group-hover:via-teal-100 group-hover:to-emerald-300 transition-all duration-500`}
       >
         MENTORA
       </span>
