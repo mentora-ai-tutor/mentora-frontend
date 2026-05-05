@@ -5,11 +5,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Menu, X, Search, Bell, Settings, LogOut,
-  LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp, User
+  LayoutDashboard, Brain, BookOpen, Target, Users, TrendingUp, User,
+  CheckCircle2, AlertCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MentoraLogo from "@/components/auth/MentoraLogo";
 import { useAuth } from "@/contexts/AuthContext";
+import GithubLinkCard, { GitHubIcon } from "@/components/onboarding/GithubLinkCard";
+import { githubApi } from "@/lib/api/github";
+import { toast } from "sonner";
 
 type NavSubItem = {
   name: string;
@@ -46,10 +50,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [githubPromptOpen, setGithubPromptOpen] = useState(false);
+  const [githubPromptMode, setGithubPromptMode] = useState<"connect" | "change">("connect");
+  const [githubMenuOpen, setGithubMenuOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, isLoading, logout, refreshUser } = useAuth();
+  const githubLinked = user?.github?.linked === true;
+  const githubLogin = user?.github?.gh_login;
+  const needsGithubLink = !isLoading && !!user && !githubLinked;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -60,6 +70,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (needsGithubLink) {
+      setGithubPromptMode("connect");
+      setGithubPromptOpen(true);
+    }
+  }, [needsGithubLink]);
+
+  const handleGithubStatusClick = async () => {
+    if (!user) return;
+
+    if (!githubLinked) {
+      setGithubPromptMode("connect");
+      setGithubPromptOpen(true);
+      return;
+    }
+
+    setGithubMenuOpen((open) => !open);
+  };
+
+  const handleRefreshGithubStatus = async () => {
+    setGithubMenuOpen(false);
+
+    try {
+      await refreshUser();
+      toast.success(
+        githubLogin
+          ? `GitHub connected as @${githubLogin}`
+          : "GitHub is connected",
+      );
+    } catch {
+      toast.error("Could not refresh GitHub status");
+    }
+  };
+
+  const handleChangeGithubAccount = () => {
+    setGithubMenuOpen(false);
+    setGithubPromptMode("change");
+    setGithubPromptOpen(true);
+  };
+
+  const handleDisconnectGithub = async () => {
+    setGithubMenuOpen(false);
+
+    try {
+      await githubApi.unlink();
+      toast.success("GitHub disconnected");
+      await refreshUser();
+      setGithubPromptMode("connect");
+      setGithubPromptOpen(true);
+    } catch {
+      toast.error("Could not disconnect GitHub");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-white flex overflow-hidden">
@@ -155,6 +219,84 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-1.5 shrink-0">
+          {user && (
+            <div className="relative">
+              {githubMenuOpen && githubLinked && sidebarOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Close GitHub account menu"
+                    className="fixed inset-0 z-30 cursor-default"
+                    onClick={() => setGithubMenuOpen(false)}
+                  />
+                  <div className="absolute bottom-full left-0 right-0 z-40 mb-2 rounded-xl border border-white/10 bg-[#111827] p-2 shadow-2xl">
+                    <div className="px-3 py-2 border-b border-white/10">
+                      <p className="text-xs font-semibold text-white">GitHub account</p>
+                      <p className="text-[10px] uppercase tracking-widest text-teal-300 truncate">
+                        {githubLogin ? `@${githubLogin}` : "Connected"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleChangeGithubAccount}
+                      className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/80 hover:bg-teal-500/10 hover:text-teal-200 transition-colors"
+                    >
+                      Change account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRefreshGithubStatus}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white transition-colors"
+                    >
+                      Check status
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDisconnectGithub}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-300/80 hover:bg-red-500/10 hover:text-red-200 transition-colors"
+                    >
+                      Disconnect account
+                    </button>
+                  </div>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={handleGithubStatusClick}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border transition-all group
+                  ${githubLinked
+                    ? "border-teal-500/20 bg-teal-500/10 text-teal-200 hover:bg-teal-500/15"
+                    : "border-amber-500/20 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15"
+                  }
+                `}
+                title={
+                  githubLinked
+                    ? `GitHub connected${githubLogin ? ` as @${githubLogin}` : ""}`
+                    : "Connect GitHub"
+                }
+              >
+                <GitHubIcon className="w-5 h-5 shrink-0" />
+                <span className={`min-w-0 flex-1 text-left ${!sidebarOpen && "lg:hidden"}`}>
+                  <span className="block text-sm font-semibold leading-tight">
+                    {githubLinked ? "GitHub connected" : "Connect GitHub"}
+                  </span>
+                  <span className="block truncate text-[10px] uppercase tracking-widest text-white/45 pt-0.5">
+                    {githubLinked
+                      ? githubLogin
+                        ? `@${githubLogin}`
+                        : "Linked"
+                      : "Required"}
+                  </span>
+                </span>
+                {githubLinked ? (
+                  <CheckCircle2 className={`w-4 h-4 text-teal-300 ${!sidebarOpen && "lg:hidden"}`} />
+                ) : (
+                  <AlertCircle className={`w-4 h-4 text-amber-300 ${!sidebarOpen && "lg:hidden"}`} />
+                )}
+              </button>
+            </div>
+          )}
           <Link href="/settings" className={`flex items-center gap-3 px-3 py-3 rounded-xl text-white/50 hover:bg-[#334155]/30 hover:text-white transition-all group`}>
             <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
             <span className={`font-medium text-sm whitespace-nowrap ${!sidebarOpen && "lg:hidden"}`}>Settings</span>
@@ -264,6 +406,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </footer>
         </main>
       </div>
+
+      {githubPromptOpen && (
+        <GithubLinkCard
+          mode={githubPromptMode}
+          previousLogin={githubLogin}
+          previousLinkedAt={user?.github?.linked_at}
+          onDismiss={
+            githubPromptMode === "change"
+              ? () => setGithubPromptOpen(false)
+              : undefined
+          }
+          onLinked={() => setGithubPromptOpen(false)}
+        />
+      )}
     </div>
   );
 }

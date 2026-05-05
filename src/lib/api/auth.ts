@@ -33,6 +33,11 @@ interface User {
     total_materials_generated: number;
     total_sessions: number;
   };
+  github?: {
+    linked: boolean;
+    gh_login?: string;
+    linked_at?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
