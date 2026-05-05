@@ -212,7 +212,9 @@ export default function SessionPage({
         next_difficulty: isCorrect ? "Harder" : "Simpler",
       },
       next_action: "continue",
-      next_topic_name: "Java Collections Framework"
+      next_topic_name: "Java Collections Framework",
+      question_text: sessionData.currentQuestion.text,
+      learner_answer: answer
     };
 
     const qaItem: StoredQA = {

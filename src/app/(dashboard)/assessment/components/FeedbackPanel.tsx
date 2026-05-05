@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
   Lightbulb,
   Pencil,
   ArrowRight,
+  ArrowLeft,
   Trophy,
   TrendingUp,
   TrendingDown,
@@ -54,6 +56,8 @@ interface FeedbackData {
   };
   next_action: "continue" | "next_topic" | "complete";
   next_topic_name?: string;
+  question_text?: string;
+  learner_answer?: string;
 }
 
 interface FeedbackPanelProps {
@@ -89,6 +93,7 @@ export default function FeedbackPanel({
   },
   onNext = () => {}
 }: FeedbackPanelProps) {
+  const [showQuestion, setShowQuestion] = useState(false);
 
   const getResultBanner = () => {
     if (data.is_correct) {
@@ -116,6 +121,54 @@ export default function FeedbackPanel({
   };
 
   const result = getResultBanner();
+
+  if (showQuestion) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-white">Review Question</h3>
+        </div>
+
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-6">
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-sm font-semibold text-teal-400 uppercase tracking-wider mb-2">The Question</h4>
+                <p className="text-lg text-white leading-relaxed">
+                  {data.question_text || "Question text not available."}
+                </p>
+              </div>
+
+              <div className="p-4 bg-[#0F172A] rounded-xl border border-white/5">
+                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Your Answer</h4>
+                <p className="text-white font-medium">
+                  {data.learner_answer || "No answer recorded."}
+                </p>
+              </div>
+
+              <div className={`p-4 rounded-xl border ${data.is_correct ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                <h4 className={`text-sm font-semibold uppercase tracking-wider mb-2 ${data.is_correct ? 'text-green-400' : 'text-red-400'}`}>
+                  Result
+                </h4>
+                <p className={data.is_correct ? 'text-green-200' : 'text-red-200'}>
+                  {data.is_correct ? "You answered correctly!" : "This answer was incorrect."}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="text-center pt-4">
+          <Button
+            onClick={() => setShowQuestion(false)}
+            className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 font-semibold rounded-lg"
+          >
+            Return to Feedback Panel
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -402,11 +455,19 @@ export default function FeedbackPanel({
         </div>
       )}
 
-      {/* Next Action Button */}
-      <div className="text-center">
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <Button
+          onClick={() => setShowQuestion(true)}
+          variant="outline"
+          className="border-teal-500/30 text-teal-400 hover:bg-teal-500/10 px-6 py-3 font-semibold rounded-lg order-2 sm:order-1"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Review Question
+        </Button>
         <Button
           onClick={onNext}
-          className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 font-semibold rounded-lg"
+          className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 font-semibold rounded-lg order-1 sm:order-2"
         >
           {data.next_action === "continue" && "Next Question →"}
           {data.next_action === "next_topic" && `Next Topic: ${data.next_topic_name} →`}
