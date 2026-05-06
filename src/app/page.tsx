@@ -2,12 +2,23 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Brain, Code, Activity, Sparkles, TrendingUp, Target, Zap, ChevronRight,
   PlayCircle, BookOpen, Bug, BarChart3, CheckCircle2, XCircle, Award, Check
 } from "lucide-react";
 import MentoraLogo from "@/components/auth/MentoraLogo";
+
+const seededUnit = (index: number, salt: number) => {
+  const value = Math.sin(index * 92821 + salt * 68917) * 10000;
+  return value - Math.floor(value);
+};
+
+const heroParticles = Array.from({ length: 15 }, (_, i) => ({
+  top: `${seededUnit(i, 1) * 100}%`,
+  left: `${seededUnit(i, 2) * 100}%`,
+  animationDelay: `${seededUnit(i, 3) * 5}s`,
+  animationDuration: `${10 + seededUnit(i, 4) * 10}s`,
+}));
 
 // ── Intersection Observer Hook for Scroll Animations ──
 function FadeInView({ children, delay = 0, direction = "up" }: { children: React.ReactNode, delay?: number, direction?: "up" | "left" | "right" }) {
@@ -50,10 +61,8 @@ function FadeInView({ children, delay = 0, direction = "up" }: { children: React
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
@@ -98,16 +107,11 @@ export default function LandingPage() {
         
         {/* Particles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-          {mounted && [...Array(15)].map((_, i) => (
+          {heroParticles.map((particle, i) => (
             <div
               key={i}
               className="absolute w-1 h-1 bg-teal-400 rounded-full animate-particle"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${10 + Math.random() * 10}s`,
-              }}
+              style={particle}
             />
           ))}
         </div>
@@ -457,7 +461,7 @@ export default function LandingPage() {
             <div className="relative z-10">
               <h2 className="text-4xl md:text-6xl font-black mb-6 tracking-tight">Start Learning Smarter Today</h2>
               <p className="text-xl text-[#F8FAFC]/70 mb-10 max-w-2xl mx-auto font-light">
-                Join thousands of students who are mastering programming faster with MENTORA's personalized AI guidance.
+                Join thousands of students who are mastering programming faster with MENTORA&apos;s personalized AI guidance.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Link

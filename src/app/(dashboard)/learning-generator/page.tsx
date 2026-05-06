@@ -90,9 +90,9 @@ export default function LearningGeneratorPage() {
             <div className="md:col-span-2 space-y-4">
               <div className="p-6 bg-[#334155]/30 border border-white/5 rounded-2xl leading-relaxed text-sm">
                 <h3 className="text-xl font-bold text-white mb-4">Understanding {topic || "the topic"}</h3>
-                <p className="text-white/70 mb-3">At its core, this concept acts as a map to navigate the shortest path through a network. Based on your previous errors with tree traversal, we've structured this explanation to isolate the graph logic first.</p>
+                <p className="text-white/70 mb-3">At its core, this concept acts as a map to navigate the shortest path through a network. Based on your previous errors with tree traversal, we&apos;ve structured this explanation to isolate the graph logic first.</p>
                 <div className="p-4 bg-[#0F172A] border border-white/5 rounded-xl text-teal-200 font-mono text-xs mb-3">
-                  // Core intuition <br/>
+                  {"// Core intuition"} <br/>
                   distance[node] = min(distance[node], distance[current] + weight)
                 </div>
                 <p className="text-white/70">As you can see, it continually refines its estimate of the shortest path until it finds the absolute truth.</p>
