@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { 
-  Brain, FileText, Target, Users, ChevronRight, Sparkles, 
-  TrendingUp, Activity, Award, Bug, PlayCircle, BookOpen
+import {
+  Brain, FileText, Target, Users, ChevronRight, Sparkles,
+  Activity, Award, Bug, PlayCircle, BookOpen
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 

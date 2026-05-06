@@ -74,7 +74,7 @@ class AuthApi {
     localStorage.removeItem('user');
   }
 
-  private normalizeOutput(result: any) {
+  private normalizeOutput(result: AuthResponse): AuthResponse {
      if (result.success && result.data) {
         const at = result.data.access_token || result.data.accessToken;
         const rt = result.data.refresh_token || result.data.refreshToken;

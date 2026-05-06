@@ -65,17 +65,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
 
-    // Auto-collapse on small screens
-    if (window.innerWidth < 1024) setSidebarOpen(false);
+    const frame = window.requestAnimationFrame(() => {
+      if (window.innerWidth < 1024) setSidebarOpen(false);
+    });
 
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   useEffect(() => {
-    if (needsGithubLink) {
+    if (!needsGithubLink) return;
+
+    const frame = window.requestAnimationFrame(() => {
       setGithubPromptMode("connect");
       setGithubPromptOpen(true);
-    }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [needsGithubLink]);
 
   const handleGithubStatusClick = async () => {
