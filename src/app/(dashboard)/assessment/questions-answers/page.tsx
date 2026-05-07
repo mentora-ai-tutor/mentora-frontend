@@ -33,10 +33,10 @@ interface QAItem {
   learner_answer: string;
   correct_answer: string;
   is_correct: boolean;
-  explanation: string;
+  explanation: string | string[];
   topic: string;
   difficulty: "Easy" | "Medium" | "Hard";
-  bloom_level: number;
+  bloom_level: number | string;
   time_spent: number;
   timestamp?: number;
 }
@@ -45,13 +45,32 @@ export default function QuestionsAnswersPage() {
   const [qaData, setQaData] = useState<QAItem[]>([]);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<"all" | "correct" | "incorrect">("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("assessment_qa");
-    if (stored) {
-      const parsed: QAItem[] = JSON.parse(stored);
-      setQaData(parsed.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)));
-    }
+    const fetchQuestions = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/ame/questions`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            setQaData(result.data.sort((a: QAItem, b: QAItem) => (a.timestamp || 0) - (b.timestamp || 0)));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch questions:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuestions();
   }, []);
 
   const clearAll = () => {
@@ -174,7 +193,13 @@ export default function QuestionsAnswersPage() {
       </div>
 
       {/* Questions List - Grouped by Topic */}
-      {totalCount === 0 ? (
+      {loading ? (
+        <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-12 text-center">
+          <div className="w-16 h-16 border-4 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">Loading Questions...</h3>
+          <p className="text-white/50">Fetching your assessment data</p>
+        </div>
+      ) : totalCount === 0 ? (
         <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-12 text-center">
           <HelpCircle className="w-16 h-16 text-white/20 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-white mb-2">No Questions Answered Yet</h3>
@@ -404,7 +429,15 @@ export default function QuestionsAnswersPage() {
                                     Explanation
                                   </span>
                                 </div>
-                                <p className="text-sm text-amber-200/80 leading-relaxed">{item.explanation}</p>
+                                {Array.isArray(item.explanation) ? (
+                                  <ul className="list-disc list-inside text-sm text-amber-200/80 leading-relaxed space-y-1">
+                                    {item.explanation.map((point, idx) => (
+                                      <li key={idx}>{point}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-sm text-amber-200/80 leading-relaxed">{item.explanation}</p>
+                                )}
                               </div>
                             </div>
                           </div>
