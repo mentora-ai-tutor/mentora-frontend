@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import MentoraLogo from "@/components/auth/MentoraLogo";
 import { useAuth } from "@/contexts/AuthContext";
+import GitHubStatusControl from "@/components/dashboard/GitHubStatusControl";
 
 type NavSubItem = {
   name: string;
@@ -61,7 +62,7 @@ interface SidebarProps {
 export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, setExpandedMenu, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
 
   const isActive = (item: NavItem) => {
     if (item.href) return pathname === item.href;
@@ -190,6 +191,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
       </nav>
 
       <div className="p-4 border-t border-white/5 space-y-1.5 shrink-0">
+        <GitHubStatusControl sidebarOpen={sidebarOpen} />
         <Link href="/settings" className={`flex items-center gap-3 px-3 py-3 rounded-xl text-white/50 hover:bg-[#334155]/30 hover:text-white transition-all group`}>
           <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
           <span className={`font-medium text-sm whitespace-nowrap ${!sidebarOpen && "lg:hidden"}`}>Settings</span>
