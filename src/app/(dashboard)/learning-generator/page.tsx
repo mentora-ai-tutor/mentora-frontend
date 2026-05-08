@@ -1,154 +1,369 @@
 "use client";
 
-import { useState } from "react";
-import { BookOpen, Sparkles, Wand2, Plus, RefreshCw, Layers, TrendingUp } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats } from "@/lib/api/learningGenerator";
+import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap } from "lucide-react";
+import { ActiveJobsList } from "@/components/learning-generator/JobCard";
+import ProgressStatsCards from "@/components/learning-generator/ProgressStats";
+import KnowledgeGapCard from "@/components/learning-generator/KnowledgeGapCard";
+import SubmitProfileDialog from "@/components/learning-generator/SubmitProfileDialog";
+import { QuickActions, ModuleProgressList, ScoreHistory, StrengthsList } from "@/components/learning-generator/OverviewSidebar";
 
-export default function LearningGeneratorPage() {
-  const [topic, setTopic] = useState("");
-  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+export default function LearningGeneratorDashboard() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [materials, setMaterials] = useState<LearningMaterial[]>([]);
+  const [profile, setProfile] = useState<any>(null);
+  const [profileHistory, setProfileHistory] = useState<any[]>([]);
+  const [activeJobs, setActiveJobs] = useState<GenerationJob[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [progressStats, setProgressStats] = useState<ProgressStats | null>(null);
+  const [materialProgress, setMaterialProgress] = useState<StudentProgress[]>([]);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [closingJobs, setClosingJobs] = useState<string[]>([]);
 
-  const handleGenerate = () => {
-    if (!topic.trim()) return;
-    setState("loading");
-    setTimeout(() => setState("done"), 2000);
+  const fetchData = useCallback(async () => {
+    if (!user?.student_id) return;
+    try {
+      const [materialsRes, profileRes, historyRes, jobsRes, progressRes, progressStatsRes] = await Promise.all([
+        learningGeneratorApi.getMaterials(user.student_id),
+        learningGeneratorApi.getProfile(user.student_id),
+        learningGeneratorApi.getProfileHistory(user.student_id, 1, 5),
+        learningGeneratorApi.getJobsByStudent(user.student_id),
+        learningGeneratorApi.getProgressByStudent(user.student_id),
+        learningGeneratorApi.getProgressStats(user.student_id),
+      ]);
+
+      if (materialsRes.success && materialsRes.data) {
+        const matData = materialsRes.data as any;
+        setMaterials(matData.items || []);
+      }
+      if (profileRes.success) setProfile(profileRes.data);
+      if (historyRes.success && historyRes.data) {
+        const histData = historyRes.data as any;
+        setProfileHistory(histData.items || []);
+      }
+      if (jobsRes.success && jobsRes.data) {
+        const jobsData = (jobsRes.data as any) || [];
+        const visible = jobsData.filter((j: GenerationJob) => j.status !== "closed");
+        setActiveJobs(visible);
+
+        if (!pollingInterval) {
+          const sid = user!.student_id!;
+          const interval = setInterval(async () => {
+            const [materialsRes, jobsRes] = await Promise.all([
+              learningGeneratorApi.getMaterials(sid),
+              learningGeneratorApi.getJobsByStudent(sid),
+            ]);
+            if (materialsRes.success && materialsRes.data) {
+              const matData = materialsRes.data as any;
+              setMaterials(matData.items || []);
+            }
+            if (jobsRes.success && jobsRes.data) {
+              const allJobs = (jobsRes.data as any) || [];
+              const visibleJobs = allJobs.filter((j: GenerationJob) => j.status !== "closed");
+              setActiveJobs(visibleJobs);
+            }
+          }, 5000);
+          setPollingInterval(interval);
+        }
+      }
+      if (progressRes.success && progressRes.data) {
+        setMaterialProgress(Array.isArray(progressRes.data) ? progressRes.data : []);
+      }
+      if (progressStatsRes.success && progressStatsRes.data) {
+        setProgressStats(progressStatsRes.data);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.student_id]);
+
+  useEffect(() => {
+    if (user?.student_id) fetchData();
+    return () => { if (pollingInterval) clearInterval(pollingInterval); };
+  }, [user?.student_id, fetchData]);
+
+  const handleDismissJob = async (jobId: string) => {
+    setClosingJobs((prev) => [...prev, jobId]);
+    try {
+      await learningGeneratorApi.closeJob(jobId);
+    } catch (err) {
+      console.error("Failed to close job:", err);
+    } finally {
+      setActiveJobs((prev) => prev.filter((j) => j.job_id !== jobId));
+      setClosingJobs((prev) => prev.filter((id) => id !== jobId));
+    }
   };
 
-  return (
-    <div className="space-y-6 animate-slide-up">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
-          <BookOpen className="w-6 h-6 text-teal-400" />
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  const handleSubmitProfile = async () => {
+    if (!user?.student_id) return;
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const payload = {
+        student_id: user.student_id,
+        analysis_timestamp: new Date().toISOString(),
+        mastery_profile: {
+          overall_mastery_score: 48,
+          knowledge_gaps: [
+            {
+              topic: "Object-Oriented Programming (Polymorphism & Inheritance)",
+              topic_id: "CS102-OOP",
+              gap_type: "FUNDAMENTAL_GAP" as const,
+              misconceptions: [
+                "Confuses method overloading with overriding",
+                "Does not understand dynamic dispatch",
+                "Misuses abstract classes vs interfaces",
+              ],
+              evidence_summary:
+                "GitHub shows a single massive commit (+420 lines) introducing a complete polymorphism implementation (AI probability 91%). Sandbox tasks on OOP had 0% success rate with completion under 60s. Quiz scores on OOP topics are 18%, with specific misconceptions on dynamic dispatch and interface contracts.",
+              prerequisite_topics: ["Classes and Objects", "Methods", "Encapsulation"],
+              related_topics: ["Design Patterns", "Generics"],
+            },
+            {
+              topic: "Linked Lists",
+              topic_id: "CS201-LL",
+              gap_type: "FUNDAMENTAL_GAP" as const,
+              misconceptions: [
+                "Pointer/reference manipulation during insertion/deletion",
+                "Handling edge cases (empty list, single node, head/tail updates)",
+                "Doubly vs singly linked list differences",
+              ],
+              evidence_summary:
+                "GitHub reveals a single commit with complete linked list implementation (AI probability 89%). Sandbox shows 100% success but suspiciously fast (25s). Quiz scores are 22%, with major misconceptions on pointer updates and edge case handling. Student cannot manually trace insert/delete operations.",
+              prerequisite_topics: ["Arrays", "Classes and Objects", "References/Pointers"],
+              related_topics: ["Stacks and Queues", "Trees"],
+            },
+            {
+              topic: "Exception Handling",
+              topic_id: "CS102-EXC",
+              gap_type: "PARTIAL_GAP" as const,
+              misconceptions: [
+                "Checked vs unchecked exceptions",
+                "try-catch-finally flow control",
+                "When to throw vs catch vs suppress",
+              ],
+              evidence_summary:
+                "GitHub shows exception handling appearing fully formed without evolution (medium risk). Sandbox success rate 55% with errors on exception types. Quiz score 48%, with misconceptions on checked/unchecked distinction and finally block behavior.",
+              prerequisite_topics: ["Control Flow", "Methods", "File I/O"],
+              related_topics: ["Logging", "Custom Exceptions"],
+            },
+            {
+              topic: "Generics",
+              topic_id: "CS201-GEN",
+              gap_type: "PARTIAL_GAP" as const,
+              misconceptions: [
+                "Type erasure concept",
+                "Bounded vs unbounded type parameters",
+                "Generic methods vs generic classes",
+              ],
+              evidence_summary:
+                "GitHub commits show generic code appearing complete without prior attempts (medium risk). Sandbox tasks 60% success with type mismatch errors. Quiz score 52%, struggling with bounded type parameters and wildcard usage.",
+              prerequisite_topics: ["Object-Oriented Programming", "Inheritance"],
+              related_topics: ["Collections Framework", "Polymorphism"],
+            },
+          ],
+          strengths: [
+            "Understands basic syntax and can write simple methods",
+            "Can implement basic loops and conditionals",
+            "Familiar with primitive data types and arrays",
+          ],
+        },
+        recommendations: {
+          priority_order: [
+            "Object-Oriented Programming (Polymorphism & Inheritance)",
+            "Linked Lists",
+            "Exception Handling",
+            "Generics",
+          ],
+          general_advice:
+            "Focus on fundamental gaps first (OOP and Linked Lists) as they are prerequisites for many advanced topics. Use interactive tutorials and peer tutoring. For Exception Handling and Generics, targeted quizzes and practice exercises should suffice.",
+          for_instructor:
+            "Student may be using AI for difficult topics. Verify understanding with proctored tasks. Encourage incremental commits and descriptive commit messages.",
+        },
+        data_sources: {
+          github: "available",
+          sandbox: "available",
+          quizzes: "available",
+          quiz_results: new Date().toISOString().split("T")[0],
+        },
+      };
+
+      const res = await learningGeneratorApi.submitProfile(payload);
+
+      if (res.success && res.data) {
+        setActiveJobs((prev) => {
+          if (prev.find((j) => j.job_id === res.data!.job_id)) return prev;
+          return [
+            ...prev,
+            {
+              job_id: res.data!.job_id,
+              student_id: res.data!.student_id,
+              profile_id: "",
+              status: "processing",
+              gaps_total: res.data!.gaps_queued,
+              gaps_completed: 0,
+              gaps_failed: 0,
+              materials_generated: 0,
+              materials_failed: 0,
+              created_at: new Date().toISOString(),
+            },
+          ];
+        });
+        setShowSubmitDialog(false);
+      } else {
+        setError(res.message || res.error || "Failed to submit profile");
+      }
+    } catch {
+      setError("Network error. Check LMG service.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getProgressForMaterial = (materialId: string) => {
+    return materialProgress.find((p) => p.material_id === materialId);
+  };
+
+  const getMaterialByTopic = (topic: string) => {
+    return materials.find((m) => m.structured_material.topic.toLowerCase() === topic.toLowerCase());
+  };
+
+  const totalGaps = profile?.knowledge_gaps?.length || 0;
+  const fundamentalGaps = profile?.knowledge_gaps?.filter((g: KnowledgeGap) => g.gap_type === "FUNDAMENTAL_GAP").length || 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-teal-400 animate-spin mx-auto mb-4" />
+          <p className="text-white/50 text-sm">Loading dashboard...</p>
         </div>
-        <div>
-          <h1 className="text-2xl font-black text-white">Material Generator</h1>
-          <p className="text-sm text-white/50">Instantly create personalized tutorials, exercises, and study plans.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-slide-up">
+
+      {/* ── HERO CARD ── */}
+      <div className="relative p-[1px] rounded-3xl overflow-hidden group">
+        <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500 to-teal-500/0 group-hover:rotate-180 transition-transform duration-1000 ease-linear animate-pulse" />
+        <div className="relative bg-[#1e293b]/90 backdrop-blur-xl rounded-3xl p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-3 shadow-[0_0_10px_rgba(13,148,136,0.3)]">
+                <Sparkles className="w-3 h-3" /> AI-Powered Learning
+              </div>
+              <h1 className="text-2xl lg:text-3xl font-black text-white mb-2">
+                Material Generator
+              </h1>
+              <p className="text-white/50 text-sm lg:text-base max-w-xl">
+                Personalized tutorials, exercises, and assessments generated by AI based on your unique knowledge gaps and learning patterns.
+              </p>
+            </div>
+
+            <div className="flex gap-3 shrink-0">
+              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 text-center min-w-[100px]">
+                <p className="text-2xl font-black text-teal-400">{totalGaps}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Gaps Found</p>
+              </div>
+              {fundamentalGaps > 0 && (
+                <div className="bg-[#0F172A] border border-red-500/20 rounded-2xl p-4 text-center min-w-[100px]">
+                  <p className="text-2xl font-black text-red-400">{fundamentalGaps}</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Critical</p>
+                </div>
+              )}
+              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 text-center min-w-[100px]">
+                <p className="text-2xl font-black text-amber-400">{materials.length}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Materials</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {state === "idle" && (
-        <div className="max-w-2xl bg-[#334155]/20 border border-white/5 p-6 rounded-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 rounded-full blur-[80px]" />
-          
-          <label className="block text-sm font-bold text-white mb-2">What do you want to learn?</label>
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. Dijkstra's Algorithm, React Hooks, UI/UX..."
-            className="w-full bg-[#0F172A] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-teal-500/50 outline-none shadow-inner mb-4"
-          />
-
-          <label className="block text-sm font-bold text-white mb-2 mt-6">Learning Goal (Optional)</label>
-          <select className="w-full bg-[#0F172A] border border-white/10 rounded-xl px-4 py-3 text-white/70 text-sm focus:border-teal-500/50 outline-none appearance-none mb-8">
-            <option>Prepare for an interview</option>
-            <option>Build a project</option>
-            <option>Pass an exam</option>
-            <option>Just curious</option>
-          </select>
-
-          <button 
-            onClick={handleGenerate}
-            disabled={!topic.trim()}
-            className="w-full relative group py-3.5 bg-teal-600 disabled:bg-[#334155] text-white font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(13,148,136,0.3)] disabled:shadow-none hover:bg-teal-500 hover:scale-[1.02] flex items-center justify-center gap-2 overflow-hidden"
-          >
-            <span className="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black" />
-            <Wand2 className="w-5 h-5 relative z-10" />
-            <span className="relative z-10">Generate Learning Plan</span>
-          </button>
-        </div>
+      {/* ── ACTIVE JOBS ── */}
+      {activeJobs.length > 0 && (
+        <ActiveJobsList jobs={activeJobs} onDismiss={handleDismissJob} closingJobs={closingJobs} />
       )}
 
-      {state === "loading" && (
-        <div className="max-w-2xl py-24 text-center border border-white/5 bg-[#334155]/10 rounded-2xl">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-teal-500/10 flex items-center justify-center border border-teal-500/20 shadow-[0_0_30px_rgba(13,148,136,0.2)]">
-            <Sparkles className="w-8 h-8 text-teal-400 animate-spin-slow" />
-          </div>
-          <h2 className="text-xl font-bold text-white tracking-widest animate-pulse">ANALYZING</h2>
-          <p className="text-sm text-teal-400 mt-2">Crafting highly personalized content...</p>
-        </div>
-      )}
+      {/* ── PROGRESS STATS ── */}
+      <ProgressStatsCards stats={progressStats} progress={materialProgress} materials={materials} />
 
-      {state === "done" && (
-        <div className="space-y-6">
+      {/* ── MAIN CONTENT ── */}
+      <div className="grid lg:grid-cols-3 gap-6">
+
+        {/* ── LEFT: Knowledge Gaps ── */}
+        <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-400 text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-3 h-3" /> Material Ready
-            </div>
-            <div className="flex gap-2">
-              <button className="px-4 py-2 text-xs font-bold bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors flex items-center gap-2 text-white">
-                <RefreshCw className="w-3.5 h-3.5" /> Regenerate
-              </button>
-              <button className="px-4 py-2 text-xs font-bold bg-teal-600/10 text-teal-400 border border-teal-500/30 rounded-lg hover:bg-teal-600/20 transition-colors flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5" /> Simplify explanation
-              </button>
-            </div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-400" /> Knowledge Gaps
+            </h2>
+            <Link href="/learning-generator/knowledge-gaps" className="text-xs text-teal-400 font-bold hover:text-teal-300 flex items-center gap-1 transition-colors">
+              View All <ChevronRight className="w-3 h-3" />
+            </Link>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            
-            {/* Explanation */}
-            <div className="md:col-span-2 space-y-4">
-              <div className="p-6 bg-[#334155]/30 border border-white/5 rounded-2xl leading-relaxed text-sm">
-                <h3 className="text-xl font-bold text-white mb-4">Understanding {topic || "the topic"}</h3>
-                <p className="text-white/70 mb-3">At its core, this concept acts as a map to navigate the shortest path through a network. Based on your previous errors with tree traversal, we&apos;ve structured this explanation to isolate the graph logic first.</p>
-                <div className="p-4 bg-[#0F172A] border border-white/5 rounded-xl text-teal-200 font-mono text-xs mb-3">
-                  {"// Core intuition"} <br/>
-                  distance[node] = min(distance[node], distance[current] + weight)
-                </div>
-                <p className="text-white/70">As you can see, it continually refines its estimate of the shortest path until it finds the absolute truth.</p>
-              </div>
-
-              {/* Study Plan */}
-              <div className="p-6 bg-[#B45309]/10 border border-[#B45309]/20 rounded-2xl">
-                <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-[#B45309]" /> Recommended Study Plan
-                </h3>
-                <ul className="space-y-3">
-                  <li className="flex gap-3 text-sm text-[#F8FAFC]">
-                    <div className="w-6 h-6 rounded-full bg-[#B45309] text-white flex items-center justify-center text-xs font-bold shrink-0">1</div>
-                    <span className="opacity-80">Read through the core intuition block above.</span>
-                  </li>
-                  <li className="flex gap-3 text-sm text-[#F8FAFC]">
-                    <div className="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-xs font-bold shrink-0">2</div>
-                    <span className="opacity-80">Attempt the first generated exercise (Shortest Path Basic).</span>
-                  </li>
-                  <li className="flex gap-3 text-sm text-[#F8FAFC]">
-                    <div className="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-xs font-bold shrink-0">3</div>
-                    <span className="opacity-80">Check the assessment tab to verify your mastery level.</span>
-                  </li>
-                </ul>
-              </div>
+          {profile?.knowledge_gaps && profile.knowledge_gaps.length > 0 ? (
+            <div className="space-y-3">
+              {profile.knowledge_gaps.map((gap: KnowledgeGap, i: number) => {
+                const material = getMaterialByTopic(gap.topic);
+                const progress = material ? getProgressForMaterial(material._id) : null;
+                return (
+                  <div key={i} className="animate-slide-up" style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'backwards' }}>
+                    <KnowledgeGapCard gap={gap} index={i} material={material} progress={progress || null} />
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Exercises Sidebar */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-white">Generated Exercises</h3>
-              
-              <div className="p-4 bg-[#334155]/20 border border-teal-500/20 rounded-xl hover:-translate-y-1 transition-transform cursor-pointer group shadow-[0_5px_15px_rgba(13,148,136,0.05)]">
-                <h4 className="font-bold text-white text-sm mb-1">Basic Application</h4>
-                <p className="text-xs text-white/50 mb-3">Write a function to traverse a 3-node graph.</p>
-                <div className="w-full h-1 bg-[#0F172A] rounded-full overflow-hidden">
-                  <div className="w-0 h-full bg-teal-500 rounded-full" />
-                </div>
+          ) : (
+            <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-10 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mx-auto mb-4">
+                <Brain className="w-8 h-8 text-teal-400" />
               </div>
-
-              <div className="p-4 bg-[#334155]/20 border border-white/5 rounded-xl hover:-translate-y-1 transition-transform cursor-pointer group">
-                <h4 className="font-bold text-white text-sm mb-1">Edge Cases</h4>
-                <p className="text-xs text-white/50 mb-3">Handle unconnected nodes safely.</p>
-                <div className="w-full h-1 bg-[#0F172A] rounded-full overflow-hidden">
-                  <div className="w-0 h-full bg-teal-500 rounded-full" />
-                </div>
-              </div>
-              
-              <button className="w-full py-3 border border-white/5 bg-white/5 rounded-xl text-xs font-bold text-white/50 hover:text-white transition-colors flex justify-center items-center gap-2">
-                <Plus className="w-4 h-4" /> Generate More
+              <h3 className="text-lg font-bold text-white mb-2">All Clear!</h3>
+              <p className="text-sm text-white/40 mb-6 max-w-sm mx-auto">No knowledge gaps detected yet. Submit a learning profile to start your personalized journey.</p>
+              <button
+                onClick={() => setShowSubmitDialog(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(13,148,136,0.4)]"
+              >
+                <Zap className="w-4 h-4" /> Submit Profile
               </button>
             </div>
-
-          </div>
+          )}
         </div>
-      )}
 
+        {/* ── RIGHT: Sidebar ── */}
+        <div className="space-y-6">
+          <QuickActions onGenerateClick={() => setShowSubmitDialog(true)} />
+          <ModuleProgressList progress={materialProgress} />
+          <ScoreHistory history={profileHistory} />
+          <StrengthsList strengths={profile?.strengths || []} />
+        </div>
+      </div>
+
+      <SubmitProfileDialog
+        isOpen={showSubmitDialog}
+        isSubmitting={submitting}
+        onSubmit={handleSubmitProfile}
+        onClose={() => setShowSubmitDialog(false)}
+      />
     </div>
   );
 }
