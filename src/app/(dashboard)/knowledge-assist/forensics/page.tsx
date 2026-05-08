@@ -8,6 +8,7 @@ import {
   GitBranch,
   Lock,
   RefreshCw,
+  Search,
   ScanSearch,
   ShieldCheck,
   Sparkles,
@@ -74,6 +75,7 @@ export default function KnowledgeAssistForensicsPage() {
   const [rerunningRepo, setRerunningRepo] = useState<string | null>(null);
   const [job, setJob] = useState<ReviewJob | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [repoSearch, setRepoSearch] = useState("");
 
   const selectedCount = selectedRepos.length;
 
@@ -93,8 +95,17 @@ export default function KnowledgeAssistForensicsPage() {
     return { completed, failed, defects, high };
   }, [job]);
 
-  const orderedRepos = useMemo(() => {
-    return [...repos].sort((a, b) => {
+  const filteredAndOrderedRepos = useMemo(() => {
+    const query = repoSearch.toLowerCase().trim();
+    const filtered = query
+      ? repos.filter(
+          (r) =>
+            r.full_name.toLowerCase().includes(query) ||
+            (r.language ?? "").toLowerCase().includes(query),
+        )
+      : repos;
+
+    return [...filtered].sort((a, b) => {
       const aSelected = selectedRepos.includes(a.full_name) ? 0 : 1;
       const bSelected = selectedRepos.includes(b.full_name) ? 0 : 1;
       if (aSelected !== bSelected) return aSelected - bSelected;
@@ -102,7 +113,7 @@ export default function KnowledgeAssistForensicsPage() {
       if (a.language !== "Java" && b.language === "Java") return 1;
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [repos, selectedRepos]);
+  }, [repos, selectedRepos, repoSearch]);
 
   useEffect(() => {
     if (!githubLinked || isLoading) return;
@@ -194,6 +205,7 @@ export default function KnowledgeAssistForensicsPage() {
 
   return (
     <div className="space-y-4 pb-4">
+      {/* ── HEADER ── */}
       <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -201,11 +213,11 @@ export default function KnowledgeAssistForensicsPage() {
               Repository Forensics
             </p>
             <h1 className="mt-1 text-2xl md:text-3xl font-black text-white">
-              Gemini Code Review Pipeline
+              Mentora Code Review Pipeline
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-white/55">
               Select up to five linked GitHub repositories. Mentora bundles source files server-side,
-              reviews them through the Gemini fallback router, and stores the report for recovery.
+              reviews them through the Mentora AI expert review engine, and stores the report for recovery.
             </p>
           </div>
 
@@ -229,8 +241,10 @@ export default function KnowledgeAssistForensicsPage() {
         </section>
       )}
 
+      {/* ── MAIN GRID ── */}
       <section className="grid grid-cols-1 xl:grid-cols-[390px_minmax(0,1fr)] gap-4">
-        <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+        {/* ── REPO SELECTION PANEL ── */}
+        <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4 flex flex-col">
           <div className="flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
               <GitBranch className="h-4 w-4 text-cyan-300" />
@@ -241,7 +255,20 @@ export default function KnowledgeAssistForensicsPage() {
             </span>
           </div>
 
-          <div className="mt-4 space-y-2">
+          {/* Search bar */}
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search repositories..."
+              value={repoSearch}
+              onChange={(e) => setRepoSearch(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-[#0F172A] pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-teal-500/50 focus:shadow-[0_0_12px_rgba(13,148,136,0.15)] transition-all"
+            />
+          </div>
+
+          {/* Scrollable repo list */}
+          <div className="mt-3 flex-1 min-h-0 max-h-[340px] overflow-y-auto space-y-2 custom-scrollbar pr-1">
             {loadingRepos && (
               <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/50">
                 Loading GitHub repositories...
@@ -254,22 +281,28 @@ export default function KnowledgeAssistForensicsPage() {
               </div>
             )}
 
-            {orderedRepos.map((repo) => {
+            {!loadingRepos && repos.length > 0 && filteredAndOrderedRepos.length === 0 && (
+              <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/50">
+                No repositories match &ldquo;{repoSearch}&rdquo;
+              </div>
+            )}
+
+            {filteredAndOrderedRepos.map((repo) => {
               const checked = selectedRepos.includes(repo.full_name);
               return (
                 <button
                   key={repo.full_name}
                   type="button"
                   onClick={() => toggleRepo(repo.full_name)}
-                  className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                  className={`w-full rounded-xl border p-3 text-left transition-all duration-200 ${
                     checked
-                      ? "border-teal-500/40 bg-teal-500/10"
+                      ? "border-teal-500/40 bg-teal-500/10 shadow-[0_0_12px_rgba(13,148,136,0.08)]"
                       : "border-white/10 bg-[#0F172A] hover:border-white/20 hover:bg-white/[0.04]"
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <span
-                      className={`mt-1 h-4 w-4 rounded border flex items-center justify-center ${
+                      className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
                         checked
                           ? "border-teal-400 bg-teal-400 text-[#0F172A]"
                           : "border-white/25"
@@ -281,7 +314,7 @@ export default function KnowledgeAssistForensicsPage() {
                       <span className="block truncate text-sm font-semibold text-white">
                         {repo.full_name}
                       </span>
-                      <span className="mt-1 block text-xs text-white/45">
+                      <span className="mt-0.5 block text-xs text-white/45">
                         {formatRepoMeta(repo)}
                       </span>
                     </span>
@@ -291,21 +324,23 @@ export default function KnowledgeAssistForensicsPage() {
             })}
           </div>
 
+          {/* Run review button */}
           <button
             type="button"
             onClick={runReview}
             disabled={selectedCount === 0 || runningReview}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 py-3 text-sm font-bold text-[#061016] transition-colors hover:bg-teal-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-teal-400 px-4 py-3 text-sm font-bold text-[#061016] transition-all hover:shadow-[0_0_20px_rgba(13,148,136,0.3)] hover:brightness-110 disabled:cursor-not-allowed disabled:bg-none disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none"
           >
             {runningReview ? (
               <CircleDashed className="h-4 w-4 animate-spin" />
             ) : (
               <ScanSearch className="h-4 w-4" />
             )}
-            {runningReview ? "Review running..." : "Run Gemini review"}
+            {runningReview ? "Mentora review running..." : "Run Mentora Expert Review"}
           </button>
         </article>
 
+        {/* ── RIGHT PANEL: METRICS + RESULTS ── */}
         <div className="space-y-4">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard label="Reviewed" value={reportStats.completed} tone="text-emerald-300" />
@@ -333,7 +368,7 @@ export default function KnowledgeAssistForensicsPage() {
 
             {!job && (
               <div className="mt-4 rounded-xl border border-white/10 bg-[#0F172A] p-5 text-sm text-white/50">
-                Run a review to see repository summaries, defects, Java level signals, and fix hints.
+                Run a review to see repository summaries, defects, skill-level signals, and fix hints.
               </div>
             )}
 
