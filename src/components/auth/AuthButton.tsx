@@ -54,7 +54,7 @@ export default function AuthButton({
         ${className}
       `}
       disabled={disabled || loading}
-      {...(props as any)}
+      {...props}
     >
       {/* shimmer sweep on primary */}
       {variant === "primary" && (

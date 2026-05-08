@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import MentoraLogo from "@/components/auth/MentoraLogo";
 import { useAuth } from "@/contexts/AuthContext";
+import GitHubStatusControl from "@/components/dashboard/GitHubStatusControl";
+import { useActiveReview } from "@/contexts/ActiveReviewContext";
 
 type NavSubItem = {
   name: string;
@@ -50,6 +52,8 @@ const navItems: NavItem[] = [
   { name: "Progress", href: "/progress", icon: TrendingUp },
 ];
 
+const exactSubItemHrefs = new Set(["/knowledge-assist", "/learning-generator"]);
+
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
@@ -61,18 +65,16 @@ interface SidebarProps {
 export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, setExpandedMenu, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const { isReviewRunning, sandboxHref } = useActiveReview();
 
   const isActive = (item: NavItem) => {
     if (item.href) return pathname === item.href;
-    return item.subItems?.some((subItem) => {
-      if (subItem.href === "/learning-generator") return pathname === "/learning-generator";
-      return pathname === subItem.href || pathname.startsWith(subItem.href + "/");
-    }) ?? false;
+    return item.subItems?.some((subItem) => isSubActive(subItem.href)) ?? false;
   };
 
   const isSubActive = (href: string) => {
-    if (href === "/learning-generator") return pathname === href;
+    if (exactSubItemHrefs.has(href)) return pathname === href;
     return pathname === href || pathname.startsWith(href + "/");
   };
 
@@ -111,32 +113,51 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
 
           if (item.subItems) {
             const isExpanded = expandedMenu === item.name;
+            const reviewGuided = isReviewRunning && item.name === "Knowledge Assist";
+            const defaultHref = reviewGuided
+              ? sandboxHref(undefined, "sidebar-active-review")
+              : item.subItems[0]?.href;
+            const isInGroup = item.subItems.some((subItem) => isSubActive(subItem.href));
             return (
               <div key={item.name} className="space-y-1">
                 <button
                   type="button"
                   onClick={() => {
-                    const isInLearningGenerator = pathname.startsWith("/learning-generator");
-                    if (!sidebarOpen) {
-                      router.push("/learning-generator");
+                    if (reviewGuided && defaultHref) {
+                      router.push(defaultHref);
+                      setExpandedMenu(item.name);
                       onMobileClose();
-                    } else if (!isInLearningGenerator) {
-                      router.push("/learning-generator");
+                      return;
+                    }
+
+                    if (!sidebarOpen) {
+                      if (defaultHref) router.push(defaultHref);
+                      onMobileClose();
+                    } else if (!isInGroup && defaultHref) {
+                      router.push(defaultHref);
                     }
                     setExpandedMenu(isExpanded ? null : item.name);
                   }}
-                  className={`relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300
-                    ${active
-                      ? "bg-teal-500/10 text-teal-400 shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
-                      : "text-white/60 hover:bg-[#334155]/30 hover:text-teal-200"
+                  className={`relative flex items-center gap-3 px-3 py-3 rounded-xl border transition-all duration-300
+                    ${reviewGuided
+                      ? "scale-[1.03] border-cyan-300/35 bg-cyan-400/15 text-cyan-100 shadow-[0_0_26px_rgba(34,211,238,0.28)]"
+                      : active
+                      ? "border-teal-500/20 bg-teal-500/10 text-teal-400 shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
+                      : "border-transparent text-white/60 hover:bg-[#334155]/30 hover:text-teal-200"
                     }
                   `}
-                  title={!sidebarOpen ? item.name : undefined}
+                  title={!sidebarOpen ? (reviewGuided ? "Review running - open Sandbox" : item.name) : undefined}
                 >
-                  {active && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-teal-500 rounded-r-full shadow-[0_0_10px_rgba(13,148,136,0.8)]" />
+                  {(active || reviewGuided) && (
+                    <div
+                      className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full ${
+                        reviewGuided
+                          ? "bg-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.9)]"
+                          : "bg-teal-500 shadow-[0_0_10px_rgba(13,148,136,0.8)]"
+                      }`}
+                    />
                   )}
-                  <item.icon className="w-5 h-5 shrink-0" />
+                  <item.icon className={`w-5 h-5 shrink-0 transition-transform duration-300 ${reviewGuided ? "scale-125 animate-pulse" : ""}`} />
                   <span className={`font-semibold text-sm whitespace-nowrap transition-opacity duration-300 flex-1 ${!sidebarOpen && "lg:opacity-0 lg:hidden"}`}>
                     {item.name}
                   </span>
@@ -146,20 +167,30 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
                 </button>
 
                 <div className={`${!isExpanded || !sidebarOpen ? "hidden" : ""} pl-6 space-y-1`}>
-                  {item.subItems.map((subItem) => (
-                    <Link
-                      key={subItem.href}
-                      href={subItem.href}
-                      className={`block px-3 py-2 rounded-lg text-sm transition-all
-                        ${isSubActive(subItem.href)
-                          ? "bg-teal-500/10 text-teal-300"
-                          : "text-white/50 hover:text-teal-200 hover:bg-[#334155]/30"
+                  {item.subItems.map((subItem) => {
+                    const sandboxGuided =
+                      isReviewRunning && subItem.href === "/knowledge-assist/sandbox";
+                    return (
+                      <Link
+                        key={subItem.href}
+                        href={
+                          sandboxGuided
+                            ? sandboxHref(undefined, "sidebar-active-review")
+                            : subItem.href
                         }
-                      `}
-                    >
-                      {subItem.name}
-                    </Link>
-                  ))}
+                        className={`block px-3 py-2 rounded-lg text-sm transition-all
+                          ${sandboxGuided
+                            ? "bg-cyan-400/15 text-cyan-100 ring-1 ring-cyan-300/30 shadow-[0_0_18px_rgba(34,211,238,0.22)]"
+                            : isSubActive(subItem.href)
+                            ? "bg-teal-500/10 text-teal-300"
+                            : "text-white/50 hover:text-teal-200 hover:bg-[#334155]/30"
+                          }
+                        `}
+                      >
+                        {subItem.name}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -190,6 +221,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
       </nav>
 
       <div className="p-4 border-t border-white/5 space-y-1.5 shrink-0">
+        <GitHubStatusControl sidebarOpen={sidebarOpen} />
         <Link href="/settings" className={`flex items-center gap-3 px-3 py-3 rounded-xl text-white/50 hover:bg-[#334155]/30 hover:text-white transition-all group`}>
           <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
           <span className={`font-medium text-sm whitespace-nowrap ${!sidebarOpen && "lg:hidden"}`}>Settings</span>

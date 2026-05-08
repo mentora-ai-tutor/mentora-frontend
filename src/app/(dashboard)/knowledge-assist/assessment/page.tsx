@@ -87,7 +87,7 @@ export default function KnowledgeAssistAssessmentPage() {
                     <span className="text-white/40">Stage: {item.stage}</span>
                   </div>
                   <p className="text-white font-semibold">{item.title}</p>
-                  <p className="text-xs text-white/35 mt-1 italic">"{item.desc}"</p>
+                  <p className="text-xs text-white/35 mt-1 italic">&ldquo;{item.desc}&rdquo;</p>
                   <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
                     <div className={`h-full w-[62%] ${style.bar}`} />
                   </div>
@@ -235,4 +235,3 @@ export default function KnowledgeAssistAssessmentPage() {
     </div>
   );
 }
-
