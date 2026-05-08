@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
+  ArrowRight,
   CheckCircle2,
   CircleDashed,
   GitBranch,
@@ -12,6 +15,7 @@ import {
   ScanSearch,
   ShieldCheck,
   Sparkles,
+  Terminal,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -20,8 +24,14 @@ import {
   ReviewRepoResult,
   reviewApi,
 } from "@/lib/api/review";
+import { ActiveReviewState, useActiveReview } from "@/contexts/ActiveReviewContext";
 
 const MAX_SELECTED_REPOS = 5;
+
+type SandboxRedirect = {
+  href: string;
+  jobId: string;
+};
 
 const statusStyle = {
   queued: "border-white/10 bg-white/5 text-white/50",
@@ -64,9 +74,14 @@ function mergeSingleRepoResult(current: ReviewJob | null, next: ReviewJob): Revi
 }
 
 export default function KnowledgeAssistForensicsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const reviewJobId = searchParams.get("reviewJobId");
   const { user, isLoading } = useAuth();
+  const { activeReview, sandboxHref, trackReviewJob } = useActiveReview();
   const githubLinked = user?.github?.linked === true;
   const githubLogin = user?.github?.gh_login;
+  const activeReviewIsRunning = activeReview?.status === "running";
 
   const [repos, setRepos] = useState<ReviewRepo[]>([]);
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
@@ -76,6 +91,7 @@ export default function KnowledgeAssistForensicsPage() {
   const [job, setJob] = useState<ReviewJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [repoSearch, setRepoSearch] = useState("");
+  const [sandboxRedirect, setSandboxRedirect] = useState<SandboxRedirect | null>(null);
 
   const selectedCount = selectedRepos.length;
 
@@ -135,6 +151,54 @@ export default function KnowledgeAssistForensicsPage() {
     loadRepos();
   }, [githubLinked, isLoading]);
 
+  useEffect(() => {
+    const targetJobId = reviewJobId ?? (githubLinked ? activeReview?.jobId : undefined);
+    if (!targetJobId || isLoading || !githubLinked) return;
+
+    let cancelled = false;
+
+    const loadReviewJob = async () => {
+      setError(null);
+      try {
+        const nextJob = await reviewApi.getStatus(targetJobId);
+        if (cancelled) return;
+        setJob(nextJob);
+        trackReviewJob(nextJob);
+      } catch (err) {
+        if (!cancelled) setError(getMessage(err));
+      }
+    };
+
+    loadReviewJob();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeReview?.jobId,
+    activeReview?.status,
+    githubLinked,
+    isLoading,
+    reviewJobId,
+    trackReviewJob,
+  ]);
+
+  useEffect(() => {
+    if (!activeReview) return;
+
+    setJob((current) => {
+      if (!current || current.job_id !== activeReview.jobId) return current;
+
+      return {
+        ...current,
+        status: activeReview.status,
+        repos: activeReview.repos,
+        error: activeReview.lastError ?? current.error,
+        updated_at: activeReview.completedAt ?? current.updated_at,
+      };
+    });
+  }, [activeReview]);
+
   const toggleRepo = (repoFullName: string) => {
     setError(null);
     setSelectedRepos((current) => {
@@ -150,13 +214,20 @@ export default function KnowledgeAssistForensicsPage() {
   };
 
   const runReview = async () => {
-    if (selectedRepos.length === 0 || runningReview) return;
+    if (selectedRepos.length === 0 || runningReview || sandboxRedirect || activeReviewIsRunning) {
+      return;
+    }
 
     setRunningReview(true);
     setError(null);
     try {
       const nextJob = await reviewApi.reviewTopFive(selectedRepos);
       setJob(nextJob);
+      trackReviewJob(nextJob);
+      setSandboxRedirect({
+        href: sandboxHref(nextJob.job_id, "forensics-review"),
+        jobId: nextJob.job_id,
+      });
     } catch (err) {
       setError(getMessage(err));
     } finally {
@@ -185,7 +256,7 @@ export default function KnowledgeAssistForensicsPage() {
         <section className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
           <div className="flex items-start gap-3">
             <Lock className="mt-1 h-5 w-5 text-amber-300" />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300 font-bold">
                 GitHub required
               </p>
@@ -196,6 +267,19 @@ export default function KnowledgeAssistForensicsPage() {
                 Use the GitHub status control at the bottom of the sidebar. After it is connected,
                 this page will load your eligible repositories without needing a manual refresh.
               </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href="/knowledge-assist/sandbox?source=github-required"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-teal-400/30 bg-teal-400/15 px-4 py-2.5 text-sm font-semibold text-teal-100 transition-all hover:bg-teal-400/20 hover:text-white"
+                >
+                  <Terminal className="h-4 w-4" />
+                  Don&apos;t have a GitHub account?
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <span className="text-xs text-white/45">
+                  Continue with sandbox coding questions and retry practice.
+                </span>
+              </div>
             </div>
           </div>
         </section>
@@ -231,6 +315,13 @@ export default function KnowledgeAssistForensicsPage() {
           </div>
         </div>
       </section>
+
+      {activeReview && (
+        <ForensicsActiveReviewBanner
+          review={activeReview}
+          sandboxUrl={sandboxHref(activeReview.jobId, "forensics-status")}
+        />
+      )}
 
       {error && (
         <section className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-100">
@@ -328,15 +419,26 @@ export default function KnowledgeAssistForensicsPage() {
           <button
             type="button"
             onClick={runReview}
-            disabled={selectedCount === 0 || runningReview}
+            disabled={
+              selectedCount === 0 ||
+              runningReview ||
+              !!sandboxRedirect ||
+              activeReviewIsRunning
+            }
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-teal-400 px-4 py-3 text-sm font-bold text-[#061016] transition-all hover:shadow-[0_0_20px_rgba(13,148,136,0.3)] hover:brightness-110 disabled:cursor-not-allowed disabled:bg-none disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none"
           >
-            {runningReview ? (
+            {runningReview || activeReviewIsRunning ? (
               <CircleDashed className="h-4 w-4 animate-spin" />
             ) : (
               <ScanSearch className="h-4 w-4" />
             )}
-            {runningReview ? "Mentora review running..." : "Run Mentora Expert Review"}
+            {runningReview
+              ? "Starting Mentora review..."
+              : sandboxRedirect
+                ? "Review successfully commenced"
+                : activeReviewIsRunning
+                  ? "Mentora review running..."
+                  : "Run Mentora Expert Review"}
           </button>
         </article>
 
@@ -397,6 +499,155 @@ export default function KnowledgeAssistForensicsPage() {
               </div>
             )}
           </section>
+        </div>
+      </section>
+
+      {sandboxRedirect && (
+        <ReviewStartedDialog
+          jobId={sandboxRedirect.jobId}
+          onConfirm={() => router.push(sandboxRedirect.href)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ForensicsActiveReviewBanner({
+  review,
+  sandboxUrl,
+}: {
+  review: ActiveReviewState;
+  sandboxUrl: string;
+}) {
+  const reviewed = review.repos.filter((repo) => repo.status === "done").length;
+  const failed = review.repos.filter((repo) => repo.status === "error").length;
+  const total = review.repos.length;
+  const running = review.status === "running";
+  const failedStatus = review.status === "failed";
+  const partialStatus = review.status === "partial";
+  const completed = review.status === "done";
+
+  const title = running
+    ? "Mentora expert review is working"
+    : completed
+      ? "Mentora review completed"
+      : partialStatus
+        ? "Mentora review finished with repository issues"
+        : "Mentora review needs attention";
+
+  const description = running
+    ? "Reviewing your selected GitHub repositories now. You can keep this tab open or practice Java in Sandbox while the background job finishes."
+    : completed
+      ? "The latest repository forensics report is ready below."
+      : "Some repositories could not be reviewed. Check the report below for details.";
+
+  const borderTone = failedStatus
+    ? "border-red-400/30 bg-red-500/10 shadow-[0_0_24px_rgba(248,113,113,0.12)]"
+    : partialStatus
+      ? "border-amber-400/30 bg-amber-500/10 shadow-[0_0_24px_rgba(251,191,36,0.12)]"
+      : "border-cyan-400/30 bg-cyan-500/10 shadow-[0_0_24px_rgba(34,211,238,0.12)]";
+
+  return (
+    <section className={`rounded-2xl border p-4 ${borderTone}`}>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-300/35 bg-[#0F172A]/70 text-cyan-200">
+            {running ? (
+              <CircleDashed className="h-5 w-5 animate-spin" />
+            ) : failedStatus ? (
+              <AlertCircle className="h-5 w-5 text-red-200" />
+            ) : (
+              <CheckCircle2 className="h-5 w-5 text-emerald-200" />
+            )}
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-200">
+              Repository Forensics
+            </p>
+            <h2 className="mt-1 text-xl font-black text-white">{title}</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-white/65">
+              {description}
+            </p>
+            <p className="mt-2 font-mono text-xs text-white/35">
+              Job {review.jobId}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <ReviewCountPill label="Reviewed" value={reviewed} />
+          <ReviewCountPill label="Failed" value={failed} />
+          <ReviewCountPill label="Total" value={total} />
+          <Link
+            href={sandboxUrl}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-300/25 bg-cyan-300/15 px-4 py-3 text-sm font-bold text-cyan-50 transition-all hover:bg-cyan-300/25 hover:text-white"
+          >
+            Open Sandbox practice
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReviewCountPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-20 rounded-xl border border-white/10 bg-[#0F172A]/70 px-3 py-2 text-center">
+      <p className="text-lg font-black text-white">{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function ReviewStartedDialog({
+  jobId,
+  onConfirm,
+}: {
+  jobId: string;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-started-title"
+        className="w-full max-w-lg rounded-2xl border border-cyan-400/30 bg-[#111827] p-6 shadow-[0_0_40px_rgba(34,211,238,0.22)]"
+      >
+        <div className="flex items-start gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/35 bg-cyan-300/10 text-cyan-200">
+            <CircleDashed className="h-5 w-5 animate-spin" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+              Review started
+            </p>
+            <h2 id="review-started-title" className="mt-1 text-2xl font-black text-white">
+              Mentora review process has successfully commenced
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-white/65">
+              You are about to leave Forensics and enter the Sandbox environment.
+              You can test your Java knowledge there while your GitHub repositories
+              are being reviewed in the background.
+            </p>
+            <p className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/45">
+              Job ID: {jobId}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-[#061016] transition-all hover:bg-cyan-200 hover:shadow-[0_0_20px_rgba(34,211,238,0.35)]"
+          >
+            OK, open Sandbox
+            <ArrowRight className="h-4 w-4" />
+          </button>
         </div>
       </section>
     </div>
