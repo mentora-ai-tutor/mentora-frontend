@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Brain, FileText, Target, Users, ChevronRight, Sparkles,
@@ -9,6 +10,9 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardHome() {
   const { user } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => { setMounted(true); }, []);
   
   return (
     <div className="space-y-8 animate-slide-up">
@@ -17,7 +21,7 @@ export default function DashboardHome() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-white flex items-center gap-3">
-            Welcome back, {user?.name?.split(' ')[0] || "Jane"}
+            Welcome back, {mounted ? (user?.name?.split(' ')[0] || "User") : "..."}
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
