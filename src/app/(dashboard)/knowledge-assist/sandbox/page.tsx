@@ -1,209 +1,594 @@
 "use client";
 
 import {
-  Bell,
-  Binary,
-  Gauge,
-  Monitor,
-  Search,
-  Settings,
-  ShieldCheck,
+  type ClipboardEvent,
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  useEffect,
+  useState,
+} from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  CircleDashed,
+  Code2,
+  Play,
+  RotateCcw,
   Terminal,
-  Waypoints,
-  Zap,
 } from "lucide-react";
+import { aiEngineApi, CodeExecutionResult } from "@/lib/api/aiEngine";
+import { ActiveReviewState, useActiveReview } from "@/contexts/ActiveReviewContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { knowledgeProfileApi } from "@/lib/api/knowledgeProfile";
+
+type SandboxChallenge = {
+  id: string;
+  title: string;
+  topic: string;
+  difficulty: string;
+  prompt: string;
+  expectedOutput: string;
+  starterCode: string;
+  stdin?: string;
+};
+
+const SANDBOX_CHALLENGES: SandboxChallenge[] = [
+  {
+    id: "sum-even",
+    title: "Sum even numbers",
+    topic: "Loops",
+    difficulty: "Warm-up",
+    prompt: "Print the sum of all even numbers from 1 to 10.",
+    expectedOutput: "30",
+    starterCode: `public class Main {
+    public static void main(String[] args) {
+        int total = 0;
+
+        for (int i = 1; i <= 10; i++) {
+            // add only even numbers
+        }
+
+        System.out.println(total);
+    }
+}`,
+  },
+  {
+    id: "reverse-word",
+    title: "Reverse a word",
+    topic: "Strings",
+    difficulty: "Loop practice",
+    prompt: "Read one word from input and print it in reverse order.",
+    expectedOutput: "arotnem",
+    stdin: "mentora",
+    starterCode: `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        String word = scanner.next();
+        String reversed = "";
+
+        for (int i = word.length() - 1; i >= 0; i--) {
+            // build the reversed string
+        }
+
+        System.out.println(reversed);
+    }
+}`,
+  },
+  {
+    id: "max-array",
+    title: "Find max value",
+    topic: "Arrays",
+    difficulty: "Array practice",
+    prompt: "Print the largest number in the array.",
+    expectedOutput: "42",
+    starterCode: `public class Main {
+    public static void main(String[] args) {
+        int[] values = { 12, 7, 42, 19, 3 };
+        int max = values[0];
+
+        for (int i = 1; i < values.length; i++) {
+            // update max when needed
+        }
+
+        System.out.println(max);
+    }
+}`,
+  },
+];
+
+const normalizeOutput = (value: string | null) =>
+  (value ?? "").replace(/\r\n/g, "\n").trim();
+
+const getRunStatus = (
+  result: CodeExecutionResult | null,
+  expectedOutput: string,
+) => {
+  if (!result) return null;
+  if (!result.success) return "failed";
+  return normalizeOutput(result.output) === normalizeOutput(expectedOutput)
+    ? "passed"
+    : "mismatch";
+};
+
+const noReviewSources = new Set(["github-dialog", "github-required"]);
+
+type SandboxBlockedEvent =
+  | ClipboardEvent<HTMLElement>
+  | DragEvent<HTMLElement>
+  | MouseEvent<HTMLElement>;
+
+const blockSandboxClipboard = (event: SandboxBlockedEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+};
+
+const blockSandboxClipboardShortcuts = (event: KeyboardEvent<HTMLElement>) => {
+  const key = event.key.toLowerCase();
+  const clipboardShortcut =
+    ((event.metaKey || event.ctrlKey) && ["c", "v", "x"].includes(key)) ||
+    (event.shiftKey && event.key === "Insert") ||
+    (event.ctrlKey && event.key === "Insert");
+
+  if (!clipboardShortcut) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+};
 
 export default function KnowledgeAssistSandboxPage() {
-  const logs = [
-    { time: "14:02:11", level: "INFO", message: "Initializing JVM with 1024MB heap space...", tone: "text-emerald-300" },
-    { time: "14:02:12", level: "INFO", message: "Main class 'SessionHandler.java' loaded successfully.", tone: "text-emerald-300" },
-    { time: "14:05:33", level: "ERR", message: "Task failed on interrupted condition at SessionHandler.java:42", tone: "text-rose-300" },
-    { time: "14:05:45", level: "WARN", message: "Compilation frequency exceeding normal baseline: 8 comps/min.", tone: "text-amber-300" },
-    { time: "14:06:12", level: "INFO", message: "Hot-swap recompile successful. No issues detected.", tone: "text-emerald-300" },
-    { time: "14:08:22", level: "INFO", message: "Thread 'worker-1' reached breakthrough state. Logic verified.", tone: "text-emerald-300" },
-    { time: "14:10:01", level: "USR", message: "User input detected: 'int x = Math.sqrt(-1);'", tone: "text-cyan-300" },
-    { time: "14:10:02", level: "ERR", message: "Incompatible types: double cannot be converted to int.", tone: "text-rose-300" },
-  ];
+  const searchParams = useSearchParams();
+  const reviewJobId = searchParams.get("reviewJobId");
+  const source = searchParams.get("source");
+  const { user } = useAuth();
+  const {
+    activeReview,
+    clearActiveReview,
+    forensicsHref,
+    refreshActiveReview,
+  } = useActiveReview();
+  const [challengeIndex, setChallengeIndex] = useState(0);
+  const [code, setCode] = useState(SANDBOX_CHALLENGES[0].starterCode);
+  const [result, setResult] = useState<CodeExecutionResult | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const processRows = [
-    { process: "java.runtime.worker_01", cpu: "12.4%", memory: "0x4F92A", tops: "452", status: "EXECUTING", tone: "text-emerald-300" },
-    { process: "java.runtime.gc_thread", cpu: "2.1%", memory: "0x12A0B", tops: "12", status: "IDLE", tone: "text-slate-300" },
-    { process: "sandbox.fs.watcher", cpu: "0.4%", memory: "0x992CF", tops: "1,024", status: "LISTENING", tone: "text-cyan-300" },
-    { process: "telemetry.sink.live", cpu: "8.7%", memory: "0x334E1", tops: "2,890", status: "STREAMING", tone: "text-cyan-300" },
-  ];
+  const challenge = SANDBOX_CHALLENGES[challengeIndex];
+  const runStatus = getRunStatus(result, challenge.expectedOutput);
+  const suppressReviewBanner = source ? noReviewSources.has(source) : false;
+  const reviewForThisSandboxVisit = suppressReviewBanner
+    ? null
+    : reviewJobId
+      ? activeReview?.jobId === reviewJobId ? activeReview : null
+      : user?.github?.linked
+        ? activeReview
+        : null;
+
+  useEffect(() => {
+    if (!suppressReviewBanner) return;
+    clearActiveReview();
+  }, [clearActiveReview, suppressReviewBanner]);
+
+  useEffect(() => {
+    if (!reviewJobId) return;
+    void refreshActiveReview(reviewJobId);
+  }, [reviewJobId, refreshActiveReview]);
+
+  const selectChallenge = (nextIndex: number) => {
+    const next = SANDBOX_CHALLENGES[nextIndex];
+    setChallengeIndex(nextIndex);
+    setCode(next.starterCode);
+    setResult(null);
+    setAttempts(0);
+    setError(null);
+  };
+
+  const runCode = async () => {
+    if (running || !code.trim()) return;
+
+    const startedAt = Date.now();
+    setRunning(true);
+    setError(null);
+
+    try {
+      const response = await aiEngineApi.executeCode(
+        code,
+        `github-fallback:${challenge.id}`,
+        challenge.stdin,
+      );
+
+      if (!response.data) {
+        throw new Error("Sandbox returned an empty response");
+      }
+
+      setResult(response.data);
+      setAttempts((current) => current + 1);
+
+      const passed =
+        response.data.success &&
+        normalizeOutput(response.data.output) === normalizeOutput(challenge.expectedOutput);
+
+      try {
+        await knowledgeProfileApi.saveSandboxAttempt({
+          challenge_id: challenge.id,
+          title: challenge.title,
+          topic: challenge.topic,
+          difficulty: challenge.difficulty,
+          code,
+          stdin: challenge.stdin,
+          expected_output: challenge.expectedOutput,
+          output: response.data.output,
+          error: response.data.error,
+          success: response.data.success,
+          passed,
+          attempt_number: attempts + 1,
+          runtime_ms: Date.now() - startedAt,
+          review_job_id: reviewJobId ?? activeReview?.jobId,
+        });
+      } catch {
+        // Execution feedback should remain visible even if profile evidence sync is unavailable.
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Sandbox backend is unavailable. Start Docker again and retry.",
+      );
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const retry = () => {
+    setResult(null);
+    setError(null);
+  };
+
+  const resetCode = () => {
+    setCode(challenge.starterCode);
+    setResult(null);
+    setError(null);
+  };
 
   return (
-    <div className="space-y-4 pb-4">
-      <section className="space-y-2">
-        <div className="flex items-center gap-3 text-xs">
-          <span className="px-2 py-1 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-semibold uppercase">Live Container</span>
-          <span className="text-white/60">ID: CONTAINER-ALPHA-9921</span>
+    <div
+      className="space-y-4 pb-4"
+      onCopyCapture={blockSandboxClipboard}
+      onCutCapture={blockSandboxClipboard}
+      onPasteCapture={blockSandboxClipboard}
+      onDropCapture={blockSandboxClipboard}
+      onDragOverCapture={blockSandboxClipboard}
+      onContextMenuCapture={blockSandboxClipboard}
+      onKeyDownCapture={blockSandboxClipboardShortcuts}
+    >
+      {reviewForThisSandboxVisit && (
+        <ReviewProgressBanner
+          review={reviewForThisSandboxVisit}
+          forensicsHref={forensicsHref(reviewForThisSandboxVisit.jobId)}
+        />
+      )}
+
+      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+              Sandbox Practice
+            </p>
+            <h1 className="mt-1 text-2xl font-black text-white md:text-3xl">
+              Coding questions without GitHub
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm text-white/55">
+              Solve Java prompts, run your code, compare the output, and retry until the answer is correct.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">
+              Attempts
+            </p>
+            <p className="mt-1 text-2xl font-black text-white">{attempts}</p>
+          </div>
         </div>
-        <p className="text-white/80 text-lg">Sandbox Telemetry: Learner SID-4402</p>
-        <p className="text-white/55 max-w-4xl">
-          High-frequency dissection of Java runtime environment. Monitoring real-time compilation,
-          cognitive patterns, and integrity scores.
-        </p>
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.8fr)_320px] gap-4">
-        <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white text-lg font-bold flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-cyan-300" /> JAVA RUNTIME LOGS
-            </h2>
-            <div className="flex items-center gap-2 text-white/40">
-              <Search className="w-4 h-4" />
-              <Settings className="w-4 h-4" />
-            </div>
+      {error && (
+        <section className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-100">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+            <span>{error}</span>
           </div>
+        </section>
+      )}
 
-          <div className="rounded-xl border border-white/10 bg-[#0A1020] p-3 h-[390px] overflow-y-auto space-y-2 font-mono text-sm">
-            {logs.map((log, idx) => (
-              <div key={idx} className="grid grid-cols-[74px_54px_minmax(0,1fr)] gap-2 text-xs">
-                <span className="text-white/35">{log.time}</span>
-                <span className={`${log.tone} font-bold`}>[{log.level}]</span>
-                <span className={`${log.tone}`}>{log.message}</span>
-              </div>
-            ))}
-            <p className="text-cyan-300/70 text-xs pt-2">| Listening for telemetry streams...</p>
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+            <Code2 className="h-4 w-4 text-cyan-300" />
+            Questions
+          </h2>
+
+          <div className="mt-3 space-y-2">
+            {SANDBOX_CHALLENGES.map((item, index) => {
+              const active = index === challengeIndex;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => selectChallenge(index)}
+                  className={`w-full rounded-xl border p-3 text-left transition-all ${
+                    active
+                      ? "border-teal-500/40 bg-teal-500/10 text-teal-100"
+                      : "border-white/10 bg-[#0F172A] text-white/65 hover:border-white/20 hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-white">
+                    {item.title}
+                  </span>
+                  <span className="mt-1 block text-xs uppercase tracking-wider text-white/40">
+                    {item.difficulty}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        </article>
+        </aside>
 
-        <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-white/45 uppercase tracking-wider">Connection Uptime</p>
-              <p className="text-3xl font-black text-emerald-300">02:14:45.092</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-white/45 uppercase tracking-wider">Packet Drops</p>
-              <p className="text-3xl font-black text-rose-300">0.00%</p>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-            <div className="flex items-center justify-between">
+        <div className="space-y-4">
+          <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-white font-semibold">Integrity Score</p>
-                <p className="text-xs text-white/40">AI Injection Probability</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/45">
+                  Current question
+                </p>
+                <h2 className="mt-1 text-xl font-bold text-white">
+                  {challenge.title}
+                </h2>
+                <p className="mt-2 max-w-3xl text-sm text-white/65">
+                  {challenge.prompt}
+                </p>
               </div>
-              <ShieldCheck className="w-4 h-4 text-amber-300" />
-            </div>
-            <div className="mt-4 flex items-center justify-center">
-              <div className="w-36 h-36 rounded-full border-8 border-cyan-500/25 border-t-cyan-400 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-5xl font-black text-white">14.2%</p>
-                  <p className="text-xs text-cyan-300 uppercase">Low Risk</p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 text-xs space-y-2">
-              <div className="flex justify-between text-white/50">
-                <span>Keystroke Cadence Rhythmic (Human)</span>
-                <span>0 / Session</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/10">
-                <div className="h-full w-[92%] rounded-full bg-cyan-400" />
+
+              <div className="rounded-xl border border-white/10 bg-[#0F172A] px-4 py-3 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  Expected output
+                </p>
+                <pre className="mt-1 whitespace-pre-wrap font-mono text-cyan-200">
+                  {challenge.expectedOutput}
+                </pre>
               </div>
             </div>
-            <div className="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs text-cyan-200">
-              Authoritative confirmation: Authentic learner journey.
+
+            {challenge.stdin && (
+              <div className="mt-3 rounded-xl border border-white/10 bg-[#0F172A] px-4 py-3 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  Input
+                </p>
+                <pre className="mt-1 whitespace-pre-wrap font-mono text-white/75">
+                  {challenge.stdin}
+                </pre>
+              </div>
+            )}
+          </article>
+
+          <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+                <Terminal className="h-4 w-4 text-cyan-300" />
+                Main.java
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="hidden rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-cyan-200 sm:inline-flex">
+                  Typing only
+                </span>
+                <button
+                  type="button"
+                  onClick={resetCode}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={runCode}
+                  disabled={running || !code.trim()}
+                  className="inline-flex items-center gap-2 rounded-lg border border-teal-400/30 bg-teal-400 px-4 py-2 text-sm font-bold text-[#08111f] transition-colors hover:bg-teal-300 disabled:cursor-wait disabled:opacity-60"
+                >
+                  <Play className="h-4 w-4" />
+                  {running ? "Running..." : "Run code"}
+                </button>
+              </div>
             </div>
-          </div>
-        </article>
-      </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <article className="rounded-2xl border border-cyan-500/30 bg-[#1e293b]/55 p-4">
-          <p className="text-xs text-white/45 uppercase tracking-wider">Compilation Frequency</p>
-          <p className="mt-1 text-cyan-300 text-3xl font-black">12 total</p>
-          <div className="mt-4 h-28 flex items-end gap-2">
-            {[22, 54, 68, 30, 45, 36, 58, 62].map((v, i) => (
-              <div key={i} className="bg-cyan-400/80 rounded-sm w-6" style={{ height: `${v}%` }} />
-            ))}
-          </div>
-          <p className="text-xs text-white/50 mt-2">Peak: 4.2 builds/min</p>
-        </article>
+            <textarea
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              onCopy={blockSandboxClipboard}
+              onCut={blockSandboxClipboard}
+              onPaste={blockSandboxClipboard}
+              onDrop={blockSandboxClipboard}
+              onDragOver={blockSandboxClipboard}
+              onContextMenu={blockSandboxClipboard}
+              onKeyDown={blockSandboxClipboardShortcuts}
+              aria-label="Java code editor"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              className="min-h-[360px] w-full resize-y border-0 bg-[#050A16] p-4 font-mono text-sm leading-6 text-cyan-50 outline-none placeholder:text-white/30"
+            />
+          </article>
 
-        <article className="rounded-2xl border border-amber-500/30 bg-[#1e293b]/55 p-4">
-          <p className="text-xs text-white/45 uppercase tracking-wider">Error-Correction Latency</p>
-          <p className="mt-1 text-amber-300 text-3xl font-black">0.8s avg</p>
-          <div className="mt-4 h-28 relative">
-            <svg viewBox="0 0 260 120" className="w-full h-full">
-              <path d="M0 90 C 35 84, 60 35, 95 55 C 130 76, 160 110, 190 40 C 220 20, 240 70, 260 85" fill="none" stroke="rgba(245,158,11,0.8)" strokeWidth="4" />
-              <circle cx="190" cy="40" r="5" fill="rgba(251,191,36,1)" />
-            </svg>
-          </div>
-          <p className="text-xs text-emerald-300 mt-2">Status: Rapid Recovery</p>
-        </article>
+          <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h2 className="text-lg font-semibold text-white">Result</h2>
 
-        <article className="rounded-2xl border border-emerald-500/30 bg-[#1e293b]/55 p-4">
-          <p className="text-xs text-white/45 uppercase tracking-wider">Time-To-Solution</p>
-          <p className="mt-1 text-emerald-300 text-3xl font-black">ETR: 12m</p>
-          <div className="mt-5">
-            <div className="h-3 rounded-full bg-white/10 overflow-hidden">
-              <div className="h-full w-[62%] bg-emerald-400" />
+              {runStatus && (
+                <span
+                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                    runStatus === "passed"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                      : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                  }`}
+                >
+                  {runStatus === "passed" ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
+                  {runStatus === "passed"
+                    ? "Correct"
+                    : result?.success
+                      ? "Output mismatch"
+                      : "Needs fix"}
+                </span>
+              )}
             </div>
-            <div className="mt-2 flex justify-between text-[10px] text-white/45 uppercase">
-              <span>Start</span>
-              <span>Milestone 1</span>
-              <span>End</span>
+
+            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-[#0F172A] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  Output
+                </p>
+                <pre className="mt-2 min-h-24 whitespace-pre-wrap font-mono text-sm text-white/75">
+                  {result?.output ?? "Run your code to see output."}
+                </pre>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-[#0F172A] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  Error
+                </p>
+                <pre className="mt-2 min-h-24 whitespace-pre-wrap font-mono text-sm text-red-200">
+                  {result?.error ?? "No error yet."}
+                </pre>
+              </div>
             </div>
-          </div>
-          <p className="text-xs text-white/55 mt-3">Current progress: 62% ahead of cohort average</p>
-          <p className="text-xs text-emerald-300 mt-1">Trend: Optimal Path</p>
-        </article>
-      </section>
 
-      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-          <h3 className="text-white font-semibold">Execution Context Tracking</h3>
-          <div className="flex items-center gap-3 text-[10px] uppercase">
-            <span className="text-emerald-300 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400" />Active</span>
-            <span className="text-white/40 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/30" />Idle</span>
-          </div>
-        </div>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-white/55">
+                {runStatus === "passed"
+                  ? "Move to another question or keep experimenting with your solution."
+                  : "Edit the code and retry until the output matches the expected answer."}
+              </p>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-white/45 text-xs uppercase bg-[#0F172A]">
-              <tr>
-                <th className="text-left p-3">System Process</th>
-                <th className="text-left p-3">CPU Load</th>
-                <th className="text-left p-3">Memory Offset</th>
-                <th className="text-left p-3">TOPS</th>
-                <th className="text-left p-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {processRows.map((row, idx) => (
-                <tr key={idx} className="border-t border-white/5">
-                  <td className="p-3 text-cyan-200">{row.process}</td>
-                  <td className="p-3 text-white/75">{row.cpu}</td>
-                  <td className="p-3 text-white/75">{row.memory}</td>
-                  <td className="p-3 text-white/75">{row.tops}</td>
-                  <td className={`p-3 text-xs font-semibold ${row.tone}`}>{row.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-        <div className="flex items-center gap-3 text-cyan-300">
-          <Monitor className="w-4 h-4" />
-          <Waypoints className="w-4 h-4" />
-          <Binary className="w-4 h-4" />
-        </div>
-        <div className="flex items-center gap-3 text-white/50">
-          <Gauge className="w-4 h-4" />
-          <Bell className="w-4 h-4" />
-          <Zap className="w-4 h-4 text-cyan-300" />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  Try again
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    selectChallenge((challengeIndex + 1) % SANDBOX_CHALLENGES.length)
+                  }
+                  className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-400/15 hover:text-white"
+                >
+                  Next question
+                </button>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
     </div>
   );
 }
 
+function ReviewProgressBanner({
+  review,
+  forensicsHref,
+}: {
+  review: ActiveReviewState;
+  forensicsHref: string;
+}) {
+  const reviewed = review.repos.filter((repo) => repo.status === "done").length;
+  const failed = review.repos.filter((repo) => repo.status === "error").length;
+  const total = review.repos.length;
+  const running = review.status === "running";
+  const completed = review.status === "done";
+
+  return (
+    <section
+      className={`sticky top-3 z-30 rounded-2xl border p-4 backdrop-blur-xl ${
+        running
+          ? "border-cyan-400/30 bg-cyan-950/85 shadow-[0_0_26px_rgba(34,211,238,0.16)]"
+          : completed
+            ? "border-emerald-400/30 bg-emerald-950/85 shadow-[0_0_22px_rgba(52,211,153,0.12)]"
+            : "border-amber-400/30 bg-amber-950/85 shadow-[0_0_22px_rgba(251,191,36,0.12)]"
+      }`}
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          <span
+            className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+              running
+                ? "border-cyan-300/35 bg-cyan-300/10 text-cyan-200"
+                : completed
+                  ? "border-emerald-300/35 bg-emerald-300/10 text-emerald-200"
+                  : "border-amber-300/35 bg-amber-300/10 text-amber-200"
+            }`}
+          >
+            {running ? (
+              <CircleDashed className="h-5 w-5 animate-spin" />
+            ) : completed ? (
+              <CheckCircle2 className="h-5 w-5" />
+            ) : (
+              <AlertCircle className="h-5 w-5" />
+            )}
+          </span>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">
+              Repository Forensics
+            </p>
+            <h2 className="mt-1 text-xl font-black text-white">
+              {running
+                ? "GitHub review running in Forensics"
+                : completed
+                  ? "Review completed"
+                  : "Review finished with issues"}
+            </h2>
+            <p className="mt-1 text-sm text-white/60">
+              Keep practicing Java while Mentora reviews your repositories.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <ReviewCount label="Reviewed" value={reviewed} />
+            <ReviewCount label="Failed" value={failed} />
+            <ReviewCount label="Total" value={total} />
+          </div>
+          <Link
+            href={forensicsHref}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-white/15"
+          >
+            View Forensics results
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReviewCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-20 rounded-xl border border-white/10 bg-[#0F172A]/70 px-3 py-2">
+      <p className="text-lg font-black text-white">{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+        {label}
+      </p>
+    </div>
+  );
+}

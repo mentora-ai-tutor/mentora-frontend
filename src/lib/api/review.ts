@@ -68,6 +68,7 @@ export interface ReviewJob {
   signals_evidence?: string | null;
   created_at?: string;
   updated_at?: string;
+  error?: string | null;
 }
 
 const authHeaders = (): HeadersInit => {

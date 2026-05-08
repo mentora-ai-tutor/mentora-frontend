@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Lock, Sparkles, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Lock, Sparkles, Terminal, X } from "lucide-react";
 import { toast } from "sonner";
 import AuthCard from "@/components/auth/AuthCard";
 import AuthButton from "@/components/auth/AuthButton";
@@ -34,8 +35,10 @@ export default function GithubLinkCard({
   previousLogin,
   previousLinkedAt,
 }: GithubLinkCardProps) {
+  const router = useRouter();
   const { refreshUser } = useAuth();
   const [linking, setLinking] = useState(false);
+  const [navigatingToSandbox, setNavigatingToSandbox] = useState(false);
   const popupRef = useRef<Window | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -143,6 +146,19 @@ export default function GithubLinkCard({
     }, POLL_INTERVAL_MS);
   };
 
+  const handlePracticeInSandbox = () => {
+    stopPolling();
+    if (popupRef.current && !popupRef.current.closed) {
+      popupRef.current.close();
+    }
+    setLinking(false);
+    setNavigatingToSandbox(true);
+    onDismiss?.();
+    router.push("/knowledge-assist/sandbox?source=github-dialog");
+  };
+
+  if (navigatingToSandbox) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-black/70 p-4 animate-fade-in">
       <AuthCard className="max-w-lg">
@@ -215,6 +231,31 @@ export default function GithubLinkCard({
               {mode === "change" ? "Choose GitHub account" : "Connect GitHub"}
             </span>
           </AuthButton>
+
+          {mode === "connect" && (
+            <button
+              type="button"
+              onClick={handlePracticeInSandbox}
+              className="w-full rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-left transition-all hover:border-cyan-300/40 hover:bg-cyan-400/15"
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 text-cyan-200">
+                    <Terminal className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-cyan-100">
+                      Don&apos;t have a GitHub account?
+                    </span>
+                    <span className="mt-0.5 block text-xs text-white/45">
+                      Practice Java questions in the sandbox instead.
+                    </span>
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-cyan-200" />
+              </span>
+            </button>
+          )}
 
           <p className="text-center text-[11px] text-white/30 leading-relaxed">
             By connecting, you authorize Mentora to read your GitHub profile
