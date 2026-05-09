@@ -52,7 +52,7 @@ const navItems: NavItem[] = [
       { name: "Overview", href: "/assessment" },
       { name: "Questions & Answers", href: "/assessment/questions-answers" },
       { name: "Report", href: "/assessment/report" },
-      { name: "Suggested Resources", href: "/assessment/resources" },
+     // { name: "Suggested Resources", href: "/assessment/resources" },
     ],
   },
   { name: "Peer Learning", href: "/peer-learning", icon: Users },
