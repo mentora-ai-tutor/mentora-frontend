@@ -1,9 +1,21 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Info, Trophy, ArrowRight } from "lucide-react";
+import {
+  Trophy,
+  ArrowRight,
+  Loader2,
+  CheckCircle2,
+  Target,
+  BarChart3,
+  BrainCircuit,
+  Layers,
+  TrendingUp,
+  Sparkles,
+  Star,
+} from "lucide-react";
 
 interface TransitionData {
   completedTopic: {
@@ -23,175 +35,298 @@ interface TransitionData {
   learnerId: string;
 }
 
-interface TransitionPageProps {
-  data?: TransitionData;
-  onContinue?: () => void;
-}
-
-export default function TransitionPage({
-  data = {
-    completedTopic: {
-      name: "Binary Search Trees",
-      finalMastery: 87,
-      mastered: true,
-      questionsAnswered: 8,
-      accuracy: 75,
-      bloomLevels: [1, 2, 3, 4]
-    },
-    nextTopic: {
-      name: "Java Collections Framework",
-      gap_type: "PARTIAL_GAP",
-      startingDifficulty: "Medium"
-    },
-    sessionId: "SESSION_001",
-    learnerId: "STU-2026-1147"
+const DEFAULT_DATA: TransitionData = {
+  completedTopic: {
+    name: "Completed Topic",
+    finalMastery: 0,
+    mastered: true,
+    questionsAnswered: 0,
+    accuracy: 0,
+    bloomLevels: [1],
   },
-  onContinue = () => {}
-}: TransitionPageProps) {
+  nextTopic: {
+    name: "Next Topic",
+    gap_type: "PARTIAL_GAP",
+    startingDifficulty: "Easy",
+  },
+  sessionId: "",
+  learnerId: "",
+};
 
-  const getRingColor = (mastery: number) => {
-    if (mastery >= 85) return "stroke-green-400";
-    if (mastery >= 60) return "stroke-blue-400";
-    if (mastery >= 40) return "stroke-yellow-400";
-    return "stroke-red-400";
-  };
+const getMasteryMeta = (mastery: number) => {
+  if (mastery >= 85) return { ring: "stroke-emerald-400", text: "text-emerald-400", label: "Mastered", bar: "bg-emerald-500" };
+  if (mastery >= 60) return { ring: "stroke-blue-400", text: "text-blue-400", label: "Proficient", bar: "bg-blue-500" };
+  if (mastery >= 40) return { ring: "stroke-amber-400", text: "text-amber-400", label: "Developing", bar: "bg-amber-500" };
+  return { ring: "stroke-red-400", text: "text-red-400", label: "Needs Work", bar: "bg-red-500" };
+};
 
-  const getMasteryColor = (mastery: number) => {
-    if (mastery >= 85) return "text-green-400";
-    if (mastery >= 60) return "text-blue-400";
-    if (mastery >= 40) return "text-yellow-400";
-    return "text-red-400";
-  };
+const getDifficultyBadge = (d: string) => {
+  switch (d) {
+    case "Easy": return { color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30", dot: "bg-emerald-400" };
+    case "Medium": return { color: "bg-amber-500/10 text-amber-400 border-amber-500/30", dot: "bg-amber-400" };
+    case "Hard": return { color: "bg-red-500/10 text-red-400 border-red-500/30", dot: "bg-red-400" };
+    default: return { color: "bg-white/5 text-white/50 border-white/10", dot: "bg-white/30" };
+  }
+};
 
-  const getAchievementContent = () => {
-    if (data.completedTopic.mastered) {
-      return {
-        icon: <Trophy className="w-12 h-12 text-green-400" />,
-        title: "Topic Mastered!",
-        message: `You demonstrated strong understanding of ${data.completedTopic.name}.`,
-        bgColor: "bg-green-500/10 border-green-500/30",
-        textColor: "text-green-200"
-      };
-    } else {
-      return {
-        icon: <Info className="w-12 h-12 text-orange-400" />,
-        title: "Assessment Complete",
-        message: `You have completed all available questions for this topic with a score of ${data.completedTopic.finalMastery}%. This topic has been noted for further practice.`,
-        bgColor: "bg-orange-500/10 border-orange-500/30",
-        textColor: "text-orange-200"
-      };
+export default function TransitionPage() {
+  const router = useRouter();
+  const [data, setData] = useState<TransitionData | null>(null);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("assessment_transition");
+    if (stored) {
+      try {
+        setData(JSON.parse(stored));
+        return;
+      } catch {}
     }
+    setData(DEFAULT_DATA);
+  }, []);
+
+  const handleContinue = () => {
+    setStarting(true);
+    const stored = localStorage.getItem("assessment_transition");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.sessionId) {
+          router.push(`/assessment/session?sessionId=${parsed.sessionId}`);
+          return;
+        }
+      } catch {}
+    }
+    router.push("/assessment/session");
   };
 
-  const achievement = getAchievementContent();
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-teal-400 animate-spin mx-auto mb-4" />
+          <p className="text-white/50 font-medium">Preparing transition...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const masteryMeta = getMasteryMeta(data.completedTopic.finalMastery);
+  const diffMeta = getDifficultyBadge(data.nextTopic.startingDifficulty);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#0F172A]">
+      {/* Subtle gradient header */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-teal-500/[0.04] to-transparent pointer-events-none" />
 
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold text-white">Topic Transition</h1>
-          <p className="text-slate-300">Session {data.sessionId} • Learner {data.learnerId}</p>
+        <div className="max-w-3xl mx-auto px-6 pt-12 pb-6">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-1">
+              <Sparkles className="w-3 h-3" /> Topic Complete
+            </div>
+            <h1 className="text-3xl lg:text-4xl font-black text-white">Great Progress!</h1>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0F172A] border border-white/5 rounded-lg">
+                <div className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                <span className="text-[10px] font-semibold text-white/40 uppercase">Student</span>
+                <span className="text-xs font-mono text-white/80 font-bold">{data.learnerId}</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0F172A] border border-white/5 rounded-lg">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                <span className="text-[10px] font-semibold text-white/40 uppercase">Session</span>
+                <span className="text-xs font-mono text-white/80 font-bold">{data.sessionId}</span>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Topic Completion Summary */}
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white text-center">
-              You have completed: {data.completedTopic.name}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      <div className="max-w-3xl mx-auto px-6 pb-12 space-y-6">
 
-            {/* Mastery Ring */}
-            <div className="flex justify-center">
-              <div className="relative w-32 h-32">
-                <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
+        {/* ── COMPLETED TOPIC CARD ── */}
+        <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
+          {/* Accent bar */}
+          <div className={`h-1 w-full ${data.completedTopic.mastered ? "bg-emerald-500/50" : "bg-teal-500/50"}`} />
+
+          <div className="p-6 lg:p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className={`p-2 rounded-xl ${data.completedTopic.mastered ? "bg-emerald-500/10" : "bg-teal-500/10"}`}>
+                <CheckCircle2 className={`w-5 h-5 ${data.completedTopic.mastered ? "text-emerald-400" : "text-teal-400"}`} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">{data.completedTopic.name}</h2>
+                <p className="text-xs text-white/40">Completed Topic</p>
+              </div>
+              <span className={`ml-auto px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
+                data.completedTopic.mastered
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : "bg-teal-500/10 text-teal-400 border-teal-500/30"
+              }`}>
+                {data.completedTopic.mastered ? "Mastered" : "Complete"}
+              </span>
+            </div>
+
+            {/* Mastery Ring + Stats */}
+            <div className="flex flex-col sm:flex-row items-center gap-8 mb-6">
+              <div className="relative w-28 h-28 shrink-0">
+                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 36 36">
                   <path
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    className="text-slate-600"
+                    fill="none" stroke="currentColor" strokeWidth="3"
+                    className="text-white/5"
                   />
                   <path
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
+                    fill="none" stroke="currentColor" strokeWidth="3.5"
                     strokeDasharray={`${data.completedTopic.finalMastery}, 100`}
-                    className={getRingColor(data.completedTopic.finalMastery)}
+                    className={masteryMeta.ring}
+                    strokeLinecap="round"
                   />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className={`text-2xl font-bold ${getMasteryColor(data.completedTopic.finalMastery)}`}>
-                    {data.completedTopic.finalMastery}%
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className={`text-2xl font-black ${masteryMeta.text}`}>{data.completedTopic.finalMastery}</span>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${masteryMeta.text}`}>{masteryMeta.label}</span>
+                </div>
+              </div>
+
+              <div className="flex-1 grid grid-cols-2 gap-4 w-full">
+                <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5 text-center">
+                  <BarChart3 className="w-4 h-4 text-white/30 mx-auto mb-1.5" />
+                  <p className="text-xl font-black text-white">{data.completedTopic.questionsAnswered}</p>
+                  <p className="text-[9px] text-white/30 uppercase tracking-wider font-semibold">Questions</p>
+                </div>
+                <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5 text-center">
+                  <Target className="w-4 h-4 text-white/30 mx-auto mb-1.5" />
+                  <p className={`text-xl font-black ${masteryMeta.text}`}>{data.completedTopic.accuracy}%</p>
+                  <p className="text-[9px] text-white/30 uppercase tracking-wider font-semibold">Accuracy</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bloom's Levels */}
+            <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BrainCircuit className="w-4 h-4 text-indigo-400" />
+                  <span className="text-xs font-semibold text-white/40">Bloom&apos;s Levels Covered</span>
+                </div>
+                <div className="flex gap-1.5">
+                  {data.completedTopic.bloomLevels.map((l) => (
+                    <span key={l} className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded text-[10px] font-bold">
+                      L{l}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── ACHIEVEMENT BANNER ── */}
+        {data.completedTopic.mastered && (
+          <div className="bg-gradient-to-r from-emerald-500/[0.06] to-transparent border border-emerald-500/20 rounded-2xl p-6 flex items-center gap-4">
+            <div className="p-2 rounded-full bg-emerald-500/10">
+              <Trophy className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-base">Topic Mastered!</h3>
+              <p className="text-emerald-200/70 text-sm">
+                You demonstrated strong understanding of {data.completedTopic.name}.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── NEXT TOPIC CARD ── */}
+        <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
+          <div className="h-1 w-full bg-gradient-to-r from-teal-500/50 to-blue-500/50" />
+
+          <div className="p-6 lg:p-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-2 rounded-xl bg-teal-500/10">
+                <ArrowRight className="w-5 h-5 text-teal-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Next Topic</h2>
+                <p className="text-xs text-white/40">Ready to begin</p>
+              </div>
+            </div>
+
+            <div className="bg-[#0F172A] rounded-xl p-5 border border-white/5 mb-5">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded-lg bg-teal-500/10">
+                    <Star className="w-4 h-4 text-teal-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">{data.nextTopic.name}</h3>
+                </div>
+                <div className="flex gap-2">
+                  <span className={`px-2.5 py-1 rounded-lg border text-[10px] font-semibold ${
+                    data.nextTopic.gap_type === "FUNDAMENTAL_GAP"
+                      ? "bg-red-500/10 text-red-400 border-red-500/30"
+                      : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                  }`}>
+                    {data.nextTopic.gap_type === "FUNDAMENTAL_GAP" ? "Fundamental Gap" : "Partial Gap"}
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-lg border text-[10px] font-semibold ${diffMeta.color}`}>
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${diffMeta.dot} mr-1`} />
+                    {data.nextTopic.startingDifficulty}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Achievement */}
-            <div className={`p-6 rounded-lg border ${achievement.bgColor}`}>
-              <div className="text-center space-y-3">
-                {achievement.icon}
-                <h3 className="text-xl font-semibold text-white">{achievement.title}</h3>
-                <p className={achievement.textColor}>{achievement.message}</p>
-              </div>
+            <div className="flex items-center gap-3 text-xs text-white/30">
+              <Layers className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                Questions will adapt based on your responses, starting at {data.nextTopic.startingDifficulty} difficulty.
+              </span>
             </div>
+          </div>
+        </div>
 
-            {/* What was covered */}
-            <div className="space-y-3">
-              <h4 className="text-white font-semibold">What was covered:</h4>
-              <div className="bg-slate-700/50 p-4 rounded-lg">
-                <p className="text-slate-200">
-                  You answered {data.completedTopic.questionsAnswered} questions covering Bloom's Levels{" "}
-                  {data.completedTopic.bloomLevels.map(level => `L${level}`).join(", ")}.
-                </p>
-                <p className="text-slate-200 mt-2">
-                  Accuracy: {data.completedTopic.accuracy}%
-                </p>
-              </div>
+        {/* ── PROGRESS OVERVIEW ── */}
+        <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-6 lg:p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-xl bg-blue-500/10">
+              <TrendingUp className="w-5 h-5 text-blue-400" />
             </div>
+            <h2 className="text-lg font-bold text-white">Session Progress</h2>
+          </div>
 
-          </CardContent>
-        </Card>
-
-        {/* Up Next Panel */}
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white text-center flex items-center justify-center gap-2">
-              <ArrowRight className="w-5 h-5" />
-              Next Topic
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center space-y-4">
-              <h3 className="text-2xl font-bold text-white">{data.nextTopic.name}</h3>
-              <div className="flex justify-center gap-2">
-                <Badge variant="outline" className="border-slate-500 text-slate-300">
-                  {data.nextTopic.gap_type === "FUNDAMENTAL_GAP" ? "Fundamental Gap" : "Partial Gap"}
-                </Badge>
-                <Badge className={`${
-                  data.nextTopic.startingDifficulty === "Easy" ? "bg-green-500" :
-                  data.nextTopic.startingDifficulty === "Medium" ? "bg-yellow-500" : "bg-red-500"
-                } text-white`}>
-                  Starting: {data.nextTopic.startingDifficulty}
-                </Badge>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: "Questions Answered", value: data.completedTopic.questionsAnswered, color: "text-white" },
+              { label: "Overall Accuracy", value: `${data.completedTopic.accuracy}%`, color: masteryMeta.text },
+              { label: "Topics Completed", value: "1 of 2", color: "text-white" },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-[#0F172A] rounded-xl p-4 border border-white/5 text-center">
+                <p className={`text-xl lg:text-2xl font-black ${stat.color}`}>{stat.value}</p>
+                <p className="text-[9px] text-white/30 uppercase tracking-wider font-semibold mt-1">{stat.label}</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </div>
 
-        {/* Continue Button */}
-        <div className="text-center">
+        {/* ── ACTION BUTTON ── */}
+        <div className="text-center pt-2">
           <Button
-            onClick={onContinue}
-            size="lg"
-            className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-4 text-lg"
+            onClick={handleContinue}
+            disabled={starting}
+            className="bg-teal-600 hover:bg-teal-500 text-white h-14 px-12 text-base font-bold rounded-xl disabled:opacity-50 shadow-lg shadow-teal-500/20 hover:shadow-xl hover:shadow-teal-500/30 transition-all"
           >
-            Start {data.nextTopic.name} →
+            {starting ? (
+              <div className="flex items-center gap-2.5">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Loading next topic...</span>
+              </div>
+            ) : (
+              <span className="flex items-center gap-2.5">
+                Continue to {data.nextTopic.name}
+                <ArrowRight className="w-5 h-5" />
+              </span>
+            )}
           </Button>
         </div>
 

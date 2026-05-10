@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, X, Target, TrendingUp, Award, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle, X, Target, TrendingUp, Award, Clock, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { assessmentApi } from "@/lib/api/assessment";
 
 interface TopicSummary {
   name: string;
@@ -36,42 +38,117 @@ interface SummaryData {
   learnerId: string;
 }
 
-interface SummaryPageProps {
-  data?: SummaryData;
-  onViewReport?: () => void;
-  isGeneratingReport?: boolean;
-}
+export default function SummaryPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
 
-export default function SummaryPage({
-  data = {
-    overallMastery: 72,
-    overallAccuracy: 68,
-    totalQuestions: 25,
-    sessionDuration: 45,
-    overallGrade: "Good",
-    topics: [
-      { name: "Basic Syntax", finalMastery: 95, questionsAnswered: 5, accuracy: 100, status: "mastered" },
-      { name: "Binary Search Trees", finalMastery: 78, questionsAnswered: 8, accuracy: 75, status: "needs_work" },
-      { name: "Java Collections", finalMastery: 65, questionsAnswered: 7, accuracy: 57, status: "needs_work" },
-      { name: "OOP Design", finalMastery: 58, questionsAnswered: 5, accuracy: 60, status: "needs_work" }
-    ],
-    qaReview: [
-      { number: 1, topic: "Basic Syntax", difficulty: "Easy", questionText: "What is the correct way to declare a variable in Java?", learnerAnswer: "int x = 5;", correctAnswer: "int x = 5;", isCorrect: true },
-      { number: 2, topic: "Basic Syntax", difficulty: "Easy", questionText: "Which keyword is used to define a class in Java?", learnerAnswer: "class", correctAnswer: "class", isCorrect: true },
-      { number: 3, topic: "Binary Search Trees", difficulty: "Medium", questionText: "What is the time complexity of BST insertion?", learnerAnswer: "O(n)", correctAnswer: "O(log n)", isCorrect: false },
-      { number: 4, topic: "Binary Search Trees", difficulty: "Medium", questionText: "What property must BSTs maintain?", learnerAnswer: "Left child < parent < right child", correctAnswer: "Left child ≤ parent < right child", isCorrect: false },
-      { number: 5, topic: "Java Collections", difficulty: "Hard", questionText: "What is the difference between ArrayList and LinkedList?", learnerAnswer: "ArrayList is faster for random access", correctAnswer: "ArrayList is faster for random access, LinkedList is faster for insertions/deletions", isCorrect: false }
-    ],
-    sessionId: "SESSION_001",
-    learnerId: "STU-2026-1147"
-  },
-  onViewReport = () => {},
-  isGeneratingReport = false
-}: SummaryPageProps) {
-
+  const [data, setData] = useState<SummaryData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showQAReview, setShowQAReview] = useState(true);
 
-  const getGradeBanner = () => {
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const sid = sessionId || JSON.parse(localStorage.getItem('assessment_session') || '{}').session_id;
+        if (sid) {
+          const res = await assessmentApi.getSession(sid);
+          if (res.success && res.data) {
+            const session = res.data.updated_session || res.data;
+            const feedbackReport = res.data.feedback_report || session.feedback_report;
+            const topics = session.all_topics || session.topics || [];
+            const qaReview = feedbackReport?.full_qa_review || session.session_history || [];
+
+            setData({
+              overallMastery: feedbackReport?.overall_mastery_percentage ?? session.current_topic_mastery ?? 0,
+              overallAccuracy: feedbackReport?.overall_accuracy_percentage ?? session.accuracy_percentage ?? 0,
+              totalQuestions: feedbackReport?.total_questions ?? session.total_questions_asked ?? qaReview.length ?? 0,
+              sessionDuration: feedbackReport?.session_duration_minutes ?? session.duration_minutes ?? 0,
+              overallGrade: feedbackReport?.overall_grade ?? 'Completed',
+              topics: topics.map((t: any) => ({
+                name: t.name || t.topic_name || t.topic || 'Unknown',
+                finalMastery: t.mastery || t.mastery_percentage || 0,
+                questionsAnswered: t.questions_asked || 0,
+                accuracy: t.accuracy_percentage || 0,
+                status: (t.mastery || 0) >= 85 ? 'mastered' : 'needs_work',
+              })),
+              qaReview: qaReview.map((q: any) => ({
+                number: q.question_number || 0,
+                topic: q.topic || '',
+                difficulty: q.difficulty || 'Medium',
+                questionText: q.question_text || q.question || '',
+                learnerAnswer: q.learner_answer || q.submitted_answer || '',
+                correctAnswer: q.correct_answer || '',
+                isCorrect: q.is_correct ?? false,
+              })),
+              sessionId: sid,
+              learnerId: session.learner_id || res.data.learner_id || 'Unknown',
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {}
+
+      const qaItems = JSON.parse(localStorage.getItem('assessment_qa') || '[]');
+      if (qaItems.length > 0) {
+        const correct = qaItems.filter((q: any) => q.is_correct).length;
+        const topicNames = [...new Set(qaItems.map((q: any) => q.topic))] as string[];
+        const topics = topicNames.map((t: string) => {
+          const items = qaItems.filter((q: any) => q.topic === t);
+          const correctCount = items.filter((q: any) => q.is_correct).length;
+          return {
+            name: t,
+            finalMastery: Math.round((correctCount / items.length) * 100),
+            questionsAnswered: items.length,
+            accuracy: Math.round((correctCount / items.length) * 100),
+            status: (correctCount / items.length) >= 0.85 ? 'mastered' as const : 'needs_work' as const,
+          };
+        });
+
+        setData({
+          overallMastery: Math.round((correct / qaItems.length) * 100),
+          overallAccuracy: Math.round((correct / qaItems.length) * 100),
+          totalQuestions: qaItems.length,
+          sessionDuration: 0,
+          overallGrade: (correct / qaItems.length) >= 0.85 ? 'Excellent' : (correct / qaItems.length) >= 0.7 ? 'Good' : 'Satisfactory',
+          topics,
+          qaReview: qaItems.map((q: any) => ({
+            number: q.number,
+            topic: q.topic,
+            difficulty: q.difficulty,
+            questionText: q.question,
+            learnerAnswer: q.learner_answer,
+            correctAnswer: q.correct_answer,
+            isCorrect: q.is_correct,
+          })),
+          sessionId: 'local',
+          learnerId: JSON.parse(localStorage.getItem('user') || '{}').student_id || 'Unknown',
+        });
+      }
+      setLoading(false);
+    };
+
+    loadData();
+  }, [sessionId]);
+
+  const onViewReport = () => {
+    const sid = sessionId || JSON.parse(localStorage.getItem('assessment_session') || '{}').session_id;
+    router.push(`/assessment/report${sid ? `?sessionId=${sid}` : ''}`);
+  };
+
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-teal-400 animate-spin mx-auto mb-4" />
+          <p className="text-white/70 font-semibold">Loading summary...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const gradeBanner = (() => {
     if (data.overallMastery >= 85) {
       return {
         title: "Outstanding Performance",
@@ -97,9 +174,7 @@ export default function SummaryPage({
         bgColor: "bg-red-500/10 border-red-500/30"
       };
     }
-  };
-
-  const gradeBanner = getGradeBanner();
+  })();
 
   const masteredTopics = data.topics.filter(t => t.status === "mastered");
   const needsWorkTopics = data.topics.filter(t => t.status === "needs_work");
@@ -308,32 +383,19 @@ export default function SummaryPage({
           )}
         </Card>
 
-        {/* Loading State for AI Report */}
+        {/* AI Feedback Report */}
         <Card className="bg-slate-800/50 border-slate-700">
           <CardContent className="p-8 text-center">
-            <div className="mb-4">
-              <div className="w-8 h-8 border-4 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mx-auto mb-4" />
-              <h3 className="text-white font-semibold text-lg">Generating AI Feedback Report</h3>
-              <p className="text-slate-400 mt-2">
-                Your personalized AI feedback report is being generated... This may take 60–120 seconds.
-              </p>
-            </div>
-
-            {isGeneratingReport ? (
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 text-teal-400">
-                  <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
-                  <span>Processing...</span>
-                </div>
-              </div>
-            ) : (
-              <Button
-                onClick={onViewReport}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 font-semibold rounded-lg"
-              >
-                View My Assessment Report →
-              </Button>
-            )}
+            <h3 className="text-white font-semibold text-lg mb-4">AI Feedback Report</h3>
+            <p className="text-slate-400 mt-2 mb-6">
+              View your personalized AI-generated feedback report with detailed topic analysis.
+            </p>
+            <Button
+              onClick={onViewReport}
+              className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 font-semibold rounded-lg"
+            >
+              View My Assessment Report →
+            </Button>
           </CardContent>
         </Card>
 

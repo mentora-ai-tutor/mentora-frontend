@@ -23,111 +23,127 @@ import {
   ArrowRight,
   Sparkles
 } from "lucide-react";
+import { assessmentApi } from "@/lib/api/assessment";
 
 const MOCK_PROFILE = {
-  studentId: "STU-2026-1147",
-  analysis_timestamp: "6 April 2026",
+  learner_id: "STU-2026-1147",
   data_sources: {
     github: "available",
     sandbox: "available",
     quizzes: "available",
   },
   mastery_profile: {
-    overall_mastery_score: 31,
+    overall_mastery_score: 63,
+    knowledge_gaps: [
+      {
+        topic: "Recursion",
+        topic_id: "CS202-REC",
+        gap_type: "FUNDAMENTAL_GAP",
+        confidence: 0.86,
+        misconceptions: [
+          "Does not understand base cases",
+          "Confuses recursive calls with loops",
+          "Cannot trace recursive stack execution"
+        ],
+        observed_error_patterns: {
+          sandbox: [
+            "infinite recursion causing stack overflow",
+            "missing return statements in recursive methods",
+            "incorrect factorial implementation"
+          ],
+          quizzes: [
+            "incorrect answers on recursion tracing",
+            "failed recursive tree traversal questions",
+            "could not identify recursion stopping condition"
+          ],
+          github: [
+            "avoids recursive solutions",
+            "recursive algorithms replaced with inefficient loops"
+          ]
+        },
+        evidence_summary: "Student struggles to understand recursive flow, stack behavior, and base condition logic.",
+        prerequisite_topics: ["Methods", "Loops", "Functions"],
+        related_topics: ["Tree Traversal", "Dynamic Programming", "Divide and Conquer"],
+        suggested_intervention: {
+          primary: "recursive_stack_visualization",
+          secondary: ["recursive_tracing_exercises", "factorial_debugging_tasks"],
+          difficulty_level: "intermediate",
+          estimated_time_minutes: 100,
+          learning_objectives: [
+            "Understand recursive call flow",
+            "Identify proper base conditions",
+            "Trace recursive execution stacks",
+            "Implement recursive algorithms correctly"
+          ]
+        }
+      },
+      {
+        topic: "HashMaps",
+        topic_id: "CS203-HMAP",
+        gap_type: "PARTIAL_GAP",
+        confidence: 0.72,
+        misconceptions: [
+          "Believes duplicate keys create multiple entries",
+          "Confuses keys and values",
+          "Does not understand collision handling"
+        ],
+        observed_error_patterns: {
+          sandbox: [
+            "null values retrieved unexpectedly",
+            "incorrect iteration through HashMap",
+            "overwrites existing values accidentally"
+          ],
+          quizzes: [
+            "incorrect answers about put() behavior",
+            "difficulty tracing key-value updates",
+            "confused about retrieval methods"
+          ],
+          github: [
+            "basic HashMap usage only",
+            "inefficient searching instead of using map lookups"
+          ]
+        },
+        evidence_summary: "Student understands basic HashMap syntax but struggles with internal behavior and key management.",
+        prerequisite_topics: ["Arrays", "Objects", "Loops"],
+        related_topics: ["Collections Framework", "Sets", "Caching"],
+        suggested_intervention: {
+          primary: "hashmap_execution_tracing",
+          secondary: ["collision_simulation_exercises", "key_value_debugging_tasks"],
+          difficulty_level: "intermediate",
+          estimated_time_minutes: 80,
+          learning_objectives: [
+            "Understand put() overwrite behavior",
+            "Retrieve values correctly using keys",
+            "Trace HashMap updates",
+            "Explain collision handling concepts"
+          ]
+        }
+      }
+    ],
     strengths: [
       {
-        topic_name: "Java Syntax and Basic I/O",
-        mastery_level: "Advanced",
-        confidence: 0.97,
-        evidence_summary: "100% sandbox success rate. Quiz 94/100. No syntax errors across any submission.",
-        can_teach_others: true,
+        topic: "Arrays",
+        topic_id: "CS101-ARR",
+        confidence: 0.93,
+        mastery_level: "advanced",
+        evidence_summary: "Strong understanding of array traversal, indexing, and manipulation.",
+        can_teach_others: true
       },
       {
-        topic_name: "Control Flow Structures",
-        mastery_level: "Proficient",
-        confidence: 0.88,
-        evidence_summary: "Accurate implementation of loops and conditionals across all recent assignments.",
-        can_teach_others: false,
+        topic: "Object-Oriented Programming",
+        topic_id: "CS201-OOP",
+        confidence: 0.87,
+        mastery_level: "proficient",
+        evidence_summary: "Good understanding of classes, inheritance, and encapsulation concepts.",
+        can_teach_others: false
       }
-    ],
+    ]
   },
   recommendations: {
-    general_advice: "Address BST first as it is blocking progress on advanced topics. Collections second as it is needed in almost every subsequent project.",
-    priority_order: [
-      {
-        topic_name: "Binary Search Trees",
-        gap_type: "FUNDAMENTAL_GAP",
-        confidence: 0.97,
-        evidence_summary: "GitHub shows a single massive commit containing a fully functional BST implementation with 96% AI probability. Sandbox insertion attempts placed nodes on the wrong side 90% of the time. Quiz score 8/50.",
-        observed_error_patterns: {
-          sandbox: ["Insertions placed on wrong side 9 out of 10 attempts", "Null pointer exceptions during traversal"],
-          quizzes: ["Cannot identify worst-case time complexity", "Fails to trace simple insertions"],
-          github: ["Single massive commit of complete BST implementation", "96% AI generation probability flag"],
-        },
-        misconceptions: [
-          "Believes insertion goes to leftmost node",
-          "Cannot distinguish traversal types",
-          "Thinks deletion removes entire subtree",
-          "Does not know inorder produces sorted output"
-        ],
-        prerequisite_topics: ["Recursion", "Object references", "Linked lists"],
-        suggested_intervention: {
-          learning_objectives: [
-            "Explain the BST ordering property and verify it on any tree",
-            "Insert a sequence of nodes into a BST and draw the resulting tree",
-          ],
-          primary: "Step-by-step Practice",
-          estimated_time_minutes: 90,
-        },
-      },
-      {
-        topic_name: "Java Collections Framework",
-        gap_type: "PARTIAL_GAP",
-        confidence: 0.82,
-        evidence_summary: "Uses ArrayList correctly but struggles with Map interfaces. Unnecessary iterations seen in GitHub repos instead of key lookups.",
-        observed_error_patterns: {
-          sandbox: ["Iterates over HashMap entries to find a key instead of using .get()"],
-          quizzes: ["Confuses HashSet with TreeSet ordering"],
-          github: ["Suboptimal data structure selection in algorithms project"],
-        },
-        misconceptions: [
-          "Believes HashMap maintains insertion order",
-        ],
-        prerequisite_topics: ["Generics", "Interfaces", "Big-O notation"],
-        suggested_intervention: {
-          learning_objectives: [
-            "Choose appropriate collection types for given scenarios",
-            "Utilize Map methods efficiently (get, put, containsKey)",
-          ],
-          primary: "Targeted Quiz",
-          estimated_time_minutes: 45,
-        },
-      },
-      {
-        topic_name: "Exception Handling",
-        gap_type: "FUNDAMENTAL_GAP",
-        confidence: 0.90,
-        evidence_summary: "Consistently ignores checked exceptions or uses empty catch blocks. Fails quizzes related to finally block execution.",
-        observed_error_patterns: {
-          sandbox: ["Empty catch blocks detected", "Throws Exception everywhere"],
-          quizzes: ["Incorrectly believes finally block is skipped if return is called in try block"],
-          github: [],
-        },
-        misconceptions: [
-          "Catching Exception catches all errors cleanly without consequence",
-        ],
-        prerequisite_topics: ["Method signatures", "Call stack"],
-        suggested_intervention: {
-          learning_objectives: [
-            "Write robust try-catch-finally blocks",
-            "Understand difference between checked and unchecked exceptions",
-          ],
-          primary: "Interactive Tutorial",
-          estimated_time_minutes: 60,
-        },
-      }
-    ],
-  },
+    priority_order: ["Recursion", "HashMaps"],
+    general_advice: "Student should strengthen recursive problem-solving and execution tracing before progressing to advanced algorithm design.",
+    for_instructor: "Use recursion visualization tools and HashMap tracing exercises with debugging-focused activities."
+  }
 };
 
 export default function LaunchScreen() {
@@ -149,11 +165,55 @@ export default function LaunchScreen() {
     setExpandedCards(prev => ({...prev, [index]: !prev[index]}));
   };
 
-  const handleStart = () => {
+  const getGap = (topicName: string) =>
+    profile.mastery_profile.knowledge_gaps.find((g: any) => g.topic === topicName);
+
+  const handleStart = async () => {
     setIsStarting(true);
-    setTimeout(() => {
-      router.push("/assessment/session");
-    }, 2500);
+    try {
+      const knowledge_gaps = profile.mastery_profile.knowledge_gaps.map((gap: any) => ({
+        topic: gap.topic,
+        topic_id: gap.topic_id,
+        gap_type: gap.gap_type,
+        confidence: gap.confidence,
+        evidence_summary: gap.evidence_summary,
+        misconceptions: gap.misconceptions,
+        prerequisite_topics: gap.prerequisite_topics,
+        related_topics: gap.related_topics,
+        observed_error_patterns: gap.observed_error_patterns,
+        suggested_intervention: gap.suggested_intervention,
+      }));
+
+      const strengths = profile.mastery_profile.strengths.map((s: any) => ({
+        topic: s.topic,
+        topic_id: s.topic_id,
+        mastery_level: s.mastery_level,
+        confidence: s.confidence,
+        evidence_summary: s.evidence_summary,
+        can_teach_others: s.can_teach_others,
+      }));
+
+      const response = await assessmentApi.startSession({
+        mastery_profile: {
+          overall_mastery_score: profile.mastery_profile.overall_mastery_score,
+          knowledge_gaps,
+          strengths,
+        },
+      });
+
+      const sessionData = response.data || response;
+      if (response.success && sessionData) {
+        const sessionId = sessionData.session_id || sessionData.sessionId;
+        if (sessionId) {
+          localStorage.setItem('assessment_session', JSON.stringify(sessionData));
+          router.push(`/assessment/session?sessionId=${sessionId}`);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to start session:', error);
+    }
+    router.push("/assessment/session");
   };
 
   if (!isPageLoaded || !profile) {
@@ -165,10 +225,10 @@ export default function LaunchScreen() {
     );
   }
 
-  const totalTime = profile.recommendations.priority_order.reduce((acc: number, t: any) => acc + t.suggested_intervention.estimated_time_minutes, 0);
+  const totalTime = profile.mastery_profile.knowledge_gaps.reduce((acc: number, gap: any) => acc + (gap.suggested_intervention?.estimated_time_minutes || 0), 0);
   const hours = Math.floor(totalTime / 60);
   const minutes = totalTime % 60;
-  const prerequisites = Array.from(new Set(profile.recommendations.priority_order.flatMap((t: any) => t.prerequisite_topics))) as string[];
+  const prerequisites = Array.from(new Set(profile.mastery_profile.knowledge_gaps.flatMap((gap: any) => gap.prerequisite_topics || []))) as string[];
 
   return (
     <div className={`space-y-8 animate-slide-up transition-all duration-1000 ${isStarting ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
@@ -270,10 +330,12 @@ export default function LaunchScreen() {
             </div>
             
             <div className="space-y-6">
-              {profile.recommendations.priority_order.map((topic: any, index: number) => {
-                const isFundamental = topic.gap_type === 'FUNDAMENTAL_GAP';
-                const confidenceColorClass = topic.confidence > 0.85 ? 'text-teal-400' : topic.confidence >= 0.60 ? 'text-amber-400' : 'text-red-400';
-                const confidenceBgClass = topic.confidence > 0.85 ? 'bg-teal-400' : topic.confidence >= 0.60 ? 'bg-amber-400' : 'bg-red-400';
+              {profile.recommendations.priority_order.map((topicName: string, index: number) => {
+                const gap = getGap(topicName);
+                if (!gap) return null;
+                const isFundamental = gap.gap_type === 'FUNDAMENTAL_GAP';
+                const confidenceColorClass = gap.confidence > 0.85 ? 'text-teal-400' : gap.confidence >= 0.60 ? 'text-amber-400' : 'text-red-400';
+                const confidenceBgClass = gap.confidence > 0.85 ? 'bg-teal-400' : gap.confidence >= 0.60 ? 'bg-amber-400' : 'bg-red-400';
                 
                 return (
                   <div key={index} className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 hover:border-white/10 transition-colors rounded-2xl overflow-hidden flex flex-col relative group">
@@ -287,7 +349,7 @@ export default function LaunchScreen() {
                             {index + 1}
                           </div>
                           <div>
-                            <h3 className="text-xl font-bold text-white">{topic.topic_name}</h3>
+                            <h3 className="text-xl font-bold text-white">{topicName}</h3>
                             <div className="flex items-center gap-3 mt-1.5">
                               <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${isFundamental ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
                                 {isFundamental ? 'Fundamental Gap' : 'Partial Gap'}
@@ -299,23 +361,23 @@ export default function LaunchScreen() {
                       
                       {/* Evidence & Confidence */}
                       <p className="text-white/70 text-sm mb-6 leading-relaxed">
-                        {topic.evidence_summary}
+                        {gap.evidence_summary}
                       </p>
                       
                       <div className="flex items-center gap-4 mb-8">
                         <span className="text-xs font-semibold text-white/50 uppercase tracking-wider whitespace-nowrap">Analysis Confidence</span>
                         <div className="flex-1 h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
-                          <div className={`h-full ${confidenceBgClass} rounded-full`} style={{ width: `${topic.confidence * 100}%` }}></div>
+                          <div className={`h-full ${confidenceBgClass} rounded-full`} style={{ width: `${gap.confidence * 100}%` }}></div>
                         </div>
-                        <span className={`text-sm font-bold ${confidenceColorClass}`}>{Math.round(topic.confidence * 100)}%</span>
+                        <span className={`text-sm font-bold ${confidenceColorClass}`}>{Math.round(gap.confidence * 100)}%</span>
                       </div>
                       
                       {/* Misconceptions */}
-                      {topic.misconceptions.length > 0 && (
+                      {gap.misconceptions.length > 0 && (
                         <div className="mb-6">
                           <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Identified Misconceptions</h4>
                           <div className="flex flex-wrap gap-2">
-                            {topic.misconceptions.map((misc: string, i: number) => (
+                            {gap.misconceptions.map((misc: string, i: number) => (
                               <span key={i} className="px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-lg text-xs font-medium">
                                 {misc}
                               </span>
@@ -328,7 +390,7 @@ export default function LaunchScreen() {
                       <div className="mb-6">
                         <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Learning Objectives</h4>
                         <ul className="space-y-2">
-                          {topic.suggested_intervention.learning_objectives.map((obj: string, i: number) => (
+                          {gap.suggested_intervention.learning_objectives.map((obj: string, i: number) => (
                             <li key={i} className="flex items-start gap-3 text-sm text-white/80">
                               <span className="text-teal-400 mt-0.5">•</span>
                               {obj}
@@ -348,27 +410,27 @@ export default function LaunchScreen() {
                         
                         {expandedCards[index] && (
                           <div className="mt-4 space-y-4 p-4 bg-[#0F172A]/50 rounded-xl border border-white/5 text-sm">
-                            {topic.observed_error_patterns.sandbox?.length > 0 && (
+                            {gap.observed_error_patterns.sandbox?.length > 0 && (
                               <div>
                                 <p className="font-semibold text-white/80 mb-2 flex items-center gap-2"><Terminal className="w-3.5 h-3.5" /> Sandbox Observations</p>
                                 <ul className="list-disc pl-5 text-white/50 space-y-1 text-xs">
-                                  {topic.observed_error_patterns.sandbox.map((err: string, i: number) => <li key={i}>{err}</li>)}
+                                  {gap.observed_error_patterns.sandbox.map((err: string, i: number) => <li key={i}>{err}</li>)}
                                 </ul>
                               </div>
                             )}
-                            {topic.observed_error_patterns.quizzes?.length > 0 && (
+                            {gap.observed_error_patterns.quizzes?.length > 0 && (
                               <div>
                                 <p className="font-semibold text-white/80 mb-2 flex items-center gap-2"><FileText className="w-3.5 h-3.5" /> Quiz Observations</p>
                                 <ul className="list-disc pl-5 text-white/50 space-y-1 text-xs">
-                                  {topic.observed_error_patterns.quizzes.map((err: string, i: number) => <li key={i}>{err}</li>)}
+                                  {gap.observed_error_patterns.quizzes.map((err: string, i: number) => <li key={i}>{err}</li>)}
                                 </ul>
                               </div>
                             )}
-                            {topic.observed_error_patterns.github?.length > 0 && profile.data_sources.github === "available" && (
+                            {gap.observed_error_patterns.github?.length > 0 && profile.data_sources.github === "available" && (
                               <div>
                                 <p className="font-semibold text-white/80 mb-2 flex items-center gap-2"><Code className="w-3.5 h-3.5" /> GitHub Observations</p>
                                 <ul className="list-disc pl-5 text-white/50 space-y-1 text-xs">
-                                  {topic.observed_error_patterns.github.map((err: string, i: number) => <li key={i}>{err}</li>)}
+                                  {gap.observed_error_patterns.github.map((err: string, i: number) => <li key={i}>{err}</li>)}
                                 </ul>
                               </div>
                             )}
@@ -380,8 +442,8 @@ export default function LaunchScreen() {
                     {/* Footer Strip */}
                     <div className="bg-[#0F172A]/80 border-t border-white/5 px-6 lg:px-8 py-3 flex flex-wrap gap-x-6 gap-y-2 text-xs font-semibold text-white/40 uppercase tracking-wider mt-auto">
                       <span className="flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> L{isFundamental ? '1 (Remembering)' : '3 (Applying)'}</span>
-                      <span className="flex items-center gap-1.5"><BrainCircuit className="w-3.5 h-3.5" /> {topic.suggested_intervention.primary}</span>
-                      <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {topic.suggested_intervention.estimated_time_minutes} min</span>
+                      <span className="flex items-center gap-1.5"><BrainCircuit className="w-3.5 h-3.5" /> {gap.suggested_intervention.primary}</span>
+                      <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {gap.suggested_intervention.estimated_time_minutes} min</span>
                     </div>
                   </div>
                 );
@@ -398,7 +460,7 @@ export default function LaunchScreen() {
                   <div key={i} className="bg-[#334155]/30 border border-white/5 rounded-2xl p-5 flex flex-col relative overflow-hidden group hover:bg-[#334155]/40 transition-colors">
                     <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
                     <div className="flex justify-between items-start mb-3 pl-2">
-                      <h4 className="text-white font-bold">{strength.topic_name}</h4>
+                      <h4 className="text-white font-bold">{strength.topic || strength.topic_name}</h4>
                       <span className="px-2 py-1 bg-teal-500/10 border border-teal-500/30 text-teal-400 text-[10px] font-bold rounded uppercase tracking-wider">
                         {strength.mastery_level}
                       </span>
@@ -429,18 +491,20 @@ export default function LaunchScreen() {
             <h3 className="text-lg font-bold text-white mb-6">Assessment Roadmap</h3>
             
             <div className="relative border-l border-white/10 ml-3 space-y-6 pb-2">
-              {profile.recommendations.priority_order.map((topic: any, i: number) => {
+              {profile.recommendations.priority_order.map((topicName: string, i: number) => {
+                const gap = getGap(topicName);
+                if (!gap) return null;
                 const isFirst = i === 0;
                 return (
                   <div key={i} className="relative pl-6">
                     <div className={`absolute -left-[9px] top-0.5 w-4 h-4 rounded-full border-2 border-[#1e293b] ${isFirst ? 'bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.6)]' : 'bg-white/20'}`}></div>
                     <div className={isFirst ? "opacity-100" : "opacity-50"}>
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className={`font-bold text-sm ${isFirst ? 'text-teal-400' : 'text-white'}`}>{topic.topic_name}</h4>
+                        <h4 className={`font-bold text-sm ${isFirst ? 'text-teal-400' : 'text-white'}`}>{topicName}</h4>
                         {isFirst && <span className="px-1.5 py-0.5 bg-teal-500/10 text-teal-400 text-[8px] font-bold uppercase rounded border border-teal-500/20">Start</span>}
                       </div>
                       <div className="text-xs text-white/50">
-                        <p>{topic.gap_type === 'FUNDAMENTAL_GAP' ? 'Starts L1' : 'Starts L3'} • ~{topic.suggested_intervention.estimated_time_minutes}m</p>
+                        <p>{gap.gap_type === 'FUNDAMENTAL_GAP' ? 'Starts L1' : 'Starts L3'} • ~{gap.suggested_intervention.estimated_time_minutes}m</p>
                       </div>
                     </div>
                   </div>
@@ -499,7 +563,7 @@ export default function LaunchScreen() {
           </div>
           <div className="flex items-center gap-3 text-sm text-white/70">
             <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
-            <span>Questions personalized to {profile.recommendations.priority_order.flatMap((t: any) => t.misconceptions).length} specific misconceptions</span>
+            <span>Questions personalized to {profile.mastery_profile.knowledge_gaps.flatMap((g: any) => g.misconceptions || []).length} specific misconceptions</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-white/70">
             <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
@@ -529,7 +593,7 @@ export default function LaunchScreen() {
                 <ArrowRight className="w-6 h-6 opacity-80 group-hover/btn:opacity-100 group-hover/btn:translate-x-2 transition-all" />
               </h2>
               <p className="text-white/70 text-sm font-semibold relative z-10">
-                Start: {profile.recommendations.priority_order[0].topic_name}
+                Start: {profile.recommendations.priority_order[0]}
               </p>
             </button>
           )}

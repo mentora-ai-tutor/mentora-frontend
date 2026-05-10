@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   BarChart3
 } from "lucide-react";
 import FeedbackPanel from "../components/FeedbackPanel";
+import { assessmentApi } from "@/lib/api/assessment";
 
 interface StoredQA {
   id: string;
@@ -27,7 +29,7 @@ interface StoredQA {
   question: string;
   type: "mcq" | "code_completion" | "code_tracing" | "debugging" | "coding_challenge";
   code_snippet?: string;
-  options?: string[];
+  options?: string[] | Option[];
   learner_answer: string;
   correct_answer: string;
   is_correct: boolean;
@@ -52,13 +54,18 @@ interface Topic {
   gap_type: "FUNDAMENTAL_GAP" | "PARTIAL_GAP";
 }
 
+interface Option {
+  letter: string;
+  text: string;
+}
+
 interface Question {
   id: string;
   number: number;
   text: string;
   type: "mcq" | "code_completion" | "code_tracing" | "debugging" | "coding_challenge";
   code_snippet?: string;
-  options?: string[];
+  options?: Option[];
   difficulty: "Easy" | "Medium" | "Hard";
   topic: string;
   hints: string[];
@@ -79,55 +86,172 @@ interface SessionData {
   remediationMode: boolean;
 }
 
-interface SessionPageProps {
-  sessionData?: SessionData;
-  onSubmitAnswer?: (answer: string) => void;
-  isEvaluating?: boolean;
-}
+export default function SessionPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
 
-export default function SessionPage({
-  sessionData = {
-    sessionId: "SESSION_001",
-    learnerId: "STU-2026-1147",
-    currentTopic: {
-      name: "Binary Search Trees",
-      mastery: 65,
-      status: "current",
-      gap_type: "FUNDAMENTAL_GAP"
-    },
-    allTopics: [
-      { name: "Basic Syntax", mastery: 95, status: "mastered", gap_type: "PARTIAL_GAP" },
-      { name: "Binary Search Trees", mastery: 65, status: "current", gap_type: "FUNDAMENTAL_GAP" },
-      { name: "Java Collections", mastery: 0, status: "pending", gap_type: "PARTIAL_GAP" },
-      { name: "OOP Design", mastery: 0, status: "pending", gap_type: "PARTIAL_GAP" }
-    ],
-    currentQuestion: {
-      id: "q1",
-      number: 3,
-      text: "What is the time complexity of inserting an element into a balanced binary search tree?",
-      type: "mcq",
-      options: ["O(1)", "O(log n)", "O(n)", "O(n²)"],
-      difficulty: "Medium",
-      topic: "Binary Search Trees",
-      hints: ["Consider how the tree maintains balance", "Think about the height of the tree"]
-    },
-    stats: {
-      questionsAsked: 7,
-      correctAnswers: 5,
-      accuracy: 71,
-      streak: 2
-    },
-    remediationMode: false
-  },
-  onSubmitAnswer = () => {},
-  isEvaluating = false
-}: SessionPageProps) {
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [codeAnswer, setCodeAnswer] = useState<string>("");
   const [showHint, setShowHint] = useState<number>(0);
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [feedbackData, setFeedbackData] = useState<any>(null);
   const [timeElapsed, setTimeElapsed] = useState<number>(0);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [questionNumber, setQuestionNumber] = useState(1);
+
+  useEffect(() => {
+    const buildSessionState = (data: any) => {
+      const session = data.updated_session || data;
+      const question = session.current_question || data.question || (session.questions && session.questions[0]) || null;
+
+      if (!question) {
+        return false;
+      }
+
+      const options = question.options
+        ? (Array.isArray(question.options)
+            ? (typeof question.options[0] === 'string'
+                ? (question.options as string[]).map((text, i) => ({ letter: String.fromCharCode(65 + i), text }))
+                : question.options)
+            : Object.entries(question.options).map(([letter, text]) => ({ letter, text: text as string })))
+        : undefined;
+
+      const allTopics = session.all_topics || session.topics || [
+        { name: question.topic || 'Topic', mastery: session.current_topic_mastery || 0, status: 'current', gap_type: 'FUNDAMENTAL_GAP' }
+      ];
+
+      const sessInfo = data.session_info || session;
+
+      setSessionData({
+        sessionId: session.session_id || sessInfo.session_id || sessionId || 'unknown',
+        learnerId: session.learner_id || data.learner_id || 'unknown',
+        currentTopic: {
+          name: question.topic || session.topic || sessInfo.topic || 'Topic',
+          mastery: session.current_topic_mastery || sessInfo.mastery_score || 0,
+          status: 'current',
+          gap_type: question.gap_type || 'FUNDAMENTAL_GAP',
+        },
+        allTopics: allTopics.map((t: any) => {
+          const topicName = typeof t === 'string' ? t : (t.name || t.topic_name || t.topic);
+          return {
+            name: topicName,
+            mastery: t.mastery || t.mastery_percentage || 0,
+            status: topicName === (session.selected_topic || question.topic) ? 'current' : (t.mastery >= 85 ? 'mastered' : 'pending'),
+            gap_type: t.gap_type || 'PARTIAL_GAP',
+          };
+        }),
+        currentQuestion: {
+          id: question.question_id || question.id || `q-${Date.now()}`,
+          number: questionNumber,
+          text: question.question_text || question.text || '',
+          type: question.question_type || question.type || 'mcq',
+          code_snippet: question.code_snippet,
+          options: options,
+          difficulty: question.difficulty || 'Medium',
+          topic: question.topic || 'General',
+          hints: question.hints || [],
+        },
+        stats: {
+          questionsAsked: session.total_questions_asked || session.questions_asked || sessInfo.question_number || 0,
+          correctAnswers: session.correct_answers || 0,
+          accuracy: session.accuracy_percentage || session.accuracy || 0,
+          streak: session.current_streak || session.streak || 0,
+        },
+        remediationMode: session.remediation_mode || data.remediation_mode || false,
+      });
+      return true;
+    };
+
+    const fetchSession = async () => {
+      // Try API first if we have a sessionId
+      if (sessionId) {
+        try {
+          const res = await assessmentApi.getSession(sessionId);
+          if (res.success && res.data) {
+            if (buildSessionState(res.data)) {
+              setLoading(false);
+              return;
+            }
+          }
+        } catch {}
+      }
+
+      // Fallback to localStorage (start-session response)
+      const stored = localStorage.getItem('assessment_session');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (buildSessionState(parsed)) {
+            setLoading(false);
+            return;
+          }
+        } catch {}
+      }
+
+      // Fallback to saved next_question (after topic transition)
+      const nextQ = localStorage.getItem('assessment_next_question');
+      if (nextQ) {
+        try {
+          const question = JSON.parse(nextQ);
+          const sessStored = localStorage.getItem('assessment_session');
+          const sess = sessStored ? JSON.parse(sessStored) : {};
+          const options = question.options
+            ? (Array.isArray(question.options)
+                ? (typeof question.options[0] === 'string'
+                    ? (question.options as string[]).map((text, i) => ({ letter: String.fromCharCode(65 + i), text }))
+                    : question.options)
+                : Object.entries(question.options).map(([letter, text]) => ({ letter, text: text as string })))
+            : undefined;
+          const allTopics = (sess.all_topics || []).map((t: any) => ({
+            name: typeof t === 'string' ? t : (t.name || t.topic_name || t.topic),
+            mastery: t.mastery || t.mastery_percentage || 0,
+            status: (typeof t === 'string' ? t : (t.name || t.topic_name || t.topic)) === (sess.selected_topic || question.topic) ? 'current' : (t.mastery >= 85 ? 'mastered' : 'pending'),
+            gap_type: t.gap_type || 'PARTIAL_GAP',
+          }));
+          setSessionData({
+            sessionId: sess.session_id || sessionId || 'unknown',
+            learnerId: sess.learner_id || 'unknown',
+            currentTopic: {
+              name: question.topic || sess.selected_topic || 'Topic',
+              mastery: sess.mastery_score || 0,
+              status: 'current',
+              gap_type: 'PARTIAL_GAP',
+            },
+            allTopics,
+            currentQuestion: {
+              id: question.question_id || question.id || `q-${Date.now()}`,
+              number: (sess.total_questions_asked || 0) + 1,
+              text: question.question_text || question.text || question.question || '',
+              type: question.question_type || question.type || 'mcq',
+              code_snippet: question.code_snippet,
+              options,
+              difficulty: question.difficulty || 'Medium',
+              topic: question.topic || 'General',
+              hints: question.hints || [],
+            },
+            stats: {
+              questionsAsked: sess.total_questions_asked || 0,
+              correctAnswers: sess.correct_answers || 0,
+              accuracy: sess.accuracy_percentage || 0,
+              streak: sess.consecutive_correct || 0,
+            },
+            remediationMode: sess.remediation_mode || false,
+          });
+          setLoading(false);
+          return;
+        } catch {}
+      }
+
+      setError('No questions available in this session');
+      setLoading(false);
+    };
+
+    fetchSession();
+  }, [sessionId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -135,6 +259,12 @@ export default function SessionPage({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (sessionData) {
+      setQuestionNumber(sessionData.stats.questionsAsked + 1);
+    }
+  }, [sessionData]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -177,84 +307,345 @@ export default function SessionPage({
     }
   };
 
-  const handleSubmit = () => {
-    const answer = sessionData.currentQuestion.type === "mcq" ? selectedAnswer : codeAnswer;
+  const handleSubmit = async () => {
+    const answer = sessionData!.currentQuestion.type === "mcq" ? selectedAnswer : codeAnswer;
+    setIsEvaluating(true);
 
-    const isCorrect = Math.random() > 0.5;
-    const mockFeedback = {
-      is_correct: isCorrect,
-      partial_credit: false,
-      correctness_score: isCorrect ? 100 : 0,
-      evaluation_summary: isCorrect ? "Correct answer selected." : "Incorrect answer selected.",
-      immediate_feedback: isCorrect
-        ? "Great job! You correctly identified the time complexity of BST insertion."
-        : "The answer needs some work. Let's review the concept.",
-      concept_explanation: "Binary Search Trees maintain their efficiency through balancing algorithms that ensure the tree height remains logarithmic relative to the number of nodes.",
-      what_is_correct: isCorrect ? "You correctly recognized that BST operations depend on tree height." : undefined,
-      mistake_analysis: !isCorrect ? "The common mistake here is misunderstanding time complexity." : undefined,
-      correct_explanation: "The correct answer is O(log n) because balanced BSTs guarantee that search, insertion, and deletion operations take time proportional to the height of the tree, which is O(log n) for n nodes.",
-      improvement_tip: "Remember that BST performance depends entirely on tree balance - always consider the height factor.",
-      hint_for_retry: !isCorrect ? "Consider how the tree maintains balance." : undefined,
-      deeper_insight: "Advanced BST implementations like AVL trees and Red-Black trees use rotation operations to maintain balance automatically.",
-      remediation_note: undefined,
-      encouragement: isCorrect
-        ? "Excellent analytical thinking! You're developing a strong intuition for algorithmic complexity."
-        : "Keep practicing! Understanding algorithmic complexity takes time but you're on the right track.",
-      suggested_resources: ["Java TreeMap Documentation", "GeeksforGeeks BST Tutorial"],
-      mastery_update: {
-        topic: sessionData.currentTopic.name,
-        before_mastery: sessionData.currentTopic.mastery,
-        after_mastery: Math.min(100, sessionData.currentTopic.mastery + (isCorrect ? 5 : -2)),
-        target: 85
-      },
-      remediation_status: undefined,
-      difficulty_change: {
-        next_difficulty: isCorrect ? "Harder" : "Simpler",
-      },
-      next_action: "continue",
-      next_topic_name: "Java Collections Framework",
-      question_text: sessionData.currentQuestion.text,
-      learner_answer: answer
-    };
+    try {
+      const storedSession = JSON.parse(localStorage.getItem('assessment_session') || '{}');
+      const sid = sessionId || storedSession.session_id || storedSession.sessionId || sessionData!.sessionId;
 
-    const qaItem: StoredQA = {
-      id: sessionData.currentQuestion.id,
-      number: sessionData.currentQuestion.number,
-      question: sessionData.currentQuestion.text,
-      type: sessionData.currentQuestion.type,
-      code_snippet: sessionData.currentQuestion.code_snippet,
-      options: sessionData.currentQuestion.options,
-      learner_answer: answer,
-      correct_answer: sessionData.currentQuestion.type === "mcq"
-        ? sessionData.currentQuestion.options![sessionData.currentQuestion.options!.indexOf(answer)]
-        : "See explanation",
-      is_correct: isCorrect,
-      explanation: mockFeedback.correct_explanation,
-      topic: sessionData.currentQuestion.topic,
-      difficulty: sessionData.currentQuestion.difficulty,
-      time_spent: timeElapsed,
-      timestamp: Date.now()
-    };
-    saveQA(qaItem);
+      const result = await assessmentApi.submitAnswer({
+        session_id: sid,
+        question_id: sessionData!.currentQuestion.id,
+        answer,
+      });
 
-    setFeedbackData(mockFeedback);
-    setShowFeedback(true);
-    onSubmitAnswer(answer);
+      const data = result.data || result;
+      if (result.success && data) {
+        const fb = data.feedback || data.evaluation || data;
+
+        const is_correct = data.evaluation?.is_correct ?? fb.is_correct ?? false;
+        const partial_credit = data.evaluation?.partial_credit ?? fb.partial_credit ?? false;
+
+        const feedback = {
+          is_correct,
+          partial_credit,
+          correctness_score: data.evaluation?.correctness_score ?? (is_correct ? 100 : 0),
+          evaluation_summary: data.evaluation?.evaluation_summary || fb.evaluation_summary || fb.summary || '',
+          immediate_feedback: fb.immediate_feedback || fb.feedback || '',
+          concept_explanation: fb.concept_explanation || '',
+          what_is_correct: fb.what_is_correct || data.evaluation?.what_is_correct,
+          mistake_analysis: fb.mistake_analysis || data.evaluation?.what_is_wrong,
+          correct_explanation: fb.correct_explanation || '',
+          improvement_tip: fb.improvement_tip || '',
+          hint_for_retry: fb.hint_for_retry,
+          deeper_insight: fb.deeper_insight,
+          remediation_note: data.mastery_update?.remediation_note || fb.remediation_note,
+          encouragement: fb.encouragement || '',
+          suggested_resources: fb.suggested_resources || [],
+          mastery_update: data.mastery_update ? {
+            topic: data.mastery_update.topic,
+            before_mastery: data.mastery_update.previous_mastery,
+            after_mastery: data.mastery_update.current_mastery,
+            target: data.mastery_update.mastery_threshold,
+          } : {
+            topic: sessionData!.currentTopic.name,
+            before_mastery: sessionData!.currentTopic.mastery,
+            after_mastery: sessionData!.currentTopic.mastery,
+            target: 85,
+          },
+          remediation_status: data.mastery_update?.remediation_mode ? { entered: data.mastery_update.remediation_entered, exited: data.mastery_update.remediation_exited, message: '' } : undefined,
+          difficulty_change: undefined,
+          next_action: (data.session_progress?.session_complete || data.mastery_update?.session_complete) ? 'complete' : 'continue',
+          next_topic_name: data.next_question?.topic,
+          question_text: sessionData!.currentQuestion.text,
+          learner_answer: answer,
+        };
+
+        const correctAnswer = data.evaluation?.correct_answer || data.next_question?.correct_answer || '';
+        const qaItem: StoredQA = {
+          id: sessionData!.currentQuestion.id,
+          number: questionNumber,
+          question: sessionData!.currentQuestion.text,
+          type: sessionData!.currentQuestion.type,
+          code_snippet: sessionData!.currentQuestion.code_snippet,
+          options: sessionData!.currentQuestion.options,
+          learner_answer: answer,
+          correct_answer: correctAnswer,
+          is_correct,
+          explanation: feedback.correct_explanation,
+          topic: sessionData!.currentQuestion.topic,
+          difficulty: sessionData!.currentQuestion.difficulty,
+          time_spent: timeElapsed,
+          timestamp: Date.now()
+        };
+        saveQA(qaItem);
+        localStorage.setItem('assessment_qa_learner', sessionData!.learnerId);
+
+        if (data.next_question || data.session_progress) {
+          const sessionState = data.session_progress?.session_state || data;
+          localStorage.setItem('assessment_session', JSON.stringify(sessionState));
+        }
+
+        if (data.next_question) {
+          localStorage.setItem('assessment_next_question', JSON.stringify(data.next_question));
+        }
+
+        if (data.feedback_report) {
+          localStorage.setItem('assessment_feedback_report', JSON.stringify(data.feedback_report));
+        }
+        if (data.qa_review) {
+          localStorage.setItem('assessment_qa_review', JSON.stringify(data.qa_review));
+        }
+        if (data.session_summary) {
+          localStorage.setItem('assessment_session_summary', JSON.stringify(data.session_summary));
+        }
+
+        const state = data.session_progress?.session_state;
+        if (data.session_progress || data.mastery_update) {
+          setSessionData(prev => prev ? {
+            ...prev,
+            currentTopic: {
+              name: state?.selected_topic || data.mastery_update?.topic || prev.currentTopic.name,
+              mastery: data.mastery_update?.current_mastery ?? prev.currentTopic.mastery,
+              status: 'current',
+              gap_type: prev.currentTopic.gap_type,
+            },
+            allTopics: state?.all_topics
+              ? state.all_topics.map((t: any) => {
+                  const topicName = typeof t === 'string' ? t : (t.name || t.topic_name || t.topic);
+                  return {
+                    name: topicName,
+                    mastery: t.mastery || t.mastery_percentage || 0,
+                    status: topicName === (state.selected_topic || data.mastery_update?.topic) ? 'current' : (t.mastery >= 85 ? 'mastered' : 'pending'),
+                    gap_type: t.gap_type || 'PARTIAL_GAP',
+                  };
+                })
+              : prev.allTopics,
+            stats: {
+              questionsAsked: state?.total_questions_asked ?? data.session_progress?.question_number ?? prev.stats.questionsAsked,
+              correctAnswers: state?.correct_answers ?? prev.stats.correctAnswers,
+              accuracy: data.session_progress?.overall_accuracy ?? prev.stats.accuracy,
+              streak: state?.consecutive_correct ?? prev.stats.streak,
+            },
+            remediationMode: state?.remediation_mode ?? prev.remediationMode,
+          } : prev);
+        }
+
+        if (data.session_progress?.session_complete || data.mastery_update?.session_complete || feedback.next_action === 'complete') {
+          router.push('/assessment/summary');
+          return;
+        }
+
+        if (data.mastery_update?.topic_mastered) {
+          const ss = data.session_progress?.session_state;
+          const completedName = data.mastery_update.topic;
+          // n8n has already switched current_topic to the next topic
+          const nextTopicName = data.session_progress?.current_topic
+            || ss?.selected_topic
+            || (ss?.remaining_topics?.length > 0
+              ? (typeof ss.remaining_topics[0] === 'string' ? ss.remaining_topics[0] : (ss.remaining_topics[0].name || ss.remaining_topics[0].topic_name || ss.remaining_topics[0].topic))
+              : '')
+            || data.next_question?.topic
+            || '';
+          const topicHistory = (ss?.session_history || []).filter((h: any) => h.topic === completedName || h.selected_topic === completedName);
+          const bloomLevels = [...new Set(topicHistory.map((h: any) => h.blooms_level || h.difficulty_level || 1))];
+          const nextGapType = ss?.mastery_profile?.knowledge_gaps?.find(
+            (g: any) => (g.topic || g.topic_name) === nextTopicName
+          )?.gap_type || 'PARTIAL_GAP';
+
+          localStorage.setItem('assessment_transition', JSON.stringify({
+            completedTopic: {
+              name: completedName,
+              finalMastery: data.mastery_update.current_mastery,
+              mastered: true,
+              questionsAnswered: topicHistory.length || ss?.total_questions_asked || 0,
+              accuracy: data.session_progress?.overall_accuracy || 0,
+              bloomLevels: bloomLevels.length > 0 ? bloomLevels : [1],
+            },
+            nextTopic: {
+              name: nextTopicName,
+              gap_type: nextGapType,
+              startingDifficulty: data.next_question?.difficulty === 'easy' ? 'Easy' : data.next_question?.difficulty === 'medium' ? 'Medium' : 'Easy',
+            },
+            sessionId: data.session_id || sessionId || 'unknown',
+            learnerId: ss?.learner_id || 'unknown',
+          }));
+
+          router.push('/assessment/transition');
+          return;
+        }
+
+        setFeedbackData(feedback);
+        setShowFeedback(true);
+      } else {
+        throw new Error(result.message || 'Failed to submit answer');
+      }
+    } catch (err: any) {
+      console.error('Submit error:', err);
+      const fallbackFeedback = {
+        is_correct: false,
+        partial_credit: false,
+        correctness_score: 0,
+        evaluation_summary: 'Error submitting answer. Please try again.',
+        immediate_feedback: 'There was an error processing your answer.',
+        concept_explanation: '',
+        correct_explanation: '',
+        improvement_tip: '',
+        encouragement: 'Keep going!',
+        suggested_resources: [],
+        mastery_update: {
+          topic: sessionData!.currentTopic.name,
+          before_mastery: sessionData!.currentTopic.mastery,
+          after_mastery: sessionData!.currentTopic.mastery,
+          target: 85
+        },
+        next_action: 'continue' as const,
+        question_text: sessionData!.currentQuestion.text,
+        learner_answer: answer
+      };
+      setFeedbackData(fallbackFeedback);
+      setShowFeedback(true);
+    }
+    setIsEvaluating(false);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     setShowFeedback(false);
     setSelectedAnswer("");
     setCodeAnswer("");
     setShowHint(0);
     setTimeElapsed(0);
+
+    const parseOptions = (opts: any): Option[] | undefined => {
+      if (!opts) return undefined;
+      if (Array.isArray(opts)) {
+        if (typeof opts[0] === 'string') {
+          return (opts as string[]).map((text, i) => ({ letter: String.fromCharCode(65 + i), text }));
+        }
+        return opts as Option[];
+      }
+      return Object.entries(opts).map(([letter, text]) => ({ letter, text: text as string }));
+    };
+
+    const applyNextQuestion = (question: any) => {
+      const options = parseOptions(question.options);
+      setSessionData(prev => prev ? {
+        ...prev,
+        currentQuestion: {
+          id: question.question_id || question.id || `q-${Date.now()}`,
+          number: prev.stats.questionsAsked + 2,
+          text: question.question_text || question.text || '',
+          type: question.question_type || question.type || 'mcq',
+          code_snippet: question.code_snippet,
+          options,
+          difficulty: question.difficulty || 'Medium',
+          topic: question.topic || prev.currentQuestion.topic,
+          hints: question.hints || [],
+        },
+      } : prev);
+    };
+
+    const nextQ = localStorage.getItem('assessment_next_question');
+    if (nextQ) {
+      localStorage.removeItem('assessment_next_question');
+      try {
+        const question = JSON.parse(nextQ);
+        applyNextQuestion(question);
+        return;
+      } catch {}
+    }
+
+    const tryUpdateFromApi = async (sid: string) => {
+      try {
+        const res = await assessmentApi.getSession(sid);
+        if (res.success && res.data) {
+          const session = res.data.updated_session || res.data;
+          const question = session.current_question || res.data.question;
+          if (question) {
+            const options = parseOptions(question.options);
+
+            setSessionData(prev => prev ? {
+              ...prev,
+              currentTopic: {
+                name: question.topic || prev.currentTopic.name,
+                mastery: session.current_topic_mastery || prev.currentTopic.mastery,
+                status: 'current',
+                gap_type: question.gap_type || prev.currentTopic.gap_type,
+              },
+              currentQuestion: {
+                id: question.question_id || question.id || `q-${Date.now()}`,
+                number: prev.stats.questionsAsked + 2,
+                text: question.question_text || question.text || '',
+                type: question.question_type || question.type || 'mcq',
+                code_snippet: question.code_snippet,
+                options,
+                difficulty: question.difficulty || 'Medium',
+                topic: question.topic || prev.currentQuestion.topic,
+                hints: question.hints || [],
+              },
+              stats: {
+                questionsAsked: session.total_questions_asked || prev.stats.questionsAsked + 1,
+                correctAnswers: session.correct_answers || prev.stats.correctAnswers,
+                accuracy: session.accuracy_percentage || prev.stats.accuracy,
+                streak: session.current_streak || prev.stats.streak,
+              },
+              remediationMode: session.remediation_mode || false,
+            } : prev);
+          }
+        }
+      } catch {}
+    };
+
+    if (sessionId) {
+      await tryUpdateFromApi(sessionId);
+    } else {
+      const stored = localStorage.getItem('assessment_session');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const question = parsed.question || parsed.current_question;
+          if (question) {
+            const options = parseOptions(question.options);
+            applyNextQuestion(question);
+          }
+        } catch {}
+      }
+    }
   };
 
   const copyCode = () => {
-    if (sessionData.currentQuestion.code_snippet) {
+    if (sessionData?.currentQuestion.code_snippet) {
       navigator.clipboard.writeText(sessionData.currentQuestion.code_snippet);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white/70 font-semibold">Loading assessment session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !sessionData) {
+    return (
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-16 h-16 text-amber-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Session Error</h2>
+          <p className="text-white/60 mb-6">{error || 'Failed to load session data'}</p>
+          <Button onClick={() => router.push('/assessment')} className="bg-teal-600 hover:bg-teal-500 text-white">
+            Back to Assessment
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const masteryColors = getMasteryColor(sessionData.currentTopic.mastery);
   const difficultyConfig = getDifficultyConfig(sessionData.currentQuestion.difficulty);
@@ -339,44 +730,75 @@ export default function SessionPage({
         </div>
 
         <div className="mb-6">
-          <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <BarChart3 className="w-3.5 h-3.5" />
-            Topic Progress
-          </h4>
-          <div className="space-y-2">
-            {sessionData.allTopics.map((topic, index) => (
-              <div
-                key={index}
-                className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${
-                  topic.status === "current"
-                    ? "bg-blue-500/10 border border-blue-500/20"
-                    : topic.status === "mastered"
-                    ? "bg-emerald-500/5 border border-emerald-500/10"
-                    : "bg-white/[0.02] border border-transparent"
-                }`}
-              >
-                {getTopicIcon(topic.status)}
-                <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-medium truncate ${
-                    topic.status === "current" ? "text-blue-300" :
-                    topic.status === "mastered" ? "text-emerald-400" : "text-white/50"
-                  }`}>
-                    {topic.name}
-                  </p>
-                  {topic.mastery > 0 && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider flex items-center gap-2">
+              <BarChart3 className="w-3.5 h-3.5" />
+              Topic Progress
+            </h4>
+          </div>
+          <div className="space-y-1.5">
+            {sessionData.allTopics.map((topic, index) => {
+              const isCurrent = topic.status === "current";
+              const isMastered = topic.status === "mastered";
+              const colors = getMasteryColor(topic.mastery);
+              return (
+                <div
+                  key={index}
+                  className={`rounded-xl transition-all ${
+                    isCurrent
+                      ? "bg-blue-500/8 border border-blue-500/15"
+                      : "border border-transparent"
+                  }`}
+                >
+                  <div className="p-2.5">
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      {getTopicIcon(topic.status)}
+                      <p className={`text-xs font-semibold truncate ${
+                        isCurrent ? "text-white" :
+                        isMastered ? "text-emerald-400" : "text-white/40"
+                      }`}>
+                        {topic.name}
+                      </p>
+                      {isCurrent && (
+                        <span className="ml-auto px-1.5 py-0.5 bg-blue-500/15 text-blue-300 text-[9px] font-bold uppercase tracking-wider rounded">Current</span>
+                      )}
+                      {isMastered && (
+                        <span className="ml-auto px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-[9px] font-bold uppercase tracking-wider rounded">Done</span>
+                      )}
+                      {topic.status === "pending" && (
+                        <span className="ml-auto text-[9px] text-white/30 font-medium">Pending</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 pl-7">
+                      <div className="flex-1 h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${getMasteryColor(topic.mastery).bg}`}
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isMastered ? "bg-emerald-500" : isCurrent ? colors.bg : "bg-white/10"
+                          }`}
                           style={{ width: `${topic.mastery}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-white/40">{topic.mastery}%</span>
+                      <span className={`text-[10px] font-bold ${
+                        topic.mastery >= 85 ? "text-emerald-400" :
+                        topic.mastery > 0 ? "text-white/50" : "text-white/20"
+                      }`}>
+                        {topic.mastery}%
+                      </span>
                     </div>
-                  )}
+                    {isCurrent && topic.mastery < 85 && (
+                      <p className="text-[9px] text-white/25 pl-7 mt-1">
+                        {85 - topic.mastery}% to target
+                      </p>
+                    )}
+                    {isCurrent && topic.mastery >= 85 && (
+                      <p className="text-[9px] text-emerald-400/60 pl-7 mt-1 font-medium">
+                        Target reached!
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -482,12 +904,12 @@ export default function SessionPage({
                   <div className="mb-8">
                     {sessionData.currentQuestion.type === "mcq" && sessionData.currentQuestion.options && (
                       <div className="space-y-3">
-                        {sessionData.currentQuestion.options.map((option, index) => (
+                        {sessionData.currentQuestion.options.map((option) => (
                           <button
-                            key={index}
-                            onClick={() => setSelectedAnswer(option)}
+                            key={option.letter}
+                            onClick={() => setSelectedAnswer(option.letter)}
                             className={`w-full p-5 rounded-xl border-2 text-left transition-all ${
-                              selectedAnswer === option
+                              selectedAnswer === option.letter
                                 ? "border-teal-500 bg-teal-500/10 text-white shadow-[0_0_20px_rgba(13,148,136,0.15)]"
                                 : "border-white/10 bg-white/[0.02] text-white/80 hover:border-teal-500/30 hover:bg-teal-500/5"
                             }`}
@@ -495,13 +917,13 @@ export default function SessionPage({
                           >
                             <div className="flex items-center gap-4">
                               <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${
-                                selectedAnswer === option
+                                selectedAnswer === option.letter
                                   ? "border-teal-500 bg-teal-500 text-white"
                                   : "border-white/20 text-white/40"
                               }`}>
-                                {String.fromCharCode(65 + index)}
+                                {option.letter}
                               </div>
-                              <span className="font-medium">{option}</span>
+                              <span className="font-medium">{option.text}</span>
                             </div>
                           </button>
                         ))}

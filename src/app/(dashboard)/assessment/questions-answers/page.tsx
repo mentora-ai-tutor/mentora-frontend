@@ -1,27 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle,
   XCircle,
-  AlertCircle,
   ChevronDown,
   ChevronUp,
-  BookOpen,
   Code,
   Lightbulb,
-  Target,
-  Star,
   Clock,
-  TrendingUp,
   HelpCircle,
   Trash2,
-  FolderOpen,
-  Trophy,
-  BarChart3
+  BarChart3,
+  BookOpen,
+  TrendingUp,
+  Sparkles,
+  Layers,
+  Target,
+  Zap,
 } from "lucide-react";
+import { assessmentApi } from "@/lib/api/assessment";
 
 interface QAItem {
   id: string;
@@ -41,6 +41,26 @@ interface QAItem {
   timestamp?: number;
 }
 
+const getDifficultyMeta = (difficulty: string) => {
+  switch (difficulty) {
+    case "Easy": return { dot: "bg-emerald-400", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" };
+    case "Medium": return { dot: "bg-amber-400", badge: "bg-amber-500/10 text-amber-400 border-amber-500/30" };
+    case "Hard": return { dot: "bg-red-400", badge: "bg-red-500/10 text-red-400 border-red-500/30" };
+    default: return { dot: "bg-white/30", badge: "bg-white/5 text-white/50 border-white/10" };
+  }
+};
+
+const getTypeMeta = (type: string) => {
+  switch (type) {
+    case "mcq": return { label: "MCQ", badge: "bg-blue-500/10 text-blue-400 border-blue-500/30" };
+    case "code_completion": return { label: "Completion", badge: "bg-purple-500/10 text-purple-400 border-purple-500/30" };
+    case "code_tracing": return { label: "Tracing", badge: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30" };
+    case "debugging": return { label: "Debugging", badge: "bg-orange-500/10 text-orange-400 border-orange-500/30" };
+    case "coding_challenge": return { label: "Challenge", badge: "bg-rose-500/10 text-rose-400 border-rose-500/30" };
+    default: return { label: type, badge: "bg-white/5 text-white/50 border-white/10" };
+  }
+};
+
 export default function QuestionsAnswersPage() {
   const [qaData, setQaData] = useState<QAItem[]>([]);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
@@ -50,26 +70,31 @@ export default function QuestionsAnswersPage() {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/ame/questions`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            setQaData(result.data.sort((a: QAItem, b: QAItem) => (a.timestamp || 0) - (b.timestamp || 0)));
-          }
+        const result = await assessmentApi.getQuestions();
+        if (result.success && result.data?.length > 0) {
+          setQaData(result.data.sort((a: QAItem, b: QAItem) => (a.timestamp || 0) - (b.timestamp || 0)));
+          setLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error("Failed to fetch questions:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      } catch {}
 
+      const currentLearnerId = JSON.parse(localStorage.getItem('user') || '{}').student_id;
+      const storedLearnerId = localStorage.getItem('assessment_qa_learner');
+      const belongsToCurrentUser = !currentLearnerId || !storedLearnerId || storedLearnerId === currentLearnerId;
+
+      if (!belongsToCurrentUser) {
+        localStorage.removeItem('assessment_qa');
+        localStorage.removeItem('assessment_qa_learner');
+      } else {
+        const local = localStorage.getItem("assessment_qa");
+        if (local) {
+          try {
+            setQaData(JSON.parse(local));
+          } catch {}
+        }
+      }
+      setLoading(false);
+    };
     fetchQuestions();
   }, []);
 
@@ -82,95 +107,67 @@ export default function QuestionsAnswersPage() {
     setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "Easy": return "bg-green-500/10 text-green-400 border-green-500/30";
-      case "Medium": return "bg-yellow-500/10 text-yellow-400 border-yellow-500/30";
-      case "Hard": return "bg-red-500/10 text-red-400 border-red-500/30";
-      default: return "bg-gray-500/10 text-gray-400 border-gray-500/30";
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "mcq": return "bg-blue-500/10 text-blue-400 border-blue-500/30";
-      case "code_completion": return "bg-purple-500/10 text-purple-400 border-purple-500/30";
-      case "code_tracing": return "bg-indigo-500/10 text-indigo-400 border-indigo-500/30";
-      case "debugging": return "bg-orange-500/10 text-orange-400 border-orange-500/30";
-      case "coding_challenge": return "bg-red-500/10 text-red-400 border-red-500/30";
-      default: return "bg-gray-500/10 text-gray-400 border-gray-500/30";
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "mcq": return "Multiple Choice";
-      case "code_completion": return "Code Completion";
-      case "code_tracing": return "Code Tracing";
-      case "debugging": return "Debugging";
-      case "coding_challenge": return "Coding Challenge";
-      default: return type;
-    }
-  };
-
   const filteredData = qaData.filter(item => {
     if (filter === "correct") return item.is_correct;
     if (filter === "incorrect") return !item.is_correct;
     return true;
   });
 
-  // Group questions by topic
   const groupedByTopic = filteredData.reduce((acc, item) => {
     const topic = item.topic || "Uncategorized";
-    if (!acc[topic]) {
-      acc[topic] = [];
-    }
+    if (!acc[topic]) acc[topic] = [];
     acc[topic].push(item);
     return acc;
   }, {} as Record<string, QAItem[]>);
 
   const topicKeys = Object.keys(groupedByTopic);
-
   const correctCount = qaData.filter(q => q.is_correct).length;
   const totalCount = qaData.length;
-  const accuracy = Math.round((correctCount / totalCount) * 100);
+  const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* Header */}
-      <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-6 lg:p-8 relative overflow-hidden">
-        <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500/5 to-teal-500/0 animate-pulse" />
 
+      {/* ── HEADER ── */}
+      <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-6 lg:p-8 relative overflow-hidden">
+        <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500/[0.03] to-teal-500/0 animate-pulse" />
         <div className="relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-2xl lg:text-3xl font-black text-white mb-2">Questions & Answers</h1>
-              <p className="text-white/60">Review all the questions you've answered with detailed explanations</p>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-1.5 rounded-lg bg-teal-500/10">
+                  <BookOpen className="w-4 h-4 text-teal-400" />
+                </div>
+                <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Review</span>
+              </div>
+              <h1 className="text-2xl lg:text-3xl font-black text-white">Questions & Answers</h1>
+              <p className="text-white/50 text-sm mt-1">Review every question with detailed explanations</p>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-[#0F172A] rounded-xl border border-white/10">
-                <p className="text-xs text-white/50 uppercase tracking-wider">Accuracy</p>
-                <p className={`text-xl font-black ${accuracy >= 70 ? "text-teal-400" : accuracy >= 40 ? "text-amber-400" : "text-red-400"}`}>{accuracy}%</p>
+              <div className="bg-[#0F172A] rounded-xl border border-white/5 px-4 py-2.5 text-center min-w-[90px]">
+                <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Accuracy</p>
+                <p className={`text-xl font-black ${accuracy >= 70 ? "text-emerald-400" : accuracy >= 40 ? "text-amber-400" : "text-red-400"}`}>
+                  {totalCount > 0 ? `${accuracy}%` : "—"}
+                </p>
               </div>
-              <div className="px-4 py-2 bg-[#0F172A] rounded-xl border border-white/10">
-                <p className="text-xs text-white/50 uppercase tracking-wider">Questions</p>
+              <div className="bg-[#0F172A] rounded-xl border border-white/5 px-4 py-2.5 text-center min-w-[90px]">
+                <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Questions</p>
                 <p className="text-xl font-black text-white">{totalCount}</p>
               </div>
               {totalCount > 0 && (
                 <button
                   onClick={clearAll}
-                  className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition-colors flex items-center gap-2"
+                  className="px-3 py-2.5 bg-red-500/5 border border-red-500/20 text-red-400 rounded-xl text-sm font-semibold hover:bg-red-500/15 transition-colors flex items-center gap-1.5"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Clear All
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Clear
                 </button>
               )}
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {[
               { key: "all", label: "All Questions", count: totalCount },
               { key: "correct", label: "Correct", count: correctCount },
@@ -181,298 +178,276 @@ export default function QuestionsAnswersPage() {
                 onClick={() => setFilter(key as typeof filter)}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${
                   filter === key
-                    ? "bg-teal-500/10 text-teal-400 border-teal-500/30"
-                    : "bg-[#0F172A]/50 text-white/50 border-white/5 hover:text-white/80 hover:border-white/10"
+                    ? "bg-teal-500/10 text-teal-400 border-teal-500/30 shadow-sm"
+                    : "bg-[#0F172A]/50 text-white/40 border-white/5 hover:text-white/70 hover:border-white/10"
                 }`}
               >
-                {label} ({count})
+                {label} <span className="text-xs opacity-70">({count})</span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Questions List - Grouped by Topic */}
+      {/* ── LOADING ── */}
       {loading ? (
-        <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-12 text-center">
-          <div className="w-16 h-16 border-4 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Loading Questions...</h3>
-          <p className="text-white/50">Fetching your assessment data</p>
+        <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-16 text-center">
+          <div className="w-12 h-12 border-4 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-white mb-1">Loading Questions...</h3>
+          <p className="text-white/40 text-sm">Fetching your assessment data</p>
         </div>
       ) : totalCount === 0 ? (
-        <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-12 text-center">
-          <HelpCircle className="w-16 h-16 text-white/20 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">No Questions Answered Yet</h3>
-          <p className="text-white/50 mb-6">
-            Complete an assessment to see your questions and answers here.
+        <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-16 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#0F172A] border border-white/5 flex items-center justify-center">
+            <HelpCircle className="w-8 h-8 text-white/20" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">No Questions Yet</h3>
+          <p className="text-white/40 text-sm mb-6 max-w-md mx-auto">
+            Complete an assessment to see your questions and answers reviewed here.
           </p>
           <a
             href="/assessment"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-semibold transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-semibold transition-all shadow-lg shadow-teal-500/20"
           >
             Start Assessment
-            <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+            <Zap className="w-4 h-4" />
           </a>
         </div>
       ) : (
-        <div className="space-y-6">
-          {topicKeys.map((topic) => {
-            const topicQuestions = groupedByTopic[topic];
-            const topicCorrect = topicQuestions.filter(q => q.is_correct).length;
-            const topicTotal = topicQuestions.length;
-            const topicAccuracy = Math.round((topicCorrect / topicTotal) * 100);
+        <>
+          {/* ── QUESTIONS BY TOPIC ── */}
+          <div className="space-y-5">
+            {topicKeys.map((topic) => {
+              const topicQuestions = groupedByTopic[topic];
+              const topicCorrect = topicQuestions.filter(q => q.is_correct).length;
+              const topicTotal = topicQuestions.length;
+              const topicAccuracy = Math.round((topicCorrect / topicTotal) * 100);
+              const accuracyColor = topicAccuracy >= 70 ? "text-emerald-400" : topicAccuracy >= 40 ? "text-amber-400" : "text-red-400";
+              const barColor = topicAccuracy >= 70 ? "bg-emerald-500" : topicAccuracy >= 40 ? "bg-amber-500" : "bg-red-500";
 
-            return (
-              <div key={topic} className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
-                {/* Topic Header */}
-                <div className="p-5 border-b border-white/5 bg-[#0F172A]/50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-blue-500/10">
-                        <FolderOpen className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-white">{topic}</h3>
-                        <p className="text-xs text-white/40">
-                          {topicTotal} question{topicTotal !== 1 ? 's' : ''} answered
-                        </p>
-                      </div>
-                    </div>
+              return (
+                <div key={topic} className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
 
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <div className={`text-xl font-black ${
-                          topicAccuracy >= 70 ? "text-teal-400" :
-                          topicAccuracy >= 40 ? "text-amber-400" : "text-red-400"
-                        }`}>{topicAccuracy}%</div>
-                        <p className="text-[10px] text-white/40 uppercase">Accuracy</p>
+                  {/* Topic Header */}
+                  <div className="p-5 border-b border-white/5 bg-[#0F172A]/30">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-blue-500/10">
+                          <Layers className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">{topic}</h3>
+                          <p className="text-xs text-white/40">{topicTotal} question{topicTotal !== 1 ? 's' : ''}</p>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-xl font-black text-white">{topicTotal}</div>
-                        <p className="text-[10px] text-white/40 uppercase">Questions</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-xl font-black text-emerald-400">{topicCorrect}</div>
-                        <p className="text-[10px] text-white/40 uppercase">Correct</p>
-                      </div>
-                      <div className="w-32 hidden md:block">
-                        <div className="h-2 bg-[#0F172A] rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              topicAccuracy >= 70 ? "bg-teal-500" :
-                              topicAccuracy >= 40 ? "bg-amber-500" : "bg-red-500"
-                            }`}
-                            style={{ width: `${topicAccuracy}%` }}
-                          />
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className={`text-lg font-black ${accuracyColor}`}>{topicAccuracy}%</p>
+                            <p className="text-[9px] text-white/30 uppercase tracking-wider">Accuracy</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-black text-white">{topicCorrect}<span className="text-sm text-white/30">/{topicTotal}</span></p>
+                            <p className="text-[9px] text-white/30 uppercase tracking-wider">Correct</p>
+                          </div>
+                        </div>
+                        <div className="w-24 h-1.5 bg-[#0F172A] rounded-full overflow-hidden hidden sm:block">
+                          <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${topicAccuracy}%` }} />
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Questions in Topic */}
-                <div className="divide-y divide-white/5">
-                  {topicQuestions.map((item) => {
-                    const isExpanded = expandedItems[item.id];
+                  {/* Question Rows */}
+                  <div className="divide-y divide-white/[0.03]">
+                    {topicQuestions.map((item) => {
+                      const isExpanded = expandedItems[item.id];
+                      const diffMeta = getDifficultyMeta(item.difficulty);
+                      const typeMeta = getTypeMeta(item.type);
 
-                    return (
-                      <div key={item.id}>
-                        {/* Question Header */}
-                        <div
-                          className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors"
-                          onClick={() => toggleExpand(item.id)}
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                              item.is_correct ? "bg-teal-500/10" : "bg-red-500/10"
-                            }`}>
-                              {item.is_correct ? (
-                                <CheckCircle className="w-5 h-5 text-teal-400" />
-                              ) : (
-                                <XCircle className="w-5 h-5 text-red-400" />
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <span className="text-xs font-bold text-white/40">Q{item.number}</span>
-                                <Badge className={getDifficultyColor(item.difficulty)}>
-                                  {item.difficulty}
-                                </Badge>
-                                <Badge className={getTypeColor(item.type)}>
-                                  {getTypeLabel(item.type)}
-                                </Badge>
+                      return (
+                        <div key={item.id}>
+                          <div
+                            className="p-4 lg:p-5 cursor-pointer hover:bg-white/[0.015] transition-colors"
+                            onClick={() => toggleExpand(item.id)}
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                                item.is_correct
+                                  ? "bg-emerald-500/10 border-emerald-500/20"
+                                  : "bg-red-500/10 border-red-500/20"
+                              }`}>
+                                {item.is_correct
+                                  ? <CheckCircle className="w-5 h-5 text-emerald-400" />
+                                  : <XCircle className="w-5 h-5 text-red-400" />
+                                }
                               </div>
 
-                              <h4 className="text-white font-semibold mb-2">{item.question}</h4>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                  <span className="text-xs font-bold text-white/30">Q{item.number}</span>
+                                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${diffMeta.badge}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${diffMeta.dot}`} />
+                                    {item.difficulty}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${typeMeta.badge}`}>
+                                    {typeMeta.label}
+                                  </span>
+                                </div>
 
-                              <div className="flex items-center gap-4 text-xs text-white/40">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {item.time_spent}s
-                                </span>
-                                <span className={`flex items-center gap-1 font-semibold ${
-                                  item.is_correct ? "text-teal-400" : "text-red-400"
-                                }`}>
-                                  {item.is_correct ? (
-                                    <>
-                                      <CheckCircle className="w-3 h-3" />
-                                      Correct
-                                    </>
-                                  ) : (
-                                    <>
-                                      <XCircle className="w-3 h-3" />
-                                      Incorrect
-                                    </>
-                                  )}
-                                </span>
+                                <h4 className="text-white font-semibold text-sm leading-relaxed line-clamp-2">{item.question}</h4>
+
+                                <div className="flex items-center gap-3 mt-2">
+                                  <span className="flex items-center gap-1 text-[11px] text-white/30">
+                                    <Clock className="w-3 h-3" />
+                                    {Math.floor(item.time_spent / 60)}m {item.time_spent % 60}s
+                                  </span>
+                                  <span className={`flex items-center gap-1 text-[11px] font-semibold ${
+                                    item.is_correct ? "text-emerald-400" : "text-red-400"
+                                  }`}>
+                                    {item.is_correct
+                                      ? <><CheckCircle className="w-3 h-3" /> Correct</>
+                                      : <><XCircle className="w-3 h-3" /> Incorrect</>
+                                    }
+                                  </span>
+                                </div>
                               </div>
-                            </div>
 
-                            <div className="shrink-0">
-                              {isExpanded ? (
-                                <ChevronUp className="w-5 h-5 text-white/40" />
-                              ) : (
-                                <ChevronDown className="w-5 h-5 text-white/40" />
-                              )}
+                              <button className="shrink-0 p-1 rounded-lg hover:bg-white/5 transition-colors">
+                                {isExpanded
+                                  ? <ChevronUp className="w-4 h-4 text-white/30" />
+                                  : <ChevronDown className="w-4 h-4 text-white/30" />
+                                }
+                              </button>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Expanded Content */}
-                        {isExpanded && (
-                          <div className="px-5 pb-5 ml-14">
-                            <div className="pl-4 border-l-2 border-teal-500/30 space-y-4">
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div className="px-5 pb-5 lg:pl-[72px] lg:pr-5">
+                              <div className="border-l-2 border-teal-500/30 pl-5 space-y-4">
 
-                              {/* Code Snippet */}
-                              {item.code_snippet && (
-                                <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <Code className="w-4 h-4 text-teal-400" />
-                                    <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">Code</span>
+                                {item.code_snippet && (
+                                  <div className="bg-[#0F172A] rounded-xl border border-white/5 overflow-hidden">
+                                    <div className="flex items-center gap-1.5 px-4 py-2 bg-white/[0.02] border-b border-white/5">
+                                      <Code className="w-3.5 h-3.5 text-teal-400" />
+                                      <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Code</span>
+                                    </div>
+                                    <pre className="p-4 text-emerald-400/90 text-sm overflow-x-auto font-mono leading-relaxed"><code>{item.code_snippet}</code></pre>
                                   </div>
-                                  <pre className="text-green-400 text-sm overflow-x-auto">
-                                    <code>{item.code_snippet}</code>
-                                  </pre>
-                                </div>
-                              )}
-
-                              {/* MCQ Options */}
-                              {item.options && (
-                                <div className="space-y-2">
-                                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Options</p>
-                                  {item.options.map((option, idx) => {
-                                    const isLearnerAnswer = option === item.learner_answer;
-                                    const isCorrectAnswer = option === item.correct_answer;
-                                    return (
-                                      <div
-                                        key={idx}
-                                        className={`p-3 rounded-lg border text-sm ${
-                                          isCorrectAnswer
-                                            ? "bg-teal-500/10 border-teal-500/30 text-teal-300"
-                                            : isLearnerAnswer
-                                            ? "bg-red-500/10 border-red-500/30 text-red-300"
-                                            : "bg-[#0F172A] border-white/5 text-white/60"
-                                        }`}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-bold">{String.fromCharCode(65 + idx)}.</span>
-                                          <span>{option}</span>
-                                          {isCorrectAnswer && (
-                                            <CheckCircle className="w-4 h-4 text-teal-400 ml-auto shrink-0" />
-                                          )}
-                                          {isLearnerAnswer && !isCorrectAnswer && (
-                                            <XCircle className="w-4 h-4 text-red-400 ml-auto shrink-0" />
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-
-                              {/* Learner Answer */}
-                              <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5">
-                                <div className="flex items-center gap-2 mb-2">
-                                  {item.is_correct ? (
-                                    <CheckCircle className="w-4 h-4 text-teal-400" />
-                                  ) : (
-                                    <XCircle className="w-4 h-4 text-red-400" />
-                                  )}
-                                  <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">
-                                    Your Answer
-                                  </span>
-                                </div>
-                                <p className={`text-sm ${item.is_correct ? "text-teal-300" : "text-red-300"}`}>
-                                  {item.learner_answer}
-                                </p>
-                              </div>
-
-                              {/* Correct Answer (only if incorrect) */}
-                              {!item.is_correct && (
-                                <div className="bg-teal-500/5 rounded-xl p-4 border border-teal-500/20">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <CheckCircle className="w-4 h-4 text-teal-400" />
-                                    <span className="text-xs font-semibold text-teal-400 uppercase tracking-wider">
-                                      Correct Answer
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-teal-300">{item.correct_answer}</p>
-                                </div>
-                              )}
-
-                              {/* Explanation */}
-                              <div className="bg-amber-500/5 rounded-xl p-4 border border-amber-500/20">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Lightbulb className="w-4 h-4 text-amber-400" />
-                                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
-                                    Explanation
-                                  </span>
-                                </div>
-                                {Array.isArray(item.explanation) ? (
-                                  <ul className="list-disc list-inside text-sm text-amber-200/80 leading-relaxed space-y-1">
-                                    {item.explanation.map((point, idx) => (
-                                      <li key={idx}>{point}</li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-sm text-amber-200/80 leading-relaxed">{item.explanation}</p>
                                 )}
+
+                                {item.options && (
+                                  <div>
+                                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">Options</p>
+                                    <div className="space-y-1.5">
+                                      {item.options.map((option, idx) => {
+                                        const isLearnerAnswer = option === item.learner_answer;
+                                        const isCorrectAnswer = option === item.correct_answer;
+                                        let rowStyle = "bg-[#0F172A] border-white/5 text-white/50";
+                                        let indicator = null;
+                                        if (isCorrectAnswer) {
+                                          rowStyle = "bg-emerald-500/10 border-emerald-500/30 text-emerald-300";
+                                          indicator = <CheckCircle className="w-3.5 h-3.5 text-emerald-400 ml-auto shrink-0" />;
+                                        } else if (isLearnerAnswer) {
+                                          rowStyle = "bg-red-500/10 border-red-500/30 text-red-300";
+                                          indicator = <XCircle className="w-3.5 h-3.5 text-red-400 ml-auto shrink-0" />;
+                                        }
+                                        return (
+                                          <div key={idx} className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-sm ${rowStyle}`}>
+                                            <span className="font-bold text-xs w-5 text-center">{String.fromCharCode(65 + idx)}.</span>
+                                            <span>{option}</span>
+                                            {indicator}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="bg-[#0F172A] rounded-xl border border-white/5 p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {item.is_correct
+                                      ? <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                      : <XCircle className="w-4 h-4 text-red-400" />
+                                    }
+                                    <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Your Answer</span>
+                                  </div>
+                                  <p className={`text-sm ${item.is_correct ? "text-emerald-300" : "text-red-300"}`}>
+                                    {item.learner_answer || "Not answered"}
+                                  </p>
+                                </div>
+
+                                {!item.is_correct && (
+                                  <div className="bg-emerald-500/5 rounded-xl border border-emerald-500/20 p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                      <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">Correct Answer</span>
+                                    </div>
+                                    <p className="text-sm text-emerald-300">{item.correct_answer}</p>
+                                  </div>
+                                )}
+
+                                <div className="bg-amber-500/5 rounded-xl border border-amber-500/20 p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Lightbulb className="w-4 h-4 text-amber-400" />
+                                    <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">Explanation</span>
+                                  </div>
+                                  {Array.isArray(item.explanation) ? (
+                                    <ul className="space-y-1">
+                                      {item.explanation.map((point, idx) => (
+                                        <li key={idx} className="text-sm text-amber-200/80 leading-relaxed flex items-start gap-2">
+                                          <span className="text-amber-400 mt-1.5 w-1 h-1 rounded-full bg-amber-400 shrink-0" />
+                                          {point}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p className="text-sm text-amber-200/80 leading-relaxed">{item.explanation}</p>
+                                  )}
+                                </div>
+
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── SUMMARY FOOTER ── */}
+          <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-teal-500/10">
+                  <BarChart3 className="w-5 h-5 text-teal-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Assessment Summary</h3>
+                  <p className="text-xs text-white/40">
+                    {correctCount} of {totalCount} correct &middot; {accuracy}% accuracy
+                  </p>
                 </div>
               </div>
-            );
-          })}
-        </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-xs font-bold text-emerald-400">{correctCount} Correct</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  <span className="text-xs font-bold text-red-400">{totalCount - correctCount} Incorrect</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
-
-      {/* Summary Footer */}
-      <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-white mb-1">Assessment Summary</h3>
-            <p className="text-sm text-white/50">
-              You answered {correctCount} out of {totalCount} questions correctly
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-2 bg-teal-500/10 rounded-xl border border-teal-500/20">
-              <CheckCircle className="w-4 h-4 text-teal-400" />
-              <span className="text-sm font-bold text-teal-400">{correctCount} Correct</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 rounded-xl border border-red-500/20">
-              <XCircle className="w-4 h-4 text-red-400" />
-              <span className="text-sm font-bold text-red-400">{totalCount - correctCount} Incorrect</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
