@@ -407,11 +407,173 @@ export default function ReportPage() {
 
   const onDownload = () => {
     if (!data) return;
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const t = data;
+
+    const topicRows = t.topic_reports.map((topic, i) => `
+      <tr>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b">${topic.topic_name}</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:center">${topic.mastery_percentage}%</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:center">${topic.accuracy_percentage}%</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:center">${topic.correct_answers}/${topic.questions_asked}</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0">${Array.isArray(topic.strengths) ? topic.strengths.slice(0, 2).join('; ') : ''}</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0">${Array.isArray(topic.weaknesses) ? topic.weaknesses.slice(0, 2).join('; ') : ''}</td>
+      </tr>
+    `).join('');
+
+    const qaRows = t.qa_with_explanations.map((qa, i) => `
+      <tr>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:center">${qa.question_number}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0">${qa.question_text}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#dc2626">${qa.learner_answer}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#16a34a">${qa.correct_answer}</td>
+      </tr>
+    `).join('');
+
+    const strengthItems = t.key_strengths.map(s => `<li style="margin-bottom:6px">${s}</li>`).join('');
+    const weaknessItems = t.key_weaknesses.map(w => `<li style="margin-bottom:6px">${w}</li>`).join('');
+    const misconceptionItems = t.misconceptions_to_address.map(m => `<li style="margin-bottom:6px">${m}</li>`).join('');
+
+    const week1Goals = (t.learning_path.week_1_goals || []).map(g => `<li>${g}</li>`).join('');
+    const week24Goals = (t.learning_path.week_2_4_goals || []).map(g => `<li>${g}</li>`).join('');
+    const longTermGoals = (t.learning_path.long_term_goals || []).map(g => `<li>${g}</li>`).join('');
+
+    const resourceItems = (t.recommended_resources || []).map(r => `
+      <div style="margin-bottom:10px;padding:10px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0">
+        <strong style="color:#0f172a">${r.name}</strong>
+        <span style="display:inline-block;margin-left:8px;padding:2px 8px;background:#e2e8f0;border-radius:4px;font-size:11px;color:#475569">${r.type}</span>
+        <div style="font-size:12px;color:#64748b;margin-top:4px">Topic: ${r.topic} &mdash; ${r.url_hint}</div>
+      </div>
+    `).join('');
+
+    const masteryColor = t.overall_mastery_percentage >= 70 ? '#16a34a' : t.overall_mastery_percentage >= 40 ? '#d97706' : '#dc2626';
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${t.report_title}</title>
+<style>
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1e293b; margin: 0; padding: 40px; background: #f1f5f9; }
+  .page { max-width: 1000px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
+  .header { background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff; padding: 48px 56px; text-align: center; }
+  .header h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.3px; }
+  .header .meta { margin-top: 16px; font-size: 14px; color: #94a3b8; }
+  .header .grade-badge { display: inline-block; margin-top: 16px; padding: 8px 28px; border-radius: 24px; font-size: 16px; font-weight: 700; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); }
+  .section { padding: 32px 56px; border-bottom: 1px solid #e2e8f0; }
+  .section:last-child { border-bottom: none; }
+  .section h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .overall { font-size: 15px; line-height: 1.7; color: #475569; }
+  .stats { display: flex; gap: 16px; margin-top: 20px; }
+  .stat-card { flex: 1; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; }
+  .stat-card .value { font-size: 28px; font-weight: 800; color: #0f172a; }
+  .stat-card .label { font-size: 12px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f1f5f9; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+  .qa-table th { text-align: center; }
+  .qa-table th:first-child, .qa-table td:first-child { text-align: center; }
+  ul { margin: 0; padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.6; }
+  .footer { background: #f8fafc; padding: 32px 56px; text-align: center; font-size: 13px; color: #94a3b8; }
+  .motivation { text-align: center; padding: 32px 56px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); }
+  .motivation p { font-size: 18px; color: #166534; font-style: italic; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>${t.report_title}</h1>
+    <div class="meta">
+      Learner: ${t.learner_id} &nbsp;|&nbsp; Session: ${t.session_id} &nbsp;|&nbsp; Generated: ${formatDate(t.generated_at)}
+    </div>
+    <div class="grade-badge">Overall Grade: ${t.overall_grade}</div>
+  </div>
+
+  <div class="section">
+    <h2>Overall Assessment</h2>
+    <p class="overall">${t.overall_assessment}</p>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="value" style="color:${masteryColor}">${t.overall_mastery_percentage}%</div>
+        <div class="label">Overall Mastery</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" style="color:#0891b2">${t.overall_accuracy_percentage}%</div>
+        <div class="label">Overall Accuracy</div>
+      </div>
+      <div class="stat-card">
+        <div class="value">${t.total_questions}</div>
+        <div class="label">Total Questions</div>
+      </div>
+      <div class="stat-card">
+        <div class="value">${t.session_duration_minutes}</div>
+        <div class="label">Duration (min)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Topic Analysis</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Topic</th>
+          <th style="text-align:center">Mastery</th>
+          <th style="text-align:center">Accuracy</th>
+          <th style="text-align:center">Correct</th>
+          <th>Strengths</th>
+          <th>Weaknesses</th>
+        </tr>
+      </thead>
+      <tbody>${topicRows}</tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Question &amp; Answer Review</h2>
+    <table class="qa-table">
+      <thead>
+        <tr>
+          <th style="width:60px">#</th>
+          <th>Question</th>
+          <th style="width:25%">Your Answer</th>
+          <th style="width:25%">Correct Answer</th>
+        </tr>
+      </thead>
+      <tbody>${qaRows}</tbody>
+    </table>
+  </div>
+
+  ${strengthItems ? `<div class="section"><h2>Key Strengths</h2><ul>${strengthItems}</ul></div>` : ''}
+  ${weaknessItems ? `<div class="section"><h2>Key Weaknesses</h2><ul>${weaknessItems}</ul></div>` : ''}
+  ${misconceptionItems ? `<div class="section"><h2>Misconceptions to Address</h2><ul>${misconceptionItems}</ul></div>` : ''}
+
+  <div class="section">
+    <h2>Personalized Learning Path</h2>
+    ${t.learning_path.immediate_focus ? `<p style="font-size:14px;color:#475569;line-height:1.6"><strong>Immediate Focus:</strong> ${t.learning_path.immediate_focus}</p>` : ''}
+    ${week1Goals ? `<div style="margin-top:12px"><strong style="font-size:13px;color:#0f172a">Week 1 Goals</strong><ul style="margin-top:6px">${week1Goals}</ul></div>` : ''}
+    ${week24Goals ? `<div style="margin-top:12px"><strong style="font-size:13px;color:#0f172a">Weeks 2-4 Goals</strong><ul style="margin-top:6px">${week24Goals}</ul></div>` : ''}
+    ${longTermGoals ? `<div style="margin-top:12px"><strong style="font-size:13px;color:#0f172a">Long-term Goals</strong><ul style="margin-top:6px">${longTermGoals}</ul></div>` : ''}
+  </div>
+
+  ${resourceItems ? `<div class="section"><h2>Recommended Resources</h2>${resourceItems}</div>` : ''}
+  ${t.practice_project_suggestion ? `<div class="section"><h2>Practice Project Suggestion</h2><p style="font-size:14px;color:#475569;line-height:1.6">${t.practice_project_suggestion}</p></div>` : ''}
+  ${t.next_assessment_recommendation ? `<div class="section"><h2>Next Assessment Recommendation</h2><p style="font-size:14px;color:#475569;line-height:1.6">${t.next_assessment_recommendation}</p></div>` : ''}
+
+  ${t.motivational_message ? `<div class="motivation"><p>&ldquo;${t.motivational_message}&rdquo;</p></div>` : ''}
+
+  <div class="footer">
+    Generated by Mentora AI Assessment Engine &mdash; ${formatDate(t.generated_at)}
+  </div>
+</div>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `assessment-report-${data.session_id}.json`;
+    a.download = `assessment-report-${t.session_id}.html`;
     a.click();
     URL.revokeObjectURL(url);
   };
