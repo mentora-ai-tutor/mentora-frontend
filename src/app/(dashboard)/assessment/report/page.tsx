@@ -43,6 +43,7 @@ interface QAExplanation {
   question_text: string;
   learner_answer: string;
   correct_answer: string;
+  type: string;
   concept_explanation: string;
   why_correct_answer: string;
   common_mistake: string;
@@ -158,6 +159,7 @@ export default function ReportPage() {
               question_text: q.question_text || '',
               learner_answer: q.learner_answer || '',
               correct_answer: q.correct_answer || '',
+              type: q.question_type || q.type || '',
               concept_explanation: '',
               why_correct_answer: '',
               common_mistake: '',
@@ -240,6 +242,7 @@ export default function ReportPage() {
                 question_text: q.question_text || '',
                 learner_answer: q.learner_answer || '',
                 correct_answer: q.correct_answer || '',
+                type: q.question_type || q.type || '',
                 concept_explanation: '',
                 why_correct_answer: '',
                 common_mistake: '',
@@ -303,6 +306,7 @@ export default function ReportPage() {
                 question_text: q.question,
                 learner_answer: q.learner_answer,
                 correct_answer: q.correct_answer,
+                type: q.type || q.question_type || '',
                 concept_explanation: q.explanation || '',
                 why_correct_answer: '',
                 common_mistake: '',
@@ -369,6 +373,7 @@ export default function ReportPage() {
             question_text: q.question,
             learner_answer: q.learner_answer,
             correct_answer: q.correct_answer,
+            type: q.type || q.question_type || '',
             concept_explanation: q.explanation || '',
             why_correct_answer: '',
             common_mistake: '',
@@ -420,12 +425,21 @@ export default function ReportPage() {
       </tr>
     `).join('');
 
-    const qaRows = t.qa_with_explanations.map((qa, i) => `
+    const isCodeType = (t: string) => ['coding_challenge', 'code_completion', 'code_tracing', 'debugging'].includes(t);
+    const qaRows = t.qa_with_explanations.map((qa) => `
       <tr>
-        <td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:center">${qa.question_number}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:center;vertical-align:top">${qa.question_number}</td>
         <td style="padding:10px;border-bottom:1px solid #e2e8f0">${qa.question_text}</td>
-        <td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#dc2626">${qa.learner_answer}</td>
-        <td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#16a34a">${qa.correct_answer}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#dc2626;vertical-align:top">${
+          isCodeType(qa.type)
+            ? `<pre style="margin:0;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;background:#fef2f2;padding:8px;border-radius:4px">${qa.learner_answer}</pre>`
+            : qa.learner_answer
+        }</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#16a34a;vertical-align:top">${
+          isCodeType(qa.type)
+            ? `<pre style="margin:0;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;background:#f0fdf4;padding:8px;border-radius:4px">${qa.correct_answer}</pre>`
+            : qa.correct_answer
+        }</td>
       </tr>
     `).join('');
 
@@ -794,13 +808,21 @@ export default function ReportPage() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
-                    <p className="text-red-300 text-sm font-medium">Your Answer:</p>
-                    <p className="text-red-200 font-mono">{qa.learner_answer}</p>
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded overflow-hidden">
+                    <p className="text-red-300 text-sm font-medium mb-2">Your Answer:</p>
+                    {qa.type === 'coding_challenge' || qa.type === 'code_completion' || qa.type === 'code_tracing' || qa.type === 'debugging' ? (
+                      <pre className="text-red-200 text-xs font-mono whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto">{qa.learner_answer}</pre>
+                    ) : (
+                      <p className="text-red-200 font-mono text-sm">{qa.learner_answer}</p>
+                    )}
                   </div>
-                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded">
-                    <p className="text-green-300 text-sm font-medium">Correct Answer:</p>
-                    <p className="text-green-200 font-mono">{qa.correct_answer}</p>
+                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded overflow-hidden">
+                    <p className="text-green-300 text-sm font-medium mb-2">Correct Answer:</p>
+                    {qa.type === 'coding_challenge' || qa.type === 'code_completion' || qa.type === 'code_tracing' || qa.type === 'debugging' ? (
+                      <pre className="text-green-200 text-xs font-mono whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto">{qa.correct_answer}</pre>
+                    ) : (
+                      <p className="text-green-200 font-mono text-sm">{qa.correct_answer}</p>
+                    )}
                   </div>
                 </div>
 
