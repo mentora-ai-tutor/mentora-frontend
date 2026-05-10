@@ -48,9 +48,72 @@ export default function SummaryPage() {
   const [showQAReview, setShowQAReview] = useState(true);
 
   useEffect(() => {
+    const computeGrade = (mastery: number) => {
+      if (mastery >= 85) return 'Excellent';
+      if (mastery >= 70) return 'Good';
+      if (mastery >= 55) return 'Satisfactory';
+      return 'Needs Improvement';
+    };
+
+    const buildFromSessionSummary = (ss: any, learnerId: string, qaReview: any[]) => {
+      const topics = (ss.topics_covered || []).map((t: any) => ({
+        name: t.topic || 'Unknown',
+        finalMastery: t.mastery_score || 0,
+        questionsAnswered: t.questions_asked || 0,
+        accuracy: t.accuracy || 0,
+        status: t.is_mastered ? 'mastered' as const : 'needs_work' as const,
+      }));
+
+      setData({
+        overallMastery: ss.overall_mastery || 0,
+        overallAccuracy: ss.overall_accuracy || 0,
+        totalQuestions: ss.total_questions || 0,
+        sessionDuration: ss.session_duration_minutes || 0,
+        overallGrade: computeGrade(ss.overall_mastery || 0),
+        topics,
+        qaReview: (qaReview || []).map((q: any) => ({
+          number: q.question_number || 0,
+          topic: q.topic || '',
+          difficulty: q.difficulty || 'Medium',
+          questionText: q.question_text || q.question || '',
+          learnerAnswer: q.learner_answer || q.submitted_answer || '',
+          correctAnswer: q.correct_answer || '',
+          isCorrect: q.is_correct ?? false,
+        })),
+        sessionId: ss.session_id || 'Unknown',
+        learnerId,
+      });
+      setLoading(false);
+    };
+
     const loadData = async () => {
       try {
         const sid = sessionId || JSON.parse(localStorage.getItem('assessment_session') || '{}').session_id;
+
+        // 1) Try localStorage session_summary (saved during submit-answer)
+        const storedSummary = localStorage.getItem('assessment_session_summary');
+        if (storedSummary) {
+          const ss = JSON.parse(storedSummary);
+          const learnerId = JSON.parse(localStorage.getItem('user') || '{}').student_id || 'Unknown';
+          const storedQaReview = localStorage.getItem('assessment_qa_review');
+          const qa = storedQaReview ? JSON.parse(storedQaReview) : [];
+          buildFromSessionSummary(ss, learnerId, qa);
+          return;
+        }
+
+        // 2) Try feedback report API
+        if (sid) {
+          const fbRes = await assessmentApi.getFeedbackReport(sid);
+          if (fbRes.success && fbRes.data) {
+            const ss = fbRes.data.session_summary || {};
+            const learnerId = fbRes.data.learner_id || 'Unknown';
+            const qa = fbRes.data.full_qa_review || [];
+            buildFromSessionSummary(ss, learnerId, qa);
+            return;
+          }
+        }
+
+        // 3) Try getSession API
         if (sid) {
           const res = await assessmentApi.getSession(sid);
           if (res.success && res.data) {
@@ -90,6 +153,7 @@ export default function SummaryPage() {
         }
       } catch {}
 
+      // 4) Final fallback — localStorage assessment_qa
       const qaItems = JSON.parse(localStorage.getItem('assessment_qa') || '[]');
       if (qaItems.length > 0) {
         const correct = qaItems.filter((q: any) => q.is_correct).length;
@@ -137,12 +201,27 @@ export default function SummaryPage() {
     router.push(`/assessment/report${sid ? `?sessionId=${sid}` : ''}`);
   };
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-teal-400 animate-spin mx-auto mb-4" />
           <p className="text-white/70 font-semibold">Loading summary...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <Loader2 className="w-12 h-12 text-teal-400 animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">No Summary Available</h2>
+          <p className="text-white/60 mb-6">Complete an assessment session to see your summary.</p>
+          <Button onClick={() => router.push('/assessment')} className="bg-teal-600 hover:bg-teal-500 text-white">
+            Go to Assessment
+          </Button>
         </div>
       </div>
     );
