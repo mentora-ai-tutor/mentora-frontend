@@ -1,285 +1,450 @@
 "use client";
 
-import { Users, Search, MessageSquare, Plus, ArrowUpRight, Heart, HeartPulse, CheckCircle2, Lock, Play, BookOpen, Clock, Activity, Target, Sparkles, Award } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Users, MessageSquare, CheckCircle2, Play, Clock, Target, Sparkles, Terminal, AlertCircle, Award, Zap } from "lucide-react";
 import Link from "next/link";
+import { peerLearningApi } from "@/lib/api/peerLearning";
+
+// Shadcn UI Components
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+
+const MasteryRing = ({ percentage }: { percentage: number }) => {
+  const radius = 32;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center w-20 h-20 group">
+      <div className="absolute inset-[-20%] bg-teal-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+      <svg className="w-full h-full transform -rotate-90 relative z-10">
+        <circle
+          cx="40"
+          cy="40"
+          r={radius}
+          className="stroke-[#1e293b] fill-none"
+          strokeWidth="6"
+        />
+        <circle
+          cx="40"
+          cy="40"
+          r={radius}
+          className="stroke-teal-400 fill-none transition-all duration-1000 ease-out"
+          strokeWidth="6"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center z-10">
+        <span className="font-black text-xl text-white">{percentage}%</span>
+      </div>
+    </div>
+  );
+};
 
 export default function PeerLearningDashboard() {
+  const [student, setStudent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [matchResult, setMatchResult] = useState<any>(null);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadStudent();
+    loadNotifications();
+  }, []);
+
+  const loadStudent = async () => {
+    setLoading(true);
+    const result = await peerLearningApi.getStudentProfile();
+    if (result.success && result.data) {
+      setStudent(result.data);
+    }
+    setLoading(false);
+  };
+
+  const loadNotifications = async () => {
+    const result = await peerLearningApi.getNotifications();
+    if (result.success && result.data) {
+      setNotifications(Array.isArray(result.data) ? result.data : []);
+    }
+  };
+
+  const handleFindTeacher = async () => {
+    setMatchLoading(true);
+    setMatchResult(null);
+    const result = await peerLearningApi.findTeacher();
+    setMatchResult(result);
+    setMatchLoading(false);
+  };
+
+  const overallMastery = student?.mastery_profile?.overall_mastery_score || student?.stats?.overall_mastery_score || 0;
+
   return (
-    <div className="space-y-8 animate-slide-up text-white">
-      {/* ── HEADER ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(13,148,136,0.2)]">
-            <Users className="w-6 h-6 text-teal-400" />
-          </div>
+    <div className="flex flex-col gap-6 animate-slide-up pb-8 min-h-[calc(100vh-2rem)]">
+      
+      {/* ── HEADER HERO ── */}
+      <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-3xl p-5 relative overflow-hidden group shrink-0">
+        <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500/5 to-teal-500/0 group-hover:rotate-180 transition-transform duration-1000 ease-linear animate-pulse" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-white flex items-center gap-3">
-              PEER LEARNING DASHBOARD
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-3">
+              <Zap className="w-3 h-3" /> Active Module
+            </div>
+            <h1 className="text-3xl font-black text-white flex items-center gap-3 mb-1.5">
+              Peer Learning Hub
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
+              </span>
             </h1>
-            <p className="text-[#F8FAFC]/60 mt-1">Manage your collaborative learning sessions and track mastery.</p>
+            <p className="text-white/60 text-sm max-w-xl">
+              Collaborate to master complex topics. Match with verified peers in real-time to solve coding challenges together and improve your mastery score.
+            </p>
           </div>
+
+          {student && (
+            <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 flex items-center gap-4 shrink-0">
+              <div className="flex flex-col">
+                <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-0.5">Student ID</span>
+                <span className="text-white font-mono text-sm">{student.student_id || student._id}</span>
+              </div>
+              <div className="w-px h-8 bg-white/10 mx-2" />
+              <div className="flex flex-col">
+                <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-0.5">Network Status</span>
+                <span className="text-teal-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shadow-[0_0_8px_rgba(45,212,191,0.8)]" /> Active
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* ── MAIN CONTENT (COL 1 & 2) ── */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Overall Mastery Progress (Main Highlight) */}
-          <div className="relative p-[1px] rounded-2xl overflow-hidden group">
-            {/* Animated border effect */}
-            <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500 to-teal-500/0 group-hover:rotate-180 transition-transform duration-1000 ease-linear animate-pulse" />
-            
-            <div className="relative h-full bg-[#1e293b]/90 backdrop-blur-xl rounded-2xl p-6 lg:p-8 flex flex-col justify-between">
-              <div className="flex items-start justify-between mb-8">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-3 shadow-[0_0_10px_rgba(13,148,136,0.3)]">
-                    <Sparkles className="w-3 h-3" /> Progress Insight
+      {/* ── TOP HORIZONTAL ROW: DIAGNOSTICS ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 shrink-0">
+        
+        {/* 1. Mastery Index */}
+        <Card className="bg-gradient-to-br from-[#334155]/30 to-[#0F172A] border-white/5 rounded-2xl hover:border-teal-500/20 transition-all group hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(13,148,136,0.15)] z-10 hover:z-20 relative">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold text-white/50 tracking-wider uppercase flex items-center gap-2">
+              <Award className="w-4 h-4 text-teal-400" /> Mastery Index
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-4">
+                <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="flex items-center gap-6">
+                <MasteryRing percentage={overallMastery} />
+                <div className="flex flex-col gap-3 flex-1">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Level</span>
+                    <span className="font-bold text-white text-sm mt-0.5">{student?.profile?.java_level || "N/A"}</span>
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Overall Mastery: 45% Complete</h2>
-                  <p className="text-sm text-white/50 mt-1">Keep it up! You're making great progress.</p>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Institution</span>
+                    <span className="font-bold text-white text-sm mt-0.5 truncate max-w-[140px]">{student?.profile?.institution || "N/A"}</span>
+                  </div>
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 2. Focus Areas */}
+        <Card className="bg-gradient-to-br from-[#334155]/30 to-[#0F172A] border-white/5 rounded-2xl hover:border-amber-500/20 transition-all group hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] z-10 hover:z-20 relative">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold text-white/50 tracking-wider uppercase flex items-center gap-2">
+              <Target className="w-4 h-4 text-amber-400" /> Focus Areas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? null : student?.mastery_profile?.knowledge_gaps?.length > 0 ? (
+              <div className="space-y-4 mt-1">
+                {student.mastery_profile.knowledge_gaps.slice(0, 3).map((gap: any, idx: number) => {
+                  const score = gap.mastery_score || gap.confidence || 0;
+                  const isRed = gap.gap_type === 'FUNDAMENTAL_GAP';
+                  return (
+                    <div key={idx} className="group/item cursor-default">
+                      <div className="flex justify-between items-end mb-1.5">
+                        <span className="text-sm font-semibold text-white/80 group-hover/item:text-white transition-colors truncate max-w-[200px]">{gap.topic}</span>
+                        <span className="text-xs font-bold text-white/50">{score}%</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 w-full bg-[#0F172A] rounded-full overflow-hidden flex-1">
+                          <div 
+                            className={`h-full rounded-full relative ${isRed ? 'bg-gradient-to-r from-red-600 to-red-400' : 'bg-gradient-to-r from-amber-600 to-amber-400'}`} 
+                            style={{ width: `${score}%` }} 
+                          >
+                            <div className="absolute top-0 right-0 bottom-0 w-8 bg-white/20 animate-shimmer" />
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase w-12 text-right ${isRed ? 'text-red-400' : 'text-amber-400'}`}>
+                          {isRed ? 'CRIT' : 'PART'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs font-medium text-white/40">No gaps detected.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 3. Core Strengths */}
+        <Card className="bg-gradient-to-br from-[#334155]/30 to-[#0F172A] border-white/5 rounded-2xl hover:border-teal-500/20 transition-all group hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(13,148,136,0.15)] z-10 hover:z-20 relative">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold text-white/50 tracking-wider uppercase flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-teal-400" /> Core Strengths
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? null : student?.mastery_profile?.strengths?.length > 0 ? (
+              <div className="space-y-4 mt-1">
+                {student.mastery_profile.strengths.slice(0, 3).map((str: any, idx: number) => {
+                  const score = str.mastery_score || 90;
+                  return (
+                    <div key={idx} className="group/item cursor-default">
+                      <div className="flex justify-between items-end mb-1.5">
+                        <span className="text-sm font-semibold text-white/80 group-hover/item:text-white transition-colors truncate max-w-[200px]">{str.topic || str}</span>
+                        <span className="text-xs font-bold text-white/50">{score}%</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 w-full bg-[#0F172A] rounded-full overflow-hidden flex-1">
+                          <div 
+                            className="h-full rounded-full relative bg-gradient-to-r from-teal-600 to-teal-400" 
+                            style={{ width: `${score}%` }} 
+                          >
+                            <div className="absolute top-0 right-0 bottom-0 w-8 bg-white/20 animate-shimmer" />
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold uppercase w-12 text-right text-teal-400">
+                          MSTRD
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs font-medium text-white/40">Insufficient data.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── BOTTOM GRID: ACTION & SYSTEM ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 pb-2">
+        
+        {/* Session Planner */}
+        <div className="col-span-1 lg:col-span-2 relative p-[1px] rounded-2xl overflow-hidden group flex flex-col">
+          {/* Animated border effect */}
+          <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500 to-teal-500/0 group-hover:rotate-180 transition-transform duration-1000 ease-linear animate-pulse opacity-50" />
+          
+          <Card className="relative h-full bg-[#1e293b]/95 backdrop-blur-xl rounded-2xl border-none flex flex-col overflow-hidden">
+            <CardHeader className="shrink-0 pb-2">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-2 shadow-[0_0_10px_rgba(13,148,136,0.3)]">
+                    <Sparkles className="w-3 h-3" /> Peer Match
+                  </div>
+                  <CardTitle className="text-xl font-bold text-white">Session Planner</CardTitle>
+                  <p className="text-xs text-white/50 mt-1">
+                    Review the blueprint below and initialize matching.
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex-1 flex flex-col justify-between p-0 px-4 pb-4">
+              
+              {/* How this happens (Execution Plan) */}
+              <div className="flex-1 flex flex-col justify-center my-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 relative hover:border-teal-500/30 transition-all group/step shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
+                    <div className="absolute -top-3.5 left-4 px-2 py-0.5 bg-[#0F172A] border border-white/10 rounded-lg text-[11px] font-bold text-teal-400 group-hover/step:border-teal-500/40 transition-all">Step 1</div>
+                    <Target className="w-6 h-6 text-teal-400/50 mb-1 mt-1 group-hover/step:text-teal-400 transition-colors" />
+                    <h3 className="text-base font-black text-white mb-1 tracking-wide">Analyze Profile</h3>
+                    <p className="text-sm text-white/60 leading-tight font-medium">System instantly maps your critical gaps.</p>
+                  </div>
+                  <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 relative hover:border-teal-500/30 transition-all group/step shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
+                    <div className="absolute -top-3.5 left-4 px-2 py-0.5 bg-[#0F172A] border border-white/10 rounded-lg text-[11px] font-bold text-teal-400 group-hover/step:border-teal-500/40 transition-all">Step 2</div>
+                    <Users className="w-6 h-6 text-teal-400/50 mb-1 mt-1 group-hover/step:text-teal-400 transition-colors" />
+                    <h3 className="text-base font-black text-white mb-1 tracking-wide">Peer Matching</h3>
+                    <p className="text-sm text-white/60 leading-tight font-medium">Finds an active peer with verified mastery.</p>
+                  </div>
+                  <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 relative hover:border-teal-500/30 transition-all group/step shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
+                    <div className="absolute -top-3.5 left-4 px-2 py-0.5 bg-[#0F172A] border border-white/10 rounded-lg text-[11px] font-bold text-teal-400 group-hover/step:border-teal-500/40 transition-all">Step 3</div>
+                    <Play className="w-6 h-6 text-teal-400/50 mb-1 mt-1 group-hover/step:text-teal-400 transition-colors" />
+                    <h3 className="text-base font-black text-white mb-1 tracking-wide">Live Session</h3>
+                    <p className="text-sm text-white/60 leading-tight font-medium">Connect in a shared workspace to learn.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Area */}
+              <div className="shrink-0 space-y-3">
                 
-                <div className="text-right">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-400 font-bold">
-                    <Award className="w-4 h-4" /> Mastery Level 2
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <div className="h-2 w-full bg-[#0F172A] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-teal-600 to-teal-400 rounded-full w-[45%] relative">
-                    <div className="absolute top-0 right-0 bottom-0 w-8 bg-white/20 animate-shimmer" />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-white/40 mb-3 uppercase tracking-wider">Topics Status</p>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div className="flex items-center justify-between px-4 py-3 bg-[#334155]/30 border border-white/5 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
-                      </span>
-                      <span className="font-medium text-white/90 text-sm">Loops (45%)</span>
+                {/* Dynamic UI: Show Queue Stats when NOT matching/matched, otherwise show Match UI */}
+                {!matchResult && !matchLoading && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="px-3 py-2 rounded-xl bg-gradient-to-br from-[#334155]/30 to-[#0F172A] border border-white/10 flex flex-col items-center text-center shadow-lg">
+                      <span className="text-xs font-bold text-white/50 uppercase tracking-widest mb-0.5">Active Pool</span>
+                      <span className="font-black text-3xl text-white leading-none mt-1">24</span>
                     </div>
-                    <span className="text-xs font-bold text-teal-400">Current Focus</span>
-                  </div>
-
-                  <div className="flex items-center justify-between px-4 py-3 bg-white/5 border border-white/5 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2.5 h-2.5 rounded-full bg-white/20"></div>
-                      <span className="text-white/60 text-sm">Recursion (30%)</span>
+                    <div className="px-3 py-2 rounded-xl bg-gradient-to-br from-[#334155]/30 to-[#0F172A] border border-white/10 flex flex-col items-center text-center shadow-lg">
+                      <span className="text-xs font-bold text-white/50 uppercase tracking-widest mb-0.5">Avg Wait</span>
+                      <span className="font-black text-3xl text-white leading-none mt-1">45s</span>
+                    </div>
+                    <div className="px-3 py-2 rounded-xl bg-gradient-to-br from-[#334155]/30 to-[#0F172A] border border-white/10 flex flex-col items-center text-center shadow-lg">
+                      <span className="text-xs font-bold text-white/50 uppercase tracking-widest mb-0.5">Match Rate</span>
+                      <span className="font-black text-3xl text-teal-400 leading-none mt-1">92%</span>
                     </div>
                   </div>
+                )}
 
-                  <div className="flex items-center justify-between px-4 py-3 bg-green-500/10 border border-green-500/20 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
-                      <span className="text-green-400 font-medium text-sm">Arrays (92%)</span>
-                    </div>
-                    <span className="text-xs font-bold text-green-400">✓ Can teach</span>
-                  </div>
-
-                  <div className="flex items-center justify-between px-4 py-3 bg-white/5 border border-white/5 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <Lock className="w-3.5 h-3.5 text-white/30" />
-                      <span className="text-white/40 text-sm">Collections (Locked)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Current Focus */}
-          <div className="bg-[#334155]/30 border border-white/5 rounded-2xl p-6 lg:p-8 relative overflow-hidden group hover:bg-[#334155]/40 transition-colors">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 rounded-full blur-[60px] pointer-events-none group-hover:bg-teal-500/10 transition-all duration-500" />
-            
-            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <Target className="w-5 h-5 text-teal-400" /> YOUR CURRENT FOCUS: LOOPS
-            </h3>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-              <div className="bg-[#0F172A]/50 p-4 rounded-xl border border-white/5 text-center">
-                <p className="text-xs text-white/50 font-medium mb-1">Current Score</p>
-                <p className="text-2xl font-bold text-white">45%</p>
-              </div>
-              <div className="bg-[#0F172A]/50 p-4 rounded-xl border border-white/5 text-center">
-                <p className="text-xs text-white/50 font-medium mb-1">Target Score</p>
-                <p className="text-2xl font-bold text-teal-400">90%</p>
-              </div>
-              <div className="bg-[#0F172A]/50 p-4 rounded-xl border border-white/5 text-center">
-                <p className="text-xs text-white/50 font-medium mb-1">Sessions Done</p>
-                <p className="text-2xl font-bold text-white">2</p>
-              </div>
-              <div className="bg-[#0F172A]/50 p-4 rounded-xl border border-white/5 text-center">
-                <p className="text-xs text-white/50 font-medium mb-1">Needed Est.</p>
-                <p className="text-2xl font-bold text-[#B45309]">3</p>
-              </div>
-            </div>
-
-            <div className="bg-white/5 p-5 rounded-xl border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <p className="text-xs text-white/40 font-semibold mb-2 uppercase tracking-wider">Assigned Teacher for Loops</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 to-[#0F172A] border border-teal-500/30 flex items-center justify-center font-bold text-white shadow-lg">M</div>
-                  <div>
-                    <p className="font-bold text-white text-lg">Michael T.</p>
-                    <p className="text-sm text-teal-300 flex items-center gap-1.5"><Award className="w-3.5 h-3.5" /> Mastery in Loops: 95%</p>
-                  </div>
-                </div>
-              </div>
-              <div className="sm:text-right">
-                <p className="text-xs text-white/50 font-medium mb-1">Next Session</p>
-                <p className="text-base font-bold text-teal-400 bg-teal-500/10 px-3 py-1 rounded-lg border border-teal-500/20">Today at 3:00 PM</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Pending Sessions */}
-          <div>
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-[#B45309]" /> Pending Sessions
-            </h3>
-            <div className="space-y-4">
-              <div className="group p-5 bg-[#334155]/20 hover:bg-[#334155]/40 border border-white/5 hover:border-teal-500/30 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(13,148,136,0.1)] flex flex-col sm:flex-row items-center justify-between gap-6">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-3">
-                    Pair Session
-                  </div>
-                  <h4 className="font-bold text-white text-lg mb-1">Loops Deep Dive</h4>
-                  <p className="text-sm text-white/50">You are the <span className="text-white">LEARNER</span> | Teacher: Michael T.</p>
-                  <p className="text-sm font-semibold text-teal-400 mt-2 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" /> Ready to start
-                  </p>
-                </div>
-                <Link href="/peer-learning/pair-session" className="w-full sm:w-auto">
-                  <button className="w-full sm:w-auto px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(13,148,136,0.3)] hover:shadow-[0_0_25px_rgba(13,148,136,0.5)] flex items-center justify-center gap-2 hover:scale-105">
-                    <Play className="w-4 h-4 fill-current" /> Start Session
-                  </button>
-                </Link>
-              </div>
-
-              <div className="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-6 opacity-75">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#B45309]/10 border border-[#B45309]/20 text-[#B45309] text-[10px] font-bold tracking-wider uppercase mb-3">
-                    Group Session
-                  </div>
-                  <h4 className="font-bold text-white text-lg mb-1">Loops Coding Challenge</h4>
-                  <p className="text-sm text-white/50">Your Role: <span className="text-white">EXPLAINER</span> | Team: Alice, Bob</p>
-                  <p className="text-sm font-semibold text-[#B45309] mt-2 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" /> Waiting for team (2/3 ready)
-                  </p>
-                </div>
-                <button disabled className="w-full sm:w-auto px-6 py-3 bg-[#0F172A] border border-white/10 text-white/40 font-bold rounded-xl cursor-not-allowed">
-                  Waiting...
+                <button
+                  onClick={handleFindTeacher}
+                  disabled={matchLoading}
+                  className={`w-full py-3 bg-teal-600 text-white font-black text-base uppercase tracking-widest rounded-xl hover:bg-teal-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 ${!matchLoading ? 'hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(13,148,136,0.6)] shadow-[0_0_15px_rgba(13,148,136,0.3)]' : ''}`}
+                >
+                  {matchLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-[3px] border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Locating Peer...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Users className="w-5 h-5" />
+                      <span>Initialize Match</span>
+                    </>
+                  )}
                 </button>
+
+                {matchResult && (
+                  <div className="w-full animate-slide-up">
+                    <div className={`border rounded-xl overflow-hidden ${matchResult.status === 'matched' ? 'border-teal-500/30' : 'border-amber-500/30'}`}>
+                      <div className={`px-4 py-3 border-b flex justify-between items-center ${matchResult.status === 'matched' ? 'bg-teal-500/10 border-teal-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                        <div className="flex items-center gap-2">
+                          {matchResult.status === 'matched' ? <CheckCircle2 className="w-4 h-4 text-teal-400" /> : <Clock className="w-4 h-4 text-amber-400" />}
+                          <span className={`text-[11px] font-bold uppercase tracking-wider ${matchResult.status === 'matched' ? 'text-teal-400' : 'text-amber-400'}`}>
+                            {matchResult.status === 'matched' ? 'Match Established' : 'Queue Active'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-[#0F172A]/50">
+                        {matchResult.session_details && (
+                          <div className="space-y-2 mb-4">
+                            <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-bold text-white/40 uppercase">Target Topic</span>
+                              <span className="text-xs font-semibold text-white">{matchResult.session_details.topic_name}</span>
+                            </div>
+                            <div className="w-full h-px bg-white/10" />
+                            <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-bold text-white/40 uppercase">Peer ID</span>
+                              <span className="text-xs font-mono font-bold text-teal-400">{matchResult.teacher_details?.name || matchResult.partner?.student_id}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          {matchResult.status !== 'matched' ? (
+                            <>
+                              <button className="flex-1 py-2.5 bg-[#B45309]/10 hover:bg-[#B45309]/20 text-[#B45309] font-bold rounded-xl transition-colors border border-[#B45309]/30 text-xs uppercase tracking-wider">
+                                Hold Position
+                              </button>
+                              <button className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/80 font-bold rounded-xl transition-colors border border-white/5 text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+                                <Sparkles className="w-3 h-3" /> Connect Agent
+                              </button>
+                            </>
+                          ) : (
+                            <Link href="/peer-learning/pair-session" className="w-full">
+                              <button className="w-full py-3.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(13,148,136,0.3)] hover:shadow-[0_0_25px_rgba(13,148,136,0.5)] flex items-center justify-center gap-2">
+                                <Play className="w-4 h-4 fill-white" /> Connect Session
+                              </button>
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-          
+            </CardContent>
+          </Card>
         </div>
 
-        {/* ── SIDEBAR (COL 3) ── */}
-        <div className="space-y-6">
+        {/* System State */}
+        <div className="flex flex-col gap-6">
           
-          {/* Recent Activity */}
-          <div className="bg-[#334155]/30 border border-white/5 rounded-2xl p-6 hover:bg-[#334155]/40 transition-colors">
-            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-teal-400" /> Recent Activity
-            </h3>
-            <div className="space-y-6">
-              <div className="relative pl-4 border-l-2 border-teal-500/30">
-                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#0F172A] border-2 border-teal-500 flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+          {/* System Log */}
+          <Card className="bg-[#334155]/30 border-white/5 rounded-2xl flex-1 flex flex-col overflow-hidden hover:bg-[#334155]/40 transition-colors">
+            <CardHeader className="py-4 shrink-0 border-b border-white/5">
+              <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-teal-400" /> System Log
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-5">
+              <div className="space-y-5">
+                <div className="relative pl-5 border-l border-white/10">
+                  <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[#0F172A] border-2 border-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]" />
+                  <p className="text-[10px] font-bold text-white/40 mb-1">JUST NOW</p>
+                  <p className="text-sm text-white/80 font-medium">Dashboard initialized</p>
                 </div>
-                <p className="text-xs text-teal-400 font-bold mb-1">April 22, 2026</p>
-                <h4 className="font-bold text-white mb-1">Pair Session on Loops</h4>
-                <p className="text-xs text-white/50 mb-3">Your Score: 85% | Teacher Score: 92%</p>
-                <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl text-xs text-teal-100 font-medium italic">
-                  "Great improvement! Your off-by-one errors are fixed."
+                <div className="relative pl-5 border-l border-white/10">
+                  <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[#0F172A] border-2 border-white/40" />
+                  <p className="text-[10px] font-bold text-white/40 mb-1">SYSTEM</p>
+                  <p className="text-sm text-white/50">Waiting for peer connection event...</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="relative pl-4 border-l-2 border-white/10">
-                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#0F172A] border-2 border-white/20" />
-                <p className="text-xs text-white/40 font-bold mb-1">April 20, 2026</p>
-                <h4 className="font-bold text-white mb-1">Group Session on Arrays</h4>
-                <p className="text-xs text-white/50 mb-1">Your Score: 92% | Role: SOLVER</p>
-                <p className="text-xs text-white/50">Team Score: 88%</p>
-              </div>
-
-              <div className="relative pl-4 border-l-2 border-white/10">
-                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#0F172A] border-2 border-white/20" />
-                <p className="text-xs text-white/40 font-bold mb-1">April 18, 2026</p>
-                <h4 className="font-bold text-white mb-1">Pair Session on Loops</h4>
-                <p className="text-xs text-white/50 mb-3">Your Score: 70% | Teacher Score: 88%</p>
-                <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-white/60 font-medium italic">
-                  "Good attempt. Focus on loop conditions."
+          {/* Notifications */}
+          <Card className="bg-[#334155]/30 border-white/5 rounded-2xl flex-1 flex flex-col overflow-hidden hover:bg-[#334155]/40 transition-colors">
+            <CardHeader className="py-4 shrink-0 border-b border-white/5 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400" /> Notifications
+              </CardTitle>
+              <span className="px-2 py-0.5 rounded-md bg-white/10 text-white/70 text-[10px] font-bold">{notifications.length}</span>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-5">
+              {notifications.length > 0 ? (
+                <div className="space-y-3">
+                  {notifications.map((notif: any, idx: number) => (
+                    <div key={idx} className="p-3.5 border border-white/5 rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1e293b] shadow-sm">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] font-bold tracking-wider text-teal-400">MSG_ID: {idx}</span>
+                        {notif.created_at && (
+                          <span className="text-[10px] font-medium text-white/40">
+                            {new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-white/70 leading-relaxed">{notif.message || JSON.stringify(notif)}</p>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recommended Knowledge Preview */}
-          <div className="bg-[#334155]/30 border border-white/5 rounded-2xl p-6 hover:bg-[#334155]/40 transition-colors">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-[#B45309]" /> Recommendations
-              </h3>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="p-4 rounded-xl bg-[#0F172A]/50 border border-white/5 hover:border-teal-500/30 transition-all cursor-pointer group">
-                <h4 className="font-bold text-white text-sm mb-1.5 group-hover:text-teal-400 transition-colors">How to Fix Off-by-One Errors in Loops</h4>
-                <p className="text-xs text-white/50 mb-3 font-medium">By STU2102 | 127 found helpful</p>
-                <div className="text-xs font-bold text-teal-400 group-hover:underline">Read Now →</div>
-              </div>
-              <div className="p-4 rounded-xl bg-[#0F172A]/50 border border-white/5 hover:border-teal-500/30 transition-all cursor-pointer group">
-                <h4 className="font-bold text-white text-sm mb-1.5 group-hover:text-teal-400 transition-colors">Understanding Nested Loops</h4>
-                <p className="text-xs text-white/50 mb-3 font-medium">By STU2106 | 89 found helpful</p>
-                <div className="text-xs font-bold text-teal-400 group-hover:underline">Read Now →</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Verified Pools Status */}
-          <div className="bg-[#334155]/30 border border-white/5 rounded-2xl p-6 hover:bg-[#334155]/40 transition-colors">
-            <h3 className="text-lg font-bold text-white mb-6">Verified Teaching Pools</h3>
-            <div className="space-y-5">
-              <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-white flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-teal-400" /> Arrays</span>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-teal-400 px-2 py-0.5 rounded bg-teal-500/10">Verified</span>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-3">
+                    <MessageSquare className="w-5 h-5 text-white/30" />
+                  </div>
+                  <p className="text-xs font-bold text-white/40">No active alerts.</p>
                 </div>
-                <p className="text-xs text-teal-100/60 mb-3 font-medium">Students taught: 2 | Avg score: 90%</p>
-                <button className="w-full text-xs font-bold bg-[#0F172A] border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 py-2 rounded-lg transition-colors">
-                  View Teaching Assignments
-                </button>
-              </div>
-              
-              <div className="px-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-sm text-white/80">Loops</span>
-                  <span className="text-[10px] text-white/40 font-bold">Needs 45% more</span>
-                </div>
-              </div>
-              
-              <div className="px-2">
-                <div className="flex items-center gap-2 opacity-50">
-                  <Lock className="w-4 h-4 text-white/40" />
-                  <span className="font-bold text-sm text-white/60">Recursion</span>
-                </div>
-                <p className="text-[10px] text-white/40 ml-6 mt-1 font-medium">Locked until Loops mastered</p>
-              </div>
-            </div>
-          </div>
-
+              )}
+            </CardContent>
+          </Card>
         </div>
+
       </div>
     </div>
   );
