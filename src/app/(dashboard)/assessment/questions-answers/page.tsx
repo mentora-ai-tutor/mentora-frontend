@@ -374,9 +374,11 @@ export default function QuestionsAnswersPage() {
                                     }
                                     <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Your Answer</span>
                                   </div>
-                                  <p className={`text-sm ${item.is_correct ? "text-emerald-300" : "text-red-300"}`}>
-                                    {item.learner_answer || "Not answered"}
-                                  </p>
+                                  {item.type === 'coding_challenge' || item.type === 'code_completion' || item.type === 'code_tracing' || item.type === 'debugging' ? (
+                                    <pre className={`text-xs font-mono whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto ${item.is_correct ? "text-emerald-300" : "text-red-300"}`}>{item.learner_answer || "Not answered"}</pre>
+                                  ) : (
+                                    <p className={`text-sm ${item.is_correct ? "text-emerald-300" : "text-red-300"}`}>{item.learner_answer || "Not answered"}</p>
+                                  )}
                                 </div>
 
                                 {!item.is_correct && (
@@ -385,7 +387,11 @@ export default function QuestionsAnswersPage() {
                                       <CheckCircle className="w-4 h-4 text-emerald-400" />
                                       <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">Correct Answer</span>
                                     </div>
-                                    <p className="text-sm text-emerald-300">{item.correct_answer}</p>
+                                    {item.type === 'coding_challenge' || item.type === 'code_completion' || item.type === 'code_tracing' || item.type === 'debugging' ? (
+                                      <pre className="text-xs font-mono whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto text-emerald-300">{item.correct_answer}</pre>
+                                    ) : (
+                                      <p className="text-sm text-emerald-300">{item.correct_answer}</p>
+                                    )}
                                   </div>
                                 )}
 
