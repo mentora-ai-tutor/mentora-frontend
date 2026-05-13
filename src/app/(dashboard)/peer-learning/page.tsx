@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, MessageSquare, CheckCircle2, Play, Clock, Target, Sparkles, Terminal, AlertCircle, Award, Zap } from "lucide-react";
+import { Users, MessageSquare, CheckCircle2, Play, Clock, Target, Sparkles, Terminal, AlertCircle, Award, Zap, LogIn } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { peerLearningApi } from "@/lib/api/peerLearning";
 
-// Shadcn UI Components
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 
 const MasteryRing = ({ percentage }: { percentage: number }) => {
   const radius = 32;
@@ -44,15 +44,19 @@ const MasteryRing = ({ percentage }: { percentage: number }) => {
 };
 
 export default function PeerLearningDashboard() {
+  const router = useRouter();
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [matchResult, setMatchResult] = useState<any>(null);
   const [matchLoading, setMatchLoading] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [acceptingNotif, setAcceptingNotif] = useState<string | null>(null);
 
   useEffect(() => {
     loadStudent();
     loadNotifications();
+    const interval = setInterval(loadNotifications, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadStudent = async () => {
@@ -77,6 +81,15 @@ export default function PeerLearningDashboard() {
     const result = await peerLearningApi.findTeacher();
     setMatchResult(result);
     setMatchLoading(false);
+  };
+
+  const handleAcceptNotification = async (notificationId: string, sessionId: string) => {
+    setAcceptingNotif(notificationId);
+    const result = await peerLearningApi.acceptNotification(notificationId);
+    setAcceptingNotif(null);
+    if (result?.session_id) {
+      router.push(`/peer-learning/pair-session?sessionId=${result.session_id}`);
+    }
   };
 
   const overallMastery = student?.mastery_profile?.overall_mastery_score || student?.stats?.overall_mastery_score || 0;
@@ -366,7 +379,10 @@ export default function PeerLearningDashboard() {
                               </button>
                             </>
                           ) : (
-                            <Link href="/peer-learning/pair-session" className="w-full">
+                            <Link
+                              href={`/peer-learning/pair-session?sessionId=${matchResult.session_id}`}
+                              className="w-full"
+                            >
                               <button className="w-full py-3.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(13,148,136,0.3)] hover:shadow-[0_0_25px_rgba(13,148,136,0.5)] flex items-center justify-center gap-2">
                                 <Play className="w-4 h-4 fill-white" /> Connect Session
                               </button>
@@ -419,19 +435,54 @@ export default function PeerLearningDashboard() {
             <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-5">
               {notifications.length > 0 ? (
                 <div className="space-y-3">
-                  {notifications.map((notif: any, idx: number) => (
-                    <div key={idx} className="p-3.5 border border-white/5 rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1e293b] shadow-sm">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-[10px] font-bold tracking-wider text-teal-400">MSG_ID: {idx}</span>
-                        {notif.created_at && (
-                          <span className="text-[10px] font-medium text-white/40">
-                            {new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  {notifications.map((notif: any, idx: number) => {
+                    const isJoinNotif = notif.action === "join_session" || notif.type === "pairing_success";
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-3.5 border rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1e293b] shadow-sm ${
+                          isJoinNotif ? 'border-teal-500/30' : 'border-white/5'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span className={`text-[10px] font-bold tracking-wider ${isJoinNotif ? 'text-teal-400' : 'text-white/40'}`}>
+                            {isJoinNotif ? 'SESSION READY' : `MSG_ID: ${idx}`}
                           </span>
+                          <div className="flex items-center gap-2">
+                            {notif.scheduled_at && (
+                              <span className="text-[10px] font-medium text-amber-400/70">
+                                <Clock className="w-3 h-3 inline mr-1" />
+                                {new Date(notif.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                            {notif.created_at && (
+                              <span className="text-[10px] font-medium text-white/40">
+                                {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-white/70 leading-relaxed mb-2">{notif.message}</p>
+                        {isJoinNotif && notif.session_id && (
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleAcceptNotification(notif.notification_id, notif.session_id)}
+                              disabled={acceptingNotif === notif.notification_id}
+                              size="sm"
+                              className="w-full bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold h-8"
+                            >
+                              {acceptingNotif === notif.notification_id ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1" />
+                              ) : (
+                                <LogIn className="w-3.5 h-3.5 mr-1.5" />
+                              )}
+                              {notif.action_label || "Join Session"}
+                            </Button>
+                          </div>
                         )}
                       </div>
-                      <p className="text-xs text-white/70 leading-relaxed">{notif.message || JSON.stringify(notif)}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center">

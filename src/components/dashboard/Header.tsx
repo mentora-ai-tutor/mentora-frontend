@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Bell, LogOut, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { peerLearningApi } from "@/lib/api/peerLearning";
 
 interface HeaderProps {
   scrolled: boolean;
@@ -16,6 +17,17 @@ interface HeaderProps {
 export default function Header({ scrolled, mounted, onProfileToggle, profileOpen }: HeaderProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      const count = await peerLearningApi.getUnreadNotificationCount();
+      setUnreadCount(count);
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className={`h-16 flex items-center justify-between px-4 lg:px-8 border-b border-transparent transition-all duration-300 z-30
@@ -38,7 +50,13 @@ export default function Header({ scrolled, mounted, onProfileToggle, profileOpen
           className="relative p-2 rounded-full text-white/60 hover:text-teal-400 hover:bg-white/5 transition-all"
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B45309] shadow-[0_0_8px_rgba(180,83,9,0.8)] animate-pulse" />
+          {unreadCount > 0 ? (
+            <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#B45309] text-white text-[10px] font-black shadow-[0_0_8px_rgba(180,83,9,0.8)]">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          ) : (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-white/20" />
+          )}
         </Link>
 
         <div className="h-6 w-px bg-white/10" />

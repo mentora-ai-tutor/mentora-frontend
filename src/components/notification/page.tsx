@@ -3,66 +3,44 @@
 import React from "react";
 import { Bell, Users, Clock, ArrowRight, CheckCircle2, MessageSquare } from "lucide-react";
 
+export type NotificationType = "pairing_success" | "queue_entry" | "no_teachers_available" | "knowledge_gap_completed";
+
 export interface Notification {
-  _id: string;
   notification_id: string;
   student_id: string;
-  type: "queue_entry" | "pairing_success";
+  type: NotificationType;
   message: string;
   queue_id?: string;
   session_id?: string;
   topic_name: string;
-  role?: "learner" | "teacher";
+  role?: string;
   peer_id?: string;
+  action?: string;
+  action_label?: string;
   created_at: string;
   status: "unread" | "read";
 }
 
-export const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    _id: "69f86aa9f3852f24af2bfa9c",
-    notification_id: "N-01KQS619",
-    student_id: "STU-2026-2124",
-    type: "pairing_success",
-    message: "Your peer learning session for Generics is starting! You are paired as a learner.",
-    session_id: "PS-01KQS619",
-    topic_name: "Generics",
-    role: "learner",
-    peer_id: "STU-2026-2128",
-    created_at: "2026-05-04T09:45:13.625+00:00",
-    status: "unread"
-  },
-  {
-    _id: "69f86a4af3852f24af2bfa96",
-    notification_id: "N-01KQS5YC",
-    student_id: "STU-2026-2124",
-    type: "queue_entry",
-    message: "No immediate match found for Generics. You've been added to the waiting queue.",
-    queue_id: "WQ-01KQS5YC",
-    topic_name: "Generics",
-    created_at: "2026-05-04T09:43:38.318+00:00",
-    status: "unread"
-  }
-];
-
 export interface NotificationItemProps {
   notification: Notification;
+  onAccept?: (notification: Notification) => void;
+  onMarkRead?: (notification: Notification) => void;
 }
 
-export const NotificationItem: React.FC<NotificationItemProps> = ({ notification }) => {
+export const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onAccept, onMarkRead }) => {
   const isPairingSuccess = notification.type === "pairing_success";
   const date = new Date(notification.created_at).toLocaleString();
 
   return (
-    <div 
-      className={`group relative p-5 rounded-2xl border transition-all duration-300 overflow-hidden
+    <div
+      onClick={() => notification.status === 'unread' && onMarkRead?.(notification)}
+      className={`group relative p-5 rounded-2xl border transition-all duration-300 overflow-hidden cursor-pointer
         ${notification.status === 'unread' 
           ? 'bg-teal-500/5 border-teal-500/20 shadow-[0_0_20px_rgba(20,184,166,0.05)]' 
           : 'bg-white/5 border-white/10 opacity-80'}
         hover:border-teal-500/40 hover:shadow-[0_0_30px_rgba(20,184,166,0.1)] hover:scale-[1.01]
       `}
     >
-      {/* Status Glow */}
       {notification.status === 'unread' && (
         <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-[#B45309] shadow-[0_0_8px_rgba(180,83,9,0.8)] animate-pulse" />
       )}
@@ -80,7 +58,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notification
           <div className="flex items-start justify-between">
             <div>
               <h3 className="font-bold text-white group-hover:text-teal-400 transition-colors">
-                {isPairingSuccess ? "Pairing Success!" : "Added to Queue"}
+                {isPairingSuccess ? "Pairing Success!" : notification.type === "no_teachers_available" ? "No Teachers Available" : notification.type === "knowledge_gap_completed" ? "Gap Completed" : "Added to Queue"}
               </h3>
               <p className="text-xs text-white/40 mt-0.5 flex items-center gap-1.5">
                 <Clock className="w-3 h-3" /> {date}
@@ -107,9 +85,12 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notification
                   {notification.role}
                 </span>
               </div>
-              
-              <button className="w-full sm:w-auto group/btn flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-[#0F172A] font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(20,184,166,0.3)] hover:shadow-[0_0_25px_rgba(20,184,166,0.5)] active:scale-95">
-                Start Session
+
+              <button
+                onClick={(e) => { e.stopPropagation(); onAccept?.(notification); }}
+                className="w-full sm:w-auto group/btn flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-[#0F172A] font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(20,184,166,0.3)] hover:shadow-[0_0_25px_rgba(20,184,166,0.5)] active:scale-95"
+              >
+                {notification.action_label || "Start Session"}
                 <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
               </button>
             </div>
@@ -120,7 +101,11 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notification
   );
 };
 
-export const NotificationList: React.FC<{ notifications: Notification[] }> = ({ notifications }) => {
+export const NotificationList: React.FC<{
+  notifications: Notification[];
+  onAccept?: (notification: Notification) => void;
+  onMarkRead?: (notification: Notification) => void;
+}> = ({ notifications, onAccept, onMarkRead }) => {
   if (notifications.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-4 text-center space-y-4">
@@ -140,7 +125,7 @@ export const NotificationList: React.FC<{ notifications: Notification[] }> = ({ 
   return (
     <div className="space-y-4">
       {notifications.map((notif) => (
-        <NotificationItem key={notif._id} notification={notif} />
+        <NotificationItem key={notif.notification_id} notification={notif} onAccept={onAccept} onMarkRead={onMarkRead} />
       ))}
     </div>
   );
