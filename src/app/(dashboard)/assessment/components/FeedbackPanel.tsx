@@ -134,7 +134,7 @@ export default function FeedbackPanel({
             <div className="space-y-6">
               <div>
                 <h4 className="text-sm font-semibold text-teal-400 uppercase tracking-wider mb-2">The Question</h4>
-                <p className="text-lg text-white leading-relaxed">
+                <p className="text-base text-white leading-relaxed">
                   {data.question_text || "Question text not available."}
                 </p>
               </div>

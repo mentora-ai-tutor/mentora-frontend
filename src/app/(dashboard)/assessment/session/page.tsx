@@ -875,9 +875,9 @@ export default function SessionPage() {
               <Card className="bg-[#1e293b]/90 backdrop-blur-xl border-white/5 shadow-xl">
                 <CardContent className="p-8">
                   <div className="mb-8">
-                    <h2 className="text-xl lg:text-2xl font-bold text-white leading-relaxed">
-                      {sessionData.currentQuestion.text}
-                    </h2>
+                      <h2 className="text-base font-medium text-white leading-relaxed">
+                        {sessionData.currentQuestion.text}
+                      </h2>
                   </div>
 
                   {sessionData.currentQuestion.code_snippet && (
@@ -895,7 +895,7 @@ export default function SessionPage() {
                           Copy
                         </button>
                       </div>
-                      <pre className="p-4 text-emerald-400 text-sm overflow-x-auto font-mono">
+                      <pre className="p-4 text-emerald-400 text-sm overflow-x-auto font-mono whitespace-pre-wrap break-words leading-relaxed">
                         <code>{sessionData.currentQuestion.code_snippet}</code>
                       </pre>
                     </div>
