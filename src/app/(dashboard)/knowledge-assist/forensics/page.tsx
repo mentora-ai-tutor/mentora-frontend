@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -152,7 +153,10 @@ export default function KnowledgeAssistForensicsPage() {
   }, [githubLinked, isLoading]);
 
   useEffect(() => {
-    const targetJobId = reviewJobId ?? (githubLinked ? activeReview?.jobId : undefined);
+    const targetJobId =
+      activeReview?.status === "running"
+        ? activeReview.jobId
+        : reviewJobId ?? (githubLinked ? activeReview?.jobId : undefined);
     if (!targetJobId || isLoading || !githubLinked) return;
 
     let cancelled = false;
@@ -220,10 +224,15 @@ export default function KnowledgeAssistForensicsPage() {
 
     setRunningReview(true);
     setError(null);
+    setSandboxRedirect(null);
     try {
       const nextJob = await reviewApi.reviewTopFive(selectedRepos);
+      const nextForensicsHref = `/knowledge-assist/forensics?reviewJobId=${encodeURIComponent(
+        nextJob.job_id,
+      )}`;
       setJob(nextJob);
       trackReviewJob(nextJob);
+      router.replace(nextForensicsHref, { scroll: false });
       setSandboxRedirect({
         href: sandboxHref(nextJob.job_id, "forensics-review"),
         jobId: nextJob.job_id,
@@ -435,7 +444,7 @@ export default function KnowledgeAssistForensicsPage() {
             {runningReview
               ? "Starting Mentora review..."
               : sandboxRedirect
-                ? "Review successfully commenced"
+                ? "Review started"
                 : activeReviewIsRunning
                   ? "Mentora review running..."
                   : "Run Mentora Expert Review"}
@@ -505,7 +514,11 @@ export default function KnowledgeAssistForensicsPage() {
       {sandboxRedirect && (
         <ReviewStartedDialog
           jobId={sandboxRedirect.jobId}
-          onConfirm={() => router.push(sandboxRedirect.href)}
+          onConfirm={() => {
+            const target = sandboxRedirect.href;
+            setSandboxRedirect(null);
+            router.push(target, { scroll: false });
+          }}
         />
       )}
     </div>
@@ -609,13 +622,16 @@ function ReviewStartedDialog({
   jobId: string;
   onConfirm: () => void;
 }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex min-h-dvh items-center justify-center overflow-y-auto bg-black/75 p-4 backdrop-blur-md">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="review-started-title"
-        className="w-full max-w-lg rounded-2xl border border-cyan-400/30 bg-[#111827] p-6 shadow-[0_0_40px_rgba(34,211,238,0.22)]"
+        aria-describedby="review-started-description"
+        className="my-auto w-full max-w-lg rounded-2xl border border-cyan-400/30 bg-[#111827] p-6 shadow-[0_0_40px_rgba(34,211,238,0.22)]"
       >
         <div className="flex items-start gap-4">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/35 bg-cyan-300/10 text-cyan-200">
@@ -623,15 +639,14 @@ function ReviewStartedDialog({
           </span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300">
-              Review started
+              Review queued
             </p>
             <h2 id="review-started-title" className="mt-1 text-2xl font-black text-white">
-              Mentora review process has successfully commenced
+              Continue in Sandbox
             </h2>
-            <p className="mt-3 text-sm leading-6 text-white/65">
-              You are about to leave Forensics and enter the Sandbox environment.
-              You can test your Java knowledge there while your GitHub repositories
-              are being reviewed in the background.
+            <p id="review-started-description" className="mt-3 text-sm leading-6 text-white/65">
+              Your repository review is running in the background. Open Sandbox to keep
+              practicing while the analysis completes.
             </p>
             <p className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/45">
               Job ID: {jobId}
@@ -650,7 +665,8 @@ function ReviewStartedDialog({
           </button>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -723,19 +739,15 @@ function RepoReport({
 
           {repo.review.errors.length > 0 && (
             <div className="overflow-hidden rounded-lg border border-white/10">
-              <table className="w-full text-sm">
-                <thead className="bg-[#111827] text-xs uppercase text-white/40">
-                  <tr>
-                    <th className="p-3 text-left">Severity</th>
-                    <th className="p-3 text-left">Location</th>
-                    <th className="p-3 text-left">Finding</th>
-                    <th className="p-3 text-left">Fix hint</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {repo.review.errors.map((item, index) => (
-                    <tr key={`${item.file}-${index}`} className="border-t border-white/5 align-top">
-                      <td className="p-3">
+              <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-3 bg-[#111827] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/40">
+                <span>Severity</span>
+                <span>Review details</span>
+              </div>
+              <div className="divide-y divide-white/5">
+                {repo.review.errors.map((item, index) => (
+                  <div key={`${item.file}-${item.line ?? "line"}-${index}`} className="p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                      <div className="shrink-0 sm:w-20">
                         <span
                           className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${
                             severityStyle[item.severity]
@@ -743,17 +755,39 @@ function RepoReport({
                         >
                           {item.severity}
                         </span>
-                      </td>
-                      <td className="p-3 font-mono text-xs text-white/60">
-                        {item.file}
-                        {item.line ? `:${item.line}` : ""}
-                      </td>
-                      <td className="p-3 text-white/75">{item.why}</td>
-                      <td className="p-3 text-cyan-100/80">{item.fix_hint}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/35">
+                          Location
+                        </p>
+                        <p className="mt-1 break-all font-mono text-xs leading-5 text-white/60">
+                          {item.file}
+                          {item.line ? `:${item.line}` : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/35">
+                          Finding
+                        </p>
+                        <p className="mt-1 break-words text-sm leading-6 text-white/75">
+                          {item.why}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/35">
+                          Fix hint
+                        </p>
+                        <p className="mt-1 break-words text-sm leading-6 text-cyan-100/80">
+                          {item.fix_hint}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
