@@ -89,6 +89,74 @@ export interface KnowledgeProfile {
   }>;
 }
 
+export interface SubskillDiagnosis {
+  subskill: string;
+  subskill_id: string;
+  status: "weak" | "mastered";
+  evidence?: string | null;
+  recommended_content_focus?: string | null;
+}
+
+export interface SuggestedIntervention {
+  primary: string;
+  secondary: string[];
+  difficulty_level: string;
+  estimated_time_minutes: number;
+  learning_objectives: string[];
+}
+
+export interface KnowledgeGap {
+  topic: string;
+  topic_id: string;
+  gap_type: "FUNDAMENTAL_GAP" | "PARTIAL_GAP" | "SURFACE_GAP";
+  confidence: number;
+  mastery_score: number;
+  weak_subskills: SubskillDiagnosis[];
+  known_subskills: SubskillDiagnosis[];
+  misconceptions: string[];
+  observed_error_patterns: Record<string, string[]>;
+  evidence_summary: string;
+  prerequisite_topics: string[];
+  related_topics: string[];
+  suggested_intervention: SuggestedIntervention;
+}
+
+export interface Strength {
+  topic: string;
+  topic_id: string;
+  confidence: number;
+  mastery_score: number;
+  mastery_level: "beginner" | "proficient" | "advanced";
+  evidence_summary: string;
+  known_subskills: SubskillDiagnosis[];
+  can_teach_others: boolean;
+}
+
+export interface CanonicalMasteryProfile {
+  profile_id?: string;
+  schema_version: string;
+  student_id: string;
+  analysis_timestamp: string;
+  data_sources: Record<string, string>;
+  mastery_profile: {
+    overall_mastery_score: number;
+    knowledge_gaps: KnowledgeGap[];
+    strengths: Strength[];
+  };
+  recommendations: {
+    priority_order?: string[];
+    general_advice?: string;
+    for_instructor?: string;
+    [key: string]: unknown;
+  };
+  overall_mastery_score: number;
+  knowledge_gaps: KnowledgeGap[];
+  strengths: Strength[];
+  gap_topic_ids: string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 const authHeaders = (): HeadersInit => {
   const token = authApi.getAccessToken();
   return {
@@ -134,5 +202,15 @@ export const knowledgeProfileApi = {
       },
     );
     return unwrap<SandboxAttempt>(res);
+  },
+
+  async getLatestMasteryProfile(studentId: string): Promise<CanonicalMasteryProfile> {
+    const res = await fetch(
+      `${KNOWLEDGE_API_BASE_URL}/api/v1/mastery-profiles/${encodeURIComponent(studentId)}/latest`,
+      {
+        headers: authHeaders(),
+      },
+    );
+    return unwrap<CanonicalMasteryProfile>(res);
   },
 };

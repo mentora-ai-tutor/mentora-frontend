@@ -31,6 +31,14 @@ interface ApiEnvelope<T> {
 }
 
 const unwrap = async <T>(res: Response): Promise<T> => {
+  if (res.status === 304) {
+    const err = new Error("GitHub status response was cached without a body") as Error & {
+      status?: number;
+    };
+    err.status = res.status;
+    throw err;
+  }
+
   const body = (await res.json()) as ApiEnvelope<T>;
   if (!res.ok || !body.success) {
     const msg = body.error || body.message || `HTTP ${res.status}`;
@@ -46,6 +54,7 @@ export const githubApi = {
   async oauthStart(): Promise<GithubStartResponse> {
     const res = await fetch(`${API_BASE_URL}/api/github/oauth/start`, {
       headers: { ...authHeader() },
+      cache: 'no-store',
     });
     return unwrap<GithubStartResponse>(res);
   },
@@ -53,6 +62,7 @@ export const githubApi = {
   async getStatus(): Promise<GithubStatusResponse> {
     const res = await fetch(`${API_BASE_URL}/api/github/status`, {
       headers: { ...authHeader() },
+      cache: 'no-store',
     });
     return unwrap<GithubStatusResponse>(res);
   },
@@ -61,6 +71,7 @@ export const githubApi = {
     const res = await fetch(`${API_BASE_URL}/api/github/unlink`, {
       method: 'POST',
       headers: { ...authHeader() },
+      cache: 'no-store',
     });
     return unwrap<{ linked: false }>(res);
   },
