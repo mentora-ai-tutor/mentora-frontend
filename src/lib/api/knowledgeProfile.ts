@@ -45,6 +45,38 @@ export interface SandboxAttempt {
   created_at: string;
 }
 
+export interface QuizTopicPerformance {
+  topic: string;
+  correct: number;
+  total: number;
+  avg_time_seconds: number;
+  retry_count: number;
+}
+
+export interface QuizQuestionResult {
+  qid: string;
+  topic: string;
+  difficulty: "easy" | "medium" | "hard";
+  type: "mcq" | "predict_output";
+  correct: boolean;
+  chosen_option_id: string;
+  time_seconds: number;
+}
+
+export interface QuizResultSummary {
+  result_id: string;
+  session_id: string;
+  public_student_id?: string;
+  mode: string;
+  score_percent: number;
+  correct: number;
+  total: number;
+  difficulty_reached: "easy" | "medium" | "hard";
+  topic_performance: QuizTopicPerformance[];
+  questions: QuizQuestionResult[];
+  completed_at?: string;
+}
+
 export interface KnowledgeProfile {
   student_id: string;
   public_student_id: string;
@@ -76,10 +108,25 @@ export interface KnowledgeProfile {
       latest_at?: string;
     }>;
   };
+  quiz_summary: {
+    total_quizzes: number;
+    avg_score: number;
+    best_score: number;
+    latest_score: number;
+    questions_answered: number;
+    questions_correct: number;
+    topic_mastery: Array<{
+      topic: string;
+      correct: number;
+      total: number;
+      accuracy_percent: number;
+    }>;
+  };
   latest_reviews: ReviewJob[];
   latest_sandbox_attempts: SandboxAttempt[];
+  latest_quiz_results: QuizResultSummary[];
   timeline: Array<{
-    type: "github_review" | "sandbox_attempt";
+    type: "github_review" | "sandbox_attempt" | "quiz";
     id: string;
     label: string;
     time?: string;
