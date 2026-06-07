@@ -3,18 +3,22 @@
 import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  Activity,
   AlertCircle,
   ArrowRight,
-  CheckCircle2,
+  Brain,
   CircleDashed,
   Code2,
   GitBranch,
   RefreshCw,
   Sparkles,
+  Target,
   TerminalSquare,
+  Trophy,
 } from "lucide-react";
 import {
   KnowledgeProfile,
+  QuizResultSummary,
   SandboxAttempt,
   knowledgeProfileApi,
 } from "@/lib/api/knowledgeProfile";
@@ -29,7 +33,20 @@ const statusTone = {
   error: "border-red-400/30 bg-red-400/10 text-red-200",
 } as const;
 
-const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+const difficultyTone: Record<string, string> = {
+  easy: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+  medium: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
+  hard: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+};
+
+const pct01 = (value: number) => `${Math.round((value ?? 0) * 100)}%`;
+const pct100 = (value: number) => `${Math.round(value ?? 0)}%`;
+
+function toneFor(pct: number) {
+  if (pct >= 70) return { text: "text-emerald-300", bar: "from-emerald-500 to-teal-400" };
+  if (pct >= 40) return { text: "text-amber-300", bar: "from-amber-500 to-amber-400" };
+  return { text: "text-rose-300", bar: "from-rose-500 to-rose-400" };
+}
 
 const formatDateTime = (value?: string) => {
   if (!value) return "Not recorded";
@@ -43,11 +60,6 @@ const formatDateTime = (value?: string) => {
   });
 };
 
-const codePreview = (value?: string) => {
-  if (!value) return "No code captured.";
-  return value.length > 520 ? `${value.slice(0, 520)}\n...` : value;
-};
-
 export default function KnowledgeAssistPage() {
   const [profile, setProfile] = useState<KnowledgeProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,15 +70,12 @@ export default function KnowledgeAssistPage() {
     if (mode === "initial") setLoading(true);
     if (mode === "refresh") setRefreshing(true);
     setError(null);
-
     try {
       const next = await knowledgeProfileApi.getMine();
       setProfile(next);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Could not load the knowledge profile evidence.",
+        err instanceof Error ? err.message : "Could not load the knowledge profile evidence.",
       );
     } finally {
       setLoading(false);
@@ -80,7 +89,7 @@ export default function KnowledgeAssistPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[420px] items-center justify-center">
+      <div className="flex min-h-[460px] items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#1e293b]/55 px-5 py-4 text-white/65">
           <CircleDashed className="h-5 w-5 animate-spin text-cyan-300" />
           Loading knowledge profile...
@@ -91,33 +100,42 @@ export default function KnowledgeAssistPage() {
 
   const review = profile?.review_summary;
   const sandbox = profile?.sandbox_summary;
+  const quiz = profile?.quiz_summary;
+  const quizResults = profile?.latest_quiz_results ?? [];
+  const hasAnyEvidence =
+    !!profile &&
+    ((review?.jobs ?? 0) > 0 ||
+      (sandbox?.total_attempts ?? 0) > 0 ||
+      (quiz?.total_quizzes ?? 0) > 0);
 
   return (
-    <div className="space-y-4 pb-4">
-      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300">
+    <div className="space-y-5 pb-8">
+      {/* ── HERO ── */}
+      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#10241f] via-[#101c2b] to-[#0F172A] p-6">
+        <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-teal-400/25 bg-teal-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-teal-200">
+              <Sparkles className="h-3.5 w-3.5" />
               Knowledge Profile
-            </p>
-            <h1 className="mt-1 text-2xl font-black text-white md:text-3xl">
-              Saved learning evidence
+            </span>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-white md:text-4xl">
+              Your learning evidence
             </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/60">
-              GitHub review results and Sandbox Java attempts are saved here as
-              profile evidence. This is the layer your future AI terminal can read
-              to explain progress, weaknesses, and next practice tasks.
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              Quiz performance, GitHub reviews, and Sandbox attempts — synthesised into one
+              profile your AI tutor reads to explain progress, weaknesses, and what to practice next.
             </p>
           </div>
-
           <button
             type="button"
             onClick={() => void loadProfile("refresh")}
             disabled={refreshing}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-bold text-cyan-100 transition-all hover:bg-cyan-400/15 disabled:cursor-wait disabled:opacity-60"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-teal-400/30 bg-gradient-to-r from-teal-500/20 to-cyan-500/20 px-4 py-2.5 text-sm font-bold text-teal-50 transition-all hover:from-teal-500/30 hover:to-cyan-500/30 disabled:cursor-wait disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh profile
+            Refresh
           </button>
         </div>
       </section>
@@ -131,156 +149,117 @@ export default function KnowledgeAssistPage() {
         </section>
       )}
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <MetricCard
-          icon={<GitBranch className="h-4 w-4" />}
-          label="Reviewed repos"
-          value={String(review?.reviewed ?? 0)}
-          helper={`${review?.failed ?? 0} failed`}
-          tone="text-emerald-300"
-        />
-        <MetricCard
-          icon={<AlertCircle className="h-4 w-4" />}
-          label="Review findings"
-          value={String(review?.findings ?? 0)}
-          helper={`${review?.high_risk ?? 0} high risk`}
-          tone="text-amber-300"
-        />
-        <MetricCard
-          icon={<TerminalSquare className="h-4 w-4" />}
-          label="Sandbox attempts"
-          value={String(sandbox?.total_attempts ?? 0)}
-          helper={`${sandbox?.recent_passed ?? 0} recent passed`}
-          tone="text-cyan-300"
-        />
-        <MetricCard
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          label="Recent pass rate"
-          value={formatPercent(sandbox?.recent_pass_rate ?? 0)}
-          helper="latest 20 attempts"
-          tone="text-teal-300"
-        />
+      {/* ── KPI BAND: score ring + stat cards ── */}
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        <ScoreHeroCard quiz={quiz} />
+        <div className="grid grid-cols-2 gap-4">
+          <StatCard
+            icon={<Brain className="h-4 w-4" />}
+            label="Quizzes taken"
+            value={String(quiz?.total_quizzes ?? 0)}
+            helper={`${quiz?.questions_correct ?? 0}/${quiz?.questions_answered ?? 0} answers correct`}
+            tone="text-teal-300"
+          />
+          <StatCard
+            icon={<GitBranch className="h-4 w-4" />}
+            label="Reviewed repos"
+            value={String(review?.reviewed ?? 0)}
+            helper={`${review?.failed ?? 0} failed`}
+            tone="text-emerald-300"
+          />
+          <StatCard
+            icon={<AlertCircle className="h-4 w-4" />}
+            label="Review findings"
+            value={String(review?.findings ?? 0)}
+            helper={`${review?.high_risk ?? 0} high risk`}
+            tone="text-amber-300"
+          />
+          <StatCard
+            icon={<TerminalSquare className="h-4 w-4" />}
+            label="Sandbox pass rate"
+            value={pct01(sandbox?.recent_pass_rate ?? 0)}
+            helper={`${sandbox?.total_attempts ?? 0} attempts`}
+            tone="text-cyan-300"
+          />
+        </div>
       </section>
 
       {review?.latest_java_level && (
-        <section className="rounded-2xl border border-teal-400/25 bg-teal-400/10 p-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="mt-1 h-5 w-5 text-teal-200" />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-teal-200">
-                Latest Java signal
-              </p>
-              <h2 className="mt-1 text-xl font-black text-white">
-                {review.latest_java_level}
-              </h2>
-              {review.latest_evidence && (
-                <p className="mt-1 text-sm leading-6 text-white/65">
-                  {review.latest_evidence}
-                </p>
-              )}
-            </div>
+        <section className="flex items-start gap-3 rounded-2xl border border-teal-400/25 bg-gradient-to-r from-teal-500/10 to-transparent p-4">
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-teal-200" />
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-teal-200">
+              Latest Java signal
+            </p>
+            <p className="mt-0.5 text-lg font-black text-white">{review.latest_java_level}</p>
+            {review.latest_evidence && (
+              <p className="mt-1 text-sm leading-6 text-white/60">{review.latest_evidence}</p>
+            )}
           </div>
         </section>
       )}
 
-      {!profile || ((review?.jobs ?? 0) === 0 && (sandbox?.total_attempts ?? 0) === 0) ? (
+      {!hasAnyEvidence ? (
         <EmptyProfileState />
       ) : (
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
-          <div className="space-y-4">
-            <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-              <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-                <GitBranch className="h-4 w-4 text-cyan-300" />
-                Repository review evidence
-              </h2>
-              <div className="mt-3 space-y-3">
-                {profile.latest_reviews.length === 0 ? (
-                  <p className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/50">
-                    No GitHub reviews are saved yet.
-                  </p>
-                ) : (
-                  profile.latest_reviews.map((job) => (
-                    <ReviewEvidence key={job.job_id} job={job} />
-                  ))
-                )}
-              </div>
-            </section>
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+          {/* LEFT */}
+          <div className="space-y-5">
+            <Panel icon={<Brain className="h-4 w-4 text-teal-300" />} title="Quiz performance"
+              badge={quiz?.total_quizzes ? `${quiz.total_quizzes} completed` : undefined}>
+              {quizResults.length === 0 ? (
+                <InlineEmpty
+                  text="No completed quizzes yet — finish a Skill Check to see your MCQ results here."
+                  href="/knowledge-assist/sandbox?source=profile-quiz"
+                  cta="Start a Skill Check"
+                />
+              ) : (
+                <div className="space-y-3">
+                  {quizResults.map((result) => (
+                    <QuizResultCard key={result.result_id} result={result} />
+                  ))}
+                </div>
+              )}
+            </Panel>
 
-            <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-              <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-                <Code2 className="h-4 w-4 text-cyan-300" />
-                Sandbox code evidence
-              </h2>
-              <div className="mt-3 space-y-3">
-                {profile.latest_sandbox_attempts.length === 0 ? (
-                  <p className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/50">
-                    No Sandbox attempts are saved yet.
-                  </p>
-                ) : (
-                  profile.latest_sandbox_attempts.map((attempt) => (
+            <Panel icon={<GitBranch className="h-4 w-4 text-cyan-300" />} title="Repository review evidence">
+              {(profile?.latest_reviews.length ?? 0) === 0 ? (
+                <InlineEmpty text="No GitHub reviews are saved yet." />
+              ) : (
+                <div className="space-y-3">
+                  {profile!.latest_reviews.map((job) => (
+                    <ReviewEvidence key={job.job_id} job={job} />
+                  ))}
+                </div>
+              )}
+            </Panel>
+
+            <Panel icon={<Code2 className="h-4 w-4 text-cyan-300" />} title="Sandbox code evidence">
+              {(profile?.latest_sandbox_attempts.length ?? 0) === 0 ? (
+                <InlineEmpty text="No Sandbox attempts are saved yet." />
+              ) : (
+                <div className="space-y-3">
+                  {profile!.latest_sandbox_attempts.map((attempt) => (
                     <SandboxEvidence key={attempt.attempt_id} attempt={attempt} />
-                  ))
-                )}
-              </div>
-            </section>
+                  ))}
+                </div>
+              )}
+            </Panel>
           </div>
 
-          <aside className="space-y-4">
-            <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-              <h2 className="text-lg font-bold text-white">Knowledge topics</h2>
-              <div className="mt-3 space-y-2">
-                {sandbox?.topics.length ? (
-                  sandbox.topics.map((topic) => (
-                    <div
-                      key={`${topic.topic}-${topic.challenge_id}`}
-                      className="rounded-xl border border-white/10 bg-[#0F172A] p-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="font-semibold text-white">{topic.topic}</p>
-                        <span className="rounded-lg border border-teal-400/25 bg-teal-400/10 px-2 py-1 text-xs font-bold text-teal-200">
-                          {topic.passed}/{topic.attempts}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-white/45">
-                        Latest: {formatDateTime(topic.latest_at)}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/50">
-                    Topics will appear after Sandbox attempts.
-                  </p>
-                )}
-              </div>
-            </section>
+          {/* RIGHT */}
+          <aside className="space-y-5">
+            <Panel icon={<Target className="h-4 w-4 text-teal-300" />} title="Topic mastery">
+              <TopicMastery quiz={quiz} sandbox={sandbox} />
+            </Panel>
 
-            <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-              <h2 className="text-lg font-bold text-white">Evidence timeline</h2>
-              <div className="mt-3 space-y-2">
-                {profile.timeline.length ? (
-                  profile.timeline.map((event) => (
-                    <div
-                      key={`${event.type}-${event.id}`}
-                      className="rounded-xl border border-white/10 bg-[#0F172A] p-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-white">{event.label}</p>
-                        <span className="text-xs text-white/35">
-                          {formatDateTime(event.time)}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs uppercase tracking-wider text-cyan-200/70">
-                        {event.type.replace("_", " ")} / {event.status}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/50">
-                    No evidence events yet.
-                  </p>
-                )}
-              </div>
-            </section>
+            <Panel icon={<Activity className="h-4 w-4 text-cyan-300" />} title="Evidence timeline">
+              {(profile?.timeline.length ?? 0) === 0 ? (
+                <InlineEmpty text="No evidence events yet." />
+              ) : (
+                <Timeline events={profile!.timeline} />
+              )}
+            </Panel>
           </aside>
         </section>
       )}
@@ -288,7 +267,81 @@ export default function KnowledgeAssistPage() {
   );
 }
 
-function MetricCard({
+/* ───────────────────────── components ───────────────────────── */
+
+function ScoreRing({ value, size = 132, stroke = 12 }: { value: number; size?: number; stroke?: number }) {
+  const radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
+  const pct = Math.max(0, Math.min(100, value));
+  const offset = circ - (pct / 100) * circ;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="url(#scoreRingGrad)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+        />
+        <defs>
+          <linearGradient id="scoreRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#2dd4bf" />
+            <stop offset="100%" stopColor="#22d3ee" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-4xl font-black leading-none text-white">
+          {Math.round(pct)}
+          <span className="text-lg text-white/45">%</span>
+        </span>
+        <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-white/40">avg score</span>
+      </div>
+    </div>
+  );
+}
+
+function ScoreHeroCard({ quiz }: { quiz?: KnowledgeProfile["quiz_summary"] }) {
+  const hasQuiz = (quiz?.total_quizzes ?? 0) > 0;
+  return (
+    <article className="relative overflow-hidden rounded-2xl border border-teal-400/20 bg-[#1e293b]/55 p-5">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-teal-500/10 blur-3xl" />
+      <div className="relative flex items-center gap-5">
+        <ScoreRing value={hasQuiz ? quiz!.avg_score : 0} />
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-300">Quiz mastery</p>
+          {hasQuiz ? (
+            <>
+              <p className="mt-1 text-sm text-white/70">
+                {quiz!.questions_correct}/{quiz!.questions_answered} answered correctly
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-xs font-bold text-emerald-200">
+                  <Trophy className="h-3 w-3" /> Best {pct100(quiz!.best_score)}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-xs font-bold text-cyan-200">
+                  Latest {pct100(quiz!.latest_score)}
+                </span>
+              </div>
+            </>
+          ) : (
+            <p className="mt-1 max-w-[16rem] text-sm leading-6 text-white/55">
+              Complete a Skill Check and your quiz mastery score appears here.
+            </p>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function StatCard({
   icon,
   label,
   value,
@@ -302,8 +355,8 @@ function MetricCard({
   tone: string;
 }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-      <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${tone}`}>
+    <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4 transition-colors hover:border-white/20">
+      <div className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider ${tone}`}>
         {icon}
         {label}
       </div>
@@ -313,23 +366,173 @@ function MetricCard({
   );
 }
 
+function Panel({
+  icon,
+  title,
+  badge,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  badge?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-base font-bold text-white">
+          {icon}
+          {title}
+        </h2>
+        {badge && (
+          <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-semibold text-white/55">
+            {badge}
+          </span>
+        )}
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function QuizResultCard({ result }: { result: QuizResultSummary }) {
+  const tone = toneFor(result.score_percent);
+  return (
+    <article className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <span className={`text-2xl font-black ${tone.text}`}>{pct100(result.score_percent)}</span>
+          <span className="text-sm text-white/50">{result.correct}/{result.total} correct</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase ${
+              difficultyTone[result.difficulty_reached] ?? difficultyTone.easy
+            }`}
+          >
+            {result.difficulty_reached}
+          </span>
+          <span className="text-[11px] text-white/35">{formatDateTime(result.completed_at)}</span>
+        </div>
+      </div>
+
+      {/* per-question result strip */}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {result.questions.map((q, i) => (
+          <span
+            key={q.qid ?? i}
+            title={`Q${i + 1} · ${q.topic} (${q.difficulty}) — ${q.correct ? "correct" : "wrong"}`}
+            className={`h-2.5 w-2.5 rounded-full ${
+              q.correct ? "bg-emerald-400" : "bg-rose-500/80"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* topic chips */}
+      {result.topic_performance.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {result.topic_performance.map((tp) => {
+            const acc = tp.total ? (tp.correct / tp.total) * 100 : 0;
+            return (
+              <span
+                key={tp.topic}
+                className={`rounded-md border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] ${toneFor(acc).text}`}
+              >
+                {tp.topic} {tp.correct}/{tp.total}
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function TopicMastery({
+  quiz,
+  sandbox,
+}: {
+  quiz?: KnowledgeProfile["quiz_summary"];
+  sandbox?: KnowledgeProfile["sandbox_summary"];
+}) {
+  const quizTopics = quiz?.topic_mastery ?? [];
+  if (quizTopics.length > 0) {
+    return (
+      <div className="space-y-3">
+        {quizTopics.map((t) => (
+          <MasteryBar key={t.topic} label={t.topic} correct={t.correct} total={t.total} pct={t.accuracy_percent} />
+        ))}
+      </div>
+    );
+  }
+
+  const sandboxTopics = sandbox?.topics ?? [];
+  if (sandboxTopics.length > 0) {
+    return (
+      <div className="space-y-3">
+        {sandboxTopics.map((t) => {
+          const pct = t.attempts ? (t.passed / t.attempts) * 100 : 0;
+          return (
+            <MasteryBar
+              key={`${t.topic}-${t.challenge_id ?? "x"}`}
+              label={t.topic}
+              correct={t.passed}
+              total={t.attempts}
+              pct={pct}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  return <InlineEmpty text="Topic mastery appears after you complete a quiz or Sandbox attempt." />;
+}
+
+function MasteryBar({
+  label,
+  correct,
+  total,
+  pct,
+}: {
+  label: string;
+  correct: number;
+  total: number;
+  pct: number;
+}) {
+  const tone = toneFor(pct);
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#0F172A] p-3">
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="truncate font-semibold text-white">{label}</span>
+        <span className="shrink-0 text-white/50">
+          {correct}/{total} · <span className={tone.text}>{Math.round(pct)}%</span>
+        </span>
+      </div>
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className={`h-full rounded-full bg-gradient-to-r ${tone.bar}`}
+          style={{ width: `${Math.max(4, Math.min(100, pct))}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function ReviewEvidence({ job }: { job: ReviewJob }) {
   return (
     <article className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-white">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-white">
             {job.gh_login ? `@${job.gh_login}` : "GitHub review"}
           </p>
-          <p className="mt-1 text-xs text-white/40">
+          <p className="mt-0.5 text-[11px] text-white/40">
             {formatDateTime(job.updated_at ?? job.created_at)}
           </p>
         </div>
-        <span
-          className={`w-fit rounded-lg border px-2 py-1 text-xs font-bold uppercase ${
-            statusTone[job.status]
-          }`}
-        >
+        <span className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-bold uppercase ${statusTone[job.status]}`}>
           {job.status}
         </span>
       </div>
@@ -346,22 +549,16 @@ function RepoLine({ repo }: { repo: ReviewRepoResult }) {
   const findings = repo.review?.errors.length ?? 0;
   return (
     <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">{repo.full_name}</p>
-          {repo.review?.summary && (
-            <p className="mt-1 text-sm leading-6 text-white/55">{repo.review.summary}</p>
-          )}
-          {repo.error && <p className="mt-1 text-sm text-red-200">{repo.error}</p>}
-        </div>
-        <span
-          className={`w-fit shrink-0 rounded-lg border px-2 py-1 text-xs font-bold uppercase ${
-            statusTone[repo.status]
-          }`}
-        >
-          {repo.status} / {findings} findings
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 truncate text-sm font-semibold text-white">{repo.full_name}</p>
+        <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase ${statusTone[repo.status]}`}>
+          {repo.status} · {findings}
         </span>
       </div>
+      {repo.review?.summary && (
+        <p className="mt-1.5 line-clamp-3 text-sm leading-6 text-white/55">{repo.review.summary}</p>
+      )}
+      {repo.error && <p className="mt-1.5 text-sm text-red-200">{repo.error}</p>}
     </div>
   );
 }
@@ -369,16 +566,15 @@ function RepoLine({ repo }: { repo: ReviewRepoResult }) {
 function SandboxEvidence({ attempt }: { attempt: SandboxAttempt }) {
   return (
     <article className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-white">{attempt.title}</p>
-          <p className="mt-1 text-xs text-white/40">
-            {attempt.topic} / attempt {attempt.attempt_number} /{" "}
-            {formatDateTime(attempt.created_at)}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-white">{attempt.title}</p>
+          <p className="mt-0.5 text-[11px] text-white/40">
+            {attempt.topic} · attempt {attempt.attempt_number} · {formatDateTime(attempt.created_at)}
           </p>
         </div>
         <span
-          className={`w-fit rounded-lg border px-2 py-1 text-xs font-bold uppercase ${
+          className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-bold uppercase ${
             attempt.passed
               ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
               : "border-amber-400/30 bg-amber-400/10 text-amber-200"
@@ -387,45 +583,101 @@ function SandboxEvidence({ attempt }: { attempt: SandboxAttempt }) {
           {attempt.passed ? "passed" : "needs fix"}
         </span>
       </div>
-      <pre className="mt-3 max-h-44 overflow-auto rounded-lg border border-white/10 bg-[#050A16] p-3 font-mono text-xs leading-5 text-cyan-50">
-        {codePreview(attempt.code)}
+      <pre className="mt-3 max-h-32 overflow-auto rounded-lg border border-white/10 bg-[#050A16] p-3 font-mono text-[11px] leading-5 text-cyan-50/90">
+        {attempt.code?.trim() || "No code captured."}
       </pre>
-      {(attempt.output || attempt.error) && (
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <pre className="min-h-16 rounded-lg border border-white/10 bg-white/[0.03] p-3 font-mono text-xs text-white/65">
-            {attempt.output || "No output"}
-          </pre>
-          <pre className="min-h-16 rounded-lg border border-white/10 bg-white/[0.03] p-3 font-mono text-xs text-red-200">
-            {attempt.error || "No error"}
+      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/35">Output</p>
+          <pre className="mt-1 max-h-20 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-white/65">
+            {attempt.output?.trim() || "—"}
           </pre>
         </div>
-      )}
+        <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/35">Error</p>
+          <pre className="mt-1 max-h-20 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-rose-200/80">
+            {attempt.error?.trim() || "—"}
+          </pre>
+        </div>
+      </div>
     </article>
+  );
+}
+
+const timelineConfig: Record<string, { icon: ReactNode; dot: string; tone: string }> = {
+  quiz: { icon: <Brain className="h-3.5 w-3.5" />, dot: "bg-teal-400", tone: "text-teal-300" },
+  github_review: { icon: <GitBranch className="h-3.5 w-3.5" />, dot: "bg-cyan-400", tone: "text-cyan-300" },
+  sandbox_attempt: { icon: <Code2 className="h-3.5 w-3.5" />, dot: "bg-amber-400", tone: "text-amber-300" },
+};
+
+function Timeline({ events }: { events: KnowledgeProfile["timeline"] }) {
+  return (
+    <div className="relative space-y-3 pl-5">
+      <span className="absolute left-[5px] top-1 bottom-1 w-px bg-white/10" aria-hidden />
+      {events.map((event) => {
+        const cfg = timelineConfig[event.type] ?? timelineConfig.sandbox_attempt;
+        return (
+          <div key={`${event.type}-${event.id}`} className="relative">
+            <span className={`absolute -left-5 top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#1e293b] ${cfg.dot}`} />
+            <div className="rounded-xl border border-white/10 bg-[#0F172A] p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{event.label}</p>
+                <span className="shrink-0 text-[11px] text-white/35">{formatDateTime(event.time)}</span>
+              </div>
+              <p className={`mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${cfg.tone}`}>
+                {cfg.icon}
+                {event.type.replace("_", " ")}
+                {event.status ? ` · ${event.status}` : ""}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function InlineEmpty({ text, href, cta }: { text: string; href?: string; cta?: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-white/12 bg-[#0F172A] p-5 text-center">
+      <p className="text-sm text-white/55">{text}</p>
+      {href && cta && (
+        <Link
+          href={href}
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-teal-400/30 bg-teal-400/10 px-3 py-2 text-xs font-bold text-teal-100 transition-colors hover:bg-teal-400/15"
+        >
+          {cta}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      )}
+    </div>
   );
 }
 
 function EmptyProfileState() {
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-6 text-center">
-      <h2 className="text-xl font-black text-white">No saved evidence yet</h2>
+    <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-8 text-center">
+      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-teal-400/25 bg-teal-400/10 text-teal-200">
+        <Sparkles className="h-6 w-6" />
+      </span>
+      <h2 className="mt-4 text-xl font-black text-white">No saved evidence yet</h2>
       <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-white/55">
-        Run a GitHub review or complete Sandbox Java attempts. Once those finish,
-        this page will show saved repositories, code attempts, timing, outputs,
-        and profile metrics.
+        Take a Java Skill Check, run a GitHub review, or complete Sandbox attempts. As soon as
+        those finish, this profile fills with your scores, code, topic mastery, and timeline.
       </p>
       <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+        <Link
+          href="/knowledge-assist/sandbox?source=profile-empty"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-teal-400 px-4 py-3 text-sm font-bold text-[#061016] transition-all hover:brightness-110"
+        >
+          Start a Skill Check
+          <ArrowRight className="h-4 w-4" />
+        </Link>
         <Link
           href="/knowledge-assist/forensics"
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-bold text-cyan-100 transition-colors hover:bg-cyan-400/15"
         >
           Open Forensics
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-        <Link
-          href="/knowledge-assist/sandbox?source=profile-empty"
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-teal-400/25 bg-teal-400/10 px-4 py-3 text-sm font-bold text-teal-100 transition-colors hover:bg-teal-400/15"
-        >
-          Practice Sandbox
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

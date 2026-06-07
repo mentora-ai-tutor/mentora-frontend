@@ -9,6 +9,7 @@ import {
   ArrowRight,
   CheckCircle2,
   CircleDashed,
+  Cpu,
   GitBranch,
   Lock,
   RefreshCw,
@@ -20,6 +21,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  LlmChoice,
+  LlmOptions,
   ReviewJob,
   ReviewRepo,
   ReviewRepoResult,
@@ -93,8 +96,17 @@ export default function KnowledgeAssistForensicsPage() {
   const [error, setError] = useState<string | null>(null);
   const [repoSearch, setRepoSearch] = useState("");
   const [sandboxRedirect, setSandboxRedirect] = useState<SandboxRedirect | null>(null);
+  const [selectedLlm, setSelectedLlm] = useState<LlmChoice>("gemini");
+  const [llmOptions, setLlmOptions] = useState<LlmOptions | null>(null);
 
   const selectedCount = selectedRepos.length;
+  const ollamaAvailable = llmOptions?.ollama_available ?? false;
+  const ollamaStatusMessage =
+    llmOptions === null
+      ? "Checking local model status..."
+      : ollamaAvailable
+        ? "Local model is ready for offline / no-cost reviews."
+        : "Local model is still downloading. Ollama will enable automatically when it is ready.";
 
   const reportStats = useMemo(() => {
     const reports = job?.repos ?? [];
@@ -150,6 +162,38 @@ export default function KnowledgeAssistForensicsPage() {
     };
 
     loadRepos();
+  }, [githubLinked, isLoading]);
+
+  useEffect(() => {
+    if (!githubLinked || isLoading) return;
+
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const loadLlmOptions = async () => {
+      try {
+        const options = await reviewApi.getLlmOptions();
+        if (cancelled) return;
+        setLlmOptions(options);
+        // If Ollama isn't reachable, never leave it selected.
+        if (!options.ollama_available) setSelectedLlm("gemini");
+        if (!options.ollama_available) {
+          retryTimer = setTimeout(loadLlmOptions, 10000);
+        }
+      } catch {
+        if (cancelled) return;
+        setLlmOptions({ providers: ["gemini"], default: "gemini", ollama_available: false });
+        setSelectedLlm("gemini");
+        retryTimer = setTimeout(loadLlmOptions, 10000);
+      }
+    };
+
+    loadLlmOptions();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [githubLinked, isLoading]);
 
   useEffect(() => {
@@ -226,7 +270,7 @@ export default function KnowledgeAssistForensicsPage() {
     setError(null);
     setSandboxRedirect(null);
     try {
-      const nextJob = await reviewApi.reviewTopFive(selectedRepos);
+      const nextJob = await reviewApi.reviewTopFive(selectedRepos, selectedLlm);
       const nextForensicsHref = `/knowledge-assist/forensics?reviewJobId=${encodeURIComponent(
         nextJob.job_id,
       )}`;
@@ -250,7 +294,7 @@ export default function KnowledgeAssistForensicsPage() {
     setRerunningRepo(repoFullName);
     setError(null);
     try {
-      const nextJob = await reviewApi.reReview(repoFullName);
+      const nextJob = await reviewApi.reReview(repoFullName, selectedLlm);
       setJob((current) => mergeSingleRepoResult(current, nextJob));
     } catch (err) {
       setError(getMessage(err));
@@ -424,6 +468,51 @@ export default function KnowledgeAssistForensicsPage() {
             })}
           </div>
 
+          {/* Choose LLM engine */}
+          <div className="mt-4">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">
+              Choose LLM
+            </p>
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+              <button
+                type="button"
+                onClick={() => setSelectedLlm("gemini")}
+                disabled={runningReview || activeReviewIsRunning}
+                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed ${
+                  selectedLlm === "gemini"
+                    ? "bg-gradient-to-r from-teal-500 to-teal-400 text-[#061016]"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                <Sparkles className="h-4 w-4" />
+                Gemini
+              </button>
+              <button
+                type="button"
+                onClick={() => ollamaAvailable && setSelectedLlm("ollama")}
+                disabled={!ollamaAvailable || runningReview || activeReviewIsRunning}
+                title={
+                  ollamaAvailable
+                    ? "Run the review on the local Ollama model"
+                    : "Ollama is connected, but the local model is not ready yet."
+                }
+                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                  selectedLlm === "ollama"
+                    ? "bg-gradient-to-r from-teal-500 to-teal-400 text-[#061016]"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                <Cpu className="h-4 w-4" />
+                Ollama
+              </button>
+            </div>
+            {selectedLlm === "ollama" || !ollamaAvailable ? (
+              <p className="mt-2 text-[11px] leading-relaxed text-amber-300/80">
+                {ollamaStatusMessage}
+              </p>
+            ) : null}
+          </div>
+
           {/* Run review button */}
           <button
             type="button"
@@ -539,6 +628,14 @@ function ForensicsActiveReviewBanner({
   const failedStatus = review.status === "failed";
   const partialStatus = review.status === "partial";
   const completed = review.status === "done";
+  const llmChoice =
+    review.llmChoice ?? review.repos.find((repo) => repo.llm_choice)?.llm_choice;
+  const llmName = llmChoice === "ollama" ? "Ollama local" : "Gemini";
+  const LlmIcon = llmChoice === "ollama" ? Cpu : Sparkles;
+  const llmTone =
+    llmChoice === "ollama"
+      ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
+      : "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
 
   const title = running
     ? "Mentora expert review is working"
@@ -581,9 +678,17 @@ function ForensicsActiveReviewBanner({
             <p className="mt-1 max-w-3xl text-sm leading-6 text-white/65">
               {description}
             </p>
-            <p className="mt-2 font-mono text-xs text-white/35">
-              Job {review.jobId}
-            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${llmTone}`}
+              >
+                <LlmIcon className="h-3.5 w-3.5" />
+                Using {llmName}
+              </span>
+              <span className="font-mono text-xs text-white/35">
+                Job {review.jobId}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -701,13 +806,31 @@ function RepoReport({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-white">{repo.full_name}</p>
-          <span
-            className={`mt-2 inline-flex rounded-lg border px-2 py-1 text-xs font-semibold uppercase ${
-              statusStyle[repo.status]
-            }`}
-          >
-            {repo.status}
-          </span>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex rounded-lg border px-2 py-1 text-xs font-semibold uppercase ${
+                statusStyle[repo.status]
+              }`}
+            >
+              {repo.status}
+            </span>
+            {repo.llm_choice && (
+              <span
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase ${
+                  repo.llm_choice === "ollama"
+                    ? "border-amber-500/25 bg-amber-500/10 text-amber-200"
+                    : "border-white/10 bg-white/5 text-white/55"
+                }`}
+              >
+                {repo.llm_choice === "ollama" ? (
+                  <Cpu className="h-3 w-3" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+                {repo.llm_choice === "ollama" ? "Ollama · local" : "Gemini"}
+              </span>
+            )}
+          </div>
         </div>
 
         <button
