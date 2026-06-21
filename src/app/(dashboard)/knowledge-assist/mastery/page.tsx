@@ -20,6 +20,7 @@ import {
   knowledgeProfileApi,
 } from "@/lib/api/knowledgeProfile";
 import { useAuth } from "@/contexts/AuthContext";
+import CareerFitCard from "@/components/career/CareerFitCard";
 
 const formatPercent = (value?: number) => {
   if (value === undefined || value === null || Number.isNaN(value)) return "0%";
@@ -203,6 +204,8 @@ export default function KnowledgeAssistMasteryPage() {
             />
           </section>
 
+          <CareerFitCard studentId={displayStudentId} />
+
           <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
             <div className="space-y-4">
               <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
@@ -214,8 +217,8 @@ export default function KnowledgeAssistMasteryPage() {
                 </div>
                 <div className="mt-3 space-y-3">
                   {profile.mastery_profile.knowledge_gaps.length ? (
-                    profile.mastery_profile.knowledge_gaps.map((gap) => (
-                      <GapCard key={gap.topic_id} gap={gap} />
+                    profile.mastery_profile.knowledge_gaps.map((gap, index) => (
+                      <GapCard key={`${gap.topic_id}-${index}`} gap={gap} />
                     ))
                   ) : (
                     <p className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/55">
@@ -246,13 +249,13 @@ export default function KnowledgeAssistMasteryPage() {
               </section>
             </div>
 
-            <aside className="space-y-4">
+            <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
               <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
                 <h2 className="text-lg font-bold text-white">Strengths</h2>
                 <div className="mt-3 space-y-2">
                   {profile.mastery_profile.strengths.length ? (
-                    profile.mastery_profile.strengths.map((strength) => (
-                      <StrengthCard key={strength.topic_id} strength={strength} />
+                    profile.mastery_profile.strengths.map((strength, index) => (
+                      <StrengthCard key={`${strength.topic_id}-${index}`} strength={strength} />
                     ))
                   ) : (
                     <p className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/55">
@@ -328,7 +331,7 @@ function GapCard({ gap }: { gap: KnowledgeGap }) {
           </div>
           <p className="mt-2 text-sm leading-6 text-white/60">{gap.evidence_summary}</p>
         </div>
-        <div className="grid grid-cols-2 gap-2 md:w-48">
+        <div className="flex shrink-0 gap-2">
           <ScorePill label="Mastery" value={formatPercent(gap.mastery_score)} />
           <ScorePill label="Confidence" value={formatConfidence(gap.confidence)} />
         </div>
@@ -392,8 +395,10 @@ function StrengthCard({ strength }: { strength: Strength }) {
 
 function ScorePill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-[#050816] p-2">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-white/35">{label}</p>
+    <div className="min-w-[96px] rounded-lg border border-white/10 bg-[#050816] px-3 py-2 text-center">
+      <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-white/35">
+        {label}
+      </p>
       <p className="mt-1 text-base font-black text-white">{value}</p>
     </div>
   );
