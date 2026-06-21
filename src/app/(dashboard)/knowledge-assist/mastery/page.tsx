@@ -1,221 +1,405 @@
 "use client";
 
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  AlertTriangle,
-  ArrowRight,
-  BadgeAlert,
-  Bot,
+  AlertCircle,
   CheckCircle2,
-  CircleDot,
-  Download,
-  Radar,
+  CircleDashed,
+  Database,
+  FileJson,
+  RefreshCw,
+  Search,
   ShieldCheck,
-  Sparkles,
   Target,
-  Zap,
 } from "lucide-react";
+import {
+  CanonicalMasteryProfile,
+  KnowledgeGap,
+  Strength,
+  knowledgeProfileApi,
+} from "@/lib/api/knowledgeProfile";
+import { useAuth } from "@/contexts/AuthContext";
+import CareerFitCard from "@/components/career/CareerFitCard";
+
+const formatPercent = (value?: number) => {
+  if (value === undefined || value === null || Number.isNaN(value)) return "0%";
+  return `${Math.round(value)}%`;
+};
+
+const formatConfidence = (value?: number) => {
+  if (value === undefined || value === null || Number.isNaN(value)) return "0.00";
+  return value.toFixed(2);
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return "Not saved";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 export default function KnowledgeAssistMasteryPage() {
-  const priorityActions = [
-    {
-      title: "Nested Loops / Big O",
-      severity: "URGENT",
-      detail: "Identified systematic failure in determining termination conditions for nested iterations.",
-      tone: "border-rose-500/40 text-rose-300",
-    },
-    {
-      title: "Array Index Handling",
-      severity: "MODERATE",
-      detail: "Occasional index-out-of-bounds errors due to improper loop boundary definitions.",
-      tone: "border-amber-500/40 text-amber-300",
-    },
-    {
-      title: "Exception Syntax",
-      severity: "LOW",
-      detail: "Minor syntactical errors in try-with-resources blocks.",
-      tone: "border-cyan-500/40 text-cyan-300",
-    },
-  ];
+  const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryStudentId = searchParams.get("studentId") || "";
+  const defaultStudentId = queryStudentId || user?.student_id || user?._id || "";
+  const [studentIdInput, setStudentIdInput] = useState(defaultStudentId);
+  const [profile, setProfile] = useState<CanonicalMasteryProfile | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const misconceptions = [
-    {
-      id: "M01",
-      title: "Off-by-one errors",
-      pattern: "Repeatedly using '<=' instead of '<' in array-traversal loops.",
-      frequency: "14 hits",
-      confidence: "98%",
-    },
-    {
-      id: "M02",
-      title: "Constructor Logic Overlap",
-      pattern: "Confusing 'this()' calls with superclass field initialization.",
-      frequency: "08 hits",
-      confidence: "72%",
-    },
-    {
-      id: "M03",
-      title: "Shadowing Errors",
-      pattern: "Re-declaring local variables with same identifier as class members.",
-      frequency: "03 hits",
-      confidence: "46%",
-    },
-  ];
+  const displayStudentId = useMemo(
+    () => queryStudentId || user?.student_id || user?._id || "",
+    [queryStudentId, user?._id, user?.student_id],
+  );
+
+  const loadProfile = async (studentId: string) => {
+    if (!studentId.trim()) {
+      setError("No student ID is available for lookup.");
+      setProfile(null);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await knowledgeProfileApi.getLatestMasteryProfile(studentId.trim());
+      setProfile(next);
+    } catch (err) {
+      setProfile(null);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not load the saved mastery profile.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setStudentIdInput(defaultStudentId);
+  }, [defaultStudentId]);
+
+  useEffect(() => {
+    if (displayStudentId) {
+      void loadProfile(displayStudentId);
+    }
+  }, [displayStudentId]);
+
+  const submitLookup = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextStudentId = studentIdInput.trim();
+    if (!nextStudentId) return;
+    router.push(`/knowledge-assist/mastery?studentId=${encodeURIComponent(nextStudentId)}`);
+  };
 
   return (
     <div className="space-y-4 pb-4">
-      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4 flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em]">
-            <span className="px-2 py-1 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-semibold">Diagnostic Report</span>
-            <span className="text-white/40">Ref: RKA-9921-JVA</span>
+      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300">
+              MongoDB Mastery Profile
+            </p>
+            <h1 className="mt-1 text-2xl font-black text-white md:text-3xl">
+              Saved KAA output
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/60">
+              This view reads the canonical profile saved in `knowledge_analysis.mastery_profiles`.
+            </p>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-white mt-2">Mastery Profile: Julian Rivera</h1>
-          <p className="text-sm text-white/60 mt-2 max-w-3xl">
-            Automated diagnostic analysis for Java SE Fundamentals. This report summarizes
-            performance across core syntax, object-oriented principles, and error handling patterns.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" className="px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white/80 text-sm flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export PDF
-          </button>
-          <button type="button" className="px-3 py-2 rounded-lg border border-cyan-500/30 bg-cyan-500/20 text-cyan-200 text-sm flex items-center gap-2">
-            <Zap className="w-4 h-4" /> Adaptive Sync
-          </button>
+
+          <form onSubmit={submitLookup} className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[420px] sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <input
+                value={studentIdInput}
+                onChange={(event) => setStudentIdInput(event.target.value)}
+                placeholder="Student ID"
+                className="h-10 w-full rounded-xl border border-white/10 bg-[#0F172A] pl-9 pr-3 text-sm text-white outline-none transition focus:border-cyan-400/45"
+              />
+            </div>
+            <button
+              type="submit"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 text-sm font-bold text-cyan-100 transition hover:bg-cyan-400/15"
+            >
+              <Database className="h-4 w-4" />
+              Load
+            </button>
+            <button
+              type="button"
+              onClick={() => displayStudentId && void loadProfile(displayStudentId)}
+              disabled={loading || !displayStudentId}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-bold text-white/70 transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </form>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-4">
-        <article className="rounded-2xl border border-cyan-500/25 bg-[#1e293b]/55 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white text-lg font-semibold">Unified Mastery Profile</h2>
-            <div className="text-xs text-white/45 flex items-center gap-3">
-              <span className="flex items-center gap-1"><CircleDot className="w-3 h-3 text-cyan-300" /> Current</span>
-              <span className="flex items-center gap-1"><CircleDot className="w-3 h-3 text-white/30" /> Benchmark</span>
-            </div>
+      {loading && (
+        <section className="flex min-h-[260px] items-center justify-center rounded-2xl border border-white/10 bg-[#1e293b]/55">
+          <div className="flex items-center gap-3 text-white/65">
+            <CircleDashed className="h-5 w-5 animate-spin text-cyan-300" />
+            Loading saved profile...
           </div>
-          <div className="rounded-xl border border-white/10 bg-[#0A1020] p-4">
-            <div className="h-[240px] flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.08),transparent_70%)]" />
-              <Radar className="w-48 h-48 text-cyan-300/70" />
-            </div>
-            <div className="grid grid-cols-4 gap-2 mt-3">
-              <div className="rounded-md border border-white/10 bg-[#111827] p-2">
-                <p className="text-[10px] text-white/40 uppercase">Overall Proficiency</p>
-                <p className="text-cyan-300 text-xl font-black mt-1">82.6%</p>
-              </div>
-              <div className="rounded-md border border-white/10 bg-[#111827] p-2">
-                <p className="text-[10px] text-white/40 uppercase">Time To Stability</p>
-                <p className="text-white text-xl font-black mt-1">14m 22s</p>
-              </div>
-              <div className="rounded-md border border-white/10 bg-[#111827] p-2">
-                <p className="text-[10px] text-white/40 uppercase">Cognitive Load</p>
-                <p className="text-amber-300 text-xl font-black mt-1">Medium</p>
-              </div>
-              <div className="rounded-md border border-white/10 bg-[#111827] p-2">
-                <p className="text-[10px] text-white/40 uppercase">Confidence</p>
-                <p className="text-emerald-300 text-xl font-black mt-1">0.96</p>
-              </div>
-            </div>
-          </div>
-        </article>
+        </section>
+      )}
 
-        <article className="rounded-2xl border border-amber-500/30 bg-[#1e293b]/55 p-4">
-          <h2 className="text-white text-lg font-semibold flex items-center gap-2 mb-3">
-            <BadgeAlert className="w-4 h-4 text-amber-300" /> Priority Actions
-          </h2>
-          <div className="space-y-2">
-            {priorityActions.map((item, idx) => (
-              <div key={idx} className={`rounded-lg border ${item.tone.split(" ")[0]} bg-[#0F172A] p-3`}>
-                <div className="flex items-center justify-between">
-                  <p className="text-white font-semibold">{item.title}</p>
-                  <span className={`text-[10px] px-2 py-0.5 rounded ${item.tone.split(" ")[1]} bg-white/5`}>
-                    {item.severity}
+      {!loading && error && (
+        <section className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-amber-100">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <div>
+              <p className="font-semibold">No saved mastery profile found.</p>
+              <p className="mt-1 text-amber-100/75">
+                Run KAA `/analyze` first, or load the demo record with `STU-2026-DEMO`.
+              </p>
+              <p className="mt-2 text-xs text-amber-100/55">{error}</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!loading && profile && (
+        <>
+          <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <MetricCard
+              icon={<Database className="h-4 w-4" />}
+              label="Schema"
+              value={profile.schema_version}
+              helper={profile.profile_id ? `ID ${profile.profile_id}` : "Saved profile"}
+              tone="text-cyan-300"
+            />
+            <MetricCard
+              icon={<Target className="h-4 w-4" />}
+              label="Overall mastery"
+              value={formatPercent(profile.mastery_profile.overall_mastery_score)}
+              helper={profile.student_id}
+              tone="text-teal-300"
+            />
+            <MetricCard
+              icon={<AlertCircle className="h-4 w-4" />}
+              label="Knowledge gaps"
+              value={String(profile.mastery_profile.knowledge_gaps.length)}
+              helper={profile.gap_topic_ids.join(", ") || "No gap topics"}
+              tone="text-amber-300"
+            />
+            <MetricCard
+              icon={<ShieldCheck className="h-4 w-4" />}
+              label="Strengths"
+              value={String(profile.mastery_profile.strengths.length)}
+              helper={`Saved ${formatDateTime(profile.created_at)}`}
+              tone="text-emerald-300"
+            />
+          </section>
+
+          <CareerFitCard studentId={displayStudentId} />
+
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+            <div className="space-y-4">
+              <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-bold text-white">Generated knowledge gaps</h2>
+                  <span className="rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-xs font-bold text-cyan-200">
+                    {profile.data_sources.github === "available" ? "GitHub included" : "No GitHub"}
                   </span>
                 </div>
-                <p className="text-xs text-white/45 mt-1">{item.detail}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-100 italic">
-            Focus on iteration logic before moving to recursion modules.
-          </div>
-        </article>
-      </section>
+                <div className="mt-3 space-y-3">
+                  {profile.mastery_profile.knowledge_gaps.length ? (
+                    profile.mastery_profile.knowledge_gaps.map((gap, index) => (
+                      <GapCard key={`${gap.topic_id}-${index}`} gap={gap} />
+                    ))
+                  ) : (
+                    <p className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/55">
+                      No current knowledge gaps were saved for this profile.
+                    </p>
+                  )}
+                </div>
+              </section>
 
-      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-          <h3 className="text-white font-semibold">Misconception Clusters</h3>
-          <p className="text-xs text-white/45">Total Clusters: 03 | Severity Index: 4.2</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-[#0F172A] text-xs uppercase text-white/40">
-              <tr>
-                <th className="p-3 text-left">ID</th>
-                <th className="p-3 text-left">Misconception Title</th>
-                <th className="p-3 text-left">Observed Pattern</th>
-                <th className="p-3 text-left">Frequency</th>
-                <th className="p-3 text-left">Confidence</th>
-                <th className="p-3 text-left"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {misconceptions.map((item) => (
-                <tr key={item.id} className="border-t border-white/5">
-                  <td className="p-3 text-white/55">{item.id}</td>
-                  <td className="p-3 text-white font-medium">{item.title}</td>
-                  <td className="p-3 text-white/60">{item.pattern}</td>
-                  <td className="p-3 text-cyan-300">{item.frequency}</td>
-                  <td className="p-3"><span className="text-xs px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">{item.confidence}</span></td>
-                  <td className="p-3 text-white/30"><ArrowRight className="w-4 h-4" /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+                <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+                  <FileJson className="h-4 w-4 text-cyan-300" />
+                  DB JSON preview
+                </h2>
+                <pre className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-white/10 bg-[#050816] p-4 text-xs leading-5 text-cyan-50/80">
+                  {JSON.stringify(
+                    {
+                      profile_id: profile.profile_id,
+                      student_id: profile.student_id,
+                      schema_version: profile.schema_version,
+                      gap_topic_ids: profile.gap_topic_ids,
+                      mastery_profile: profile.mastery_profile,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </section>
+            </div>
 
-      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-        <h3 className="text-white font-semibold flex items-center gap-2 mb-3">
-          <Bot className="w-4 h-4 text-cyan-300" /> Adaptive Learning Strategy
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <article className="rounded-lg border border-white/10 bg-[#0F172A] p-3">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-white font-semibold">Remedial Focus</p>
-              <span className="text-[10px] text-cyan-300">B1</span>
-            </div>
-            <p className="text-sm text-white/60">Inject 5-minute interactive sandbox module on Loop Invariants.</p>
-          </article>
-          <article className="rounded-lg border border-white/10 bg-[#0F172A] p-3">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-white font-semibold">Complexity Pivot</p>
-              <span className="text-[10px] text-cyan-300">B2</span>
-            </div>
-            <p className="text-sm text-white/60">Defer inheritance diagnostics until iteration frequency errors reduce.</p>
-          </article>
-          <article className="rounded-lg border border-white/10 bg-[#0F172A] p-3">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-white font-semibold">Engagement Mode</p>
-              <span className="text-[10px] text-cyan-300">B3</span>
-            </div>
-            <p className="text-sm text-white/60">Use technical/concise tone while keeping hints grounded in raw error codes.</p>
-          </article>
-        </div>
-      </section>
+            <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+              <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+                <h2 className="text-lg font-bold text-white">Strengths</h2>
+                <div className="mt-3 space-y-2">
+                  {profile.mastery_profile.strengths.length ? (
+                    profile.mastery_profile.strengths.map((strength, index) => (
+                      <StrengthCard key={`${strength.topic_id}-${index}`} strength={strength} />
+                    ))
+                  ) : (
+                    <p className="rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/55">
+                      No strengths were saved in this profile.
+                    </p>
+                  )}
+                </div>
+              </section>
 
-      <section className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
-        <div className="text-xs uppercase tracking-wider text-white/45">Data Freshness <span className="text-emerald-300">Real-Time</span></div>
-        <div className="flex items-center gap-2 text-cyan-300">
-          <Target className="w-4 h-4" />
-          <ShieldCheck className="w-4 h-4" />
-          <Sparkles className="w-4 h-4" />
-          <CheckCircle2 className="w-4 h-4" />
-          <AlertTriangle className="w-4 h-4 text-amber-300" />
-        </div>
-      </section>
+              <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+                <h2 className="text-lg font-bold text-white">Recommendations</h2>
+                <div className="mt-3 rounded-xl border border-white/10 bg-[#0F172A] p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">
+                    Priority order
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-cyan-200">
+                    {profile.recommendations.priority_order?.join(" -> ") || "No priority order"}
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-white/65">
+                    {profile.recommendations.general_advice || "No general advice saved."}
+                  </p>
+                  <p className="mt-3 border-t border-white/10 pt-3 text-xs leading-5 text-white/45">
+                    {profile.recommendations.for_instructor || "No instructor recommendation saved."}
+                  </p>
+                </div>
+              </section>
+            </aside>
+          </section>
+        </>
+      )}
     </div>
   );
 }
 
+function MetricCard({
+  icon,
+  label,
+  value,
+  helper,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  helper: string;
+  tone: string;
+}) {
+  return (
+    <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+      <div className={`mb-3 inline-flex rounded-lg border border-white/10 bg-white/5 p-2 ${tone}`}>
+        {icon}
+      </div>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-white/40">{label}</p>
+      <p className={`mt-1 truncate text-xl font-black ${tone}`}>{value}</p>
+      <p className="mt-1 truncate text-xs text-white/45">{helper}</p>
+    </article>
+  );
+}
+
+function GapCard({ gap }: { gap: KnowledgeGap }) {
+  return (
+    <article className="rounded-xl border border-amber-400/20 bg-[#0F172A] p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-black text-white">{gap.topic}</h3>
+            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-bold text-white/55">
+              {gap.topic_id}
+            </span>
+            <span className="rounded-md border border-amber-400/25 bg-amber-400/10 px-2 py-1 text-[11px] font-bold text-amber-200">
+              {gap.gap_type}
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-white/60">{gap.evidence_summary}</p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <ScorePill label="Mastery" value={formatPercent(gap.mastery_score)} />
+          <ScorePill label="Confidence" value={formatConfidence(gap.confidence)} />
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        {gap.weak_subskills.map((item) => (
+          <div key={item.subskill_id} className="rounded-lg border border-red-400/20 bg-red-400/10 p-3">
+            <p className="text-sm font-bold text-red-100">{item.subskill}</p>
+            <p className="mt-1 text-[11px] font-mono text-red-100/45">{item.subskill_id}</p>
+            <p className="mt-2 text-xs leading-5 text-red-50/65">{item.evidence}</p>
+            {item.recommended_content_focus && (
+              <p className="mt-2 text-xs leading-5 text-white/55">
+                {item.recommended_content_focus}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-white/35">
+          Suggested intervention
+        </p>
+        <p className="mt-1 text-sm font-semibold text-cyan-200">
+          {gap.suggested_intervention.primary} · {gap.suggested_intervention.difficulty_level} ·{" "}
+          {gap.suggested_intervention.estimated_time_minutes} min
+        </p>
+        <ul className="mt-2 space-y-1 text-xs leading-5 text-white/55">
+          {gap.suggested_intervention.learning_objectives.map((objective) => (
+            <li key={objective} className="flex gap-2">
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-300" />
+              <span>{objective}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </article>
+  );
+}
+
+function StrengthCard({ strength }: { strength: Strength }) {
+  return (
+    <article className="rounded-xl border border-emerald-400/20 bg-[#0F172A] p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-bold text-white">{strength.topic}</p>
+          <p className="mt-0.5 text-[11px] font-mono text-white/35">{strength.topic_id}</p>
+        </div>
+        <span className="rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-xs font-bold text-emerald-200">
+          {formatPercent(strength.mastery_score)}
+        </span>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-white/55">{strength.evidence_summary}</p>
+      <p className="mt-2 text-xs text-white/40">
+        Can teach others: {strength.can_teach_others ? "Yes" : "No"}
+      </p>
+    </article>
+  );
+}
+
+function ScorePill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-[96px] rounded-lg border border-white/10 bg-[#050816] px-3 py-2 text-center">
+      <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-white/35">
+        {label}
+      </p>
+      <p className="mt-1 text-base font-black text-white">{value}</p>
+    </div>
+  );
+}

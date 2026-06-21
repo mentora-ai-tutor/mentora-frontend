@@ -24,6 +24,7 @@ export interface ActiveReviewState {
   studentId?: string;
   status: ReviewJob["status"];
   repos: ReviewRepoResult[];
+  llmChoice?: ReviewJob["llm_choice"];
   startedAt: string;
   completedAt?: string;
   lastError?: string;
@@ -86,6 +87,11 @@ const buildStateFromJob = (
     studentId: job.student_id,
     status: job.status,
     repos: job.repos,
+    llmChoice:
+      job.llm_choice ??
+      previous?.llmChoice ??
+      job.repos.find((repo) => repo.llm_choice)?.llm_choice ??
+      undefined,
     startedAt: previous?.startedAt ?? job.created_at ?? now,
     completedAt,
     lastError: job.error ?? previous?.lastError,
