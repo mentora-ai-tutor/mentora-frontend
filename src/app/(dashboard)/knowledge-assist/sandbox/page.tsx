@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   CircleDashed,
   Code2,
+  Cpu,
   Play,
   RefreshCw,
   RotateCcw,
@@ -29,7 +30,7 @@ import { ActiveReviewState, useActiveReview } from "@/contexts/ActiveReviewConte
 import { useAuth } from "@/contexts/AuthContext";
 import { knowledgeProfileApi } from "@/lib/api/knowledgeProfile";
 import SkillCheckPanel from "@/components/sandbox/SkillCheckPanel";
-import { sandboxApi } from "@/lib/api/sandbox";
+import { LlmChoice, sandboxApi } from "@/lib/api/sandbox";
 
 type SandboxChallenge = {
   id: string;
@@ -172,6 +173,8 @@ export default function KnowledgeAssistSandboxPage() {
   const [challengeSource, setChallengeSource] = useState<SourceTag>("fallback");
   const [loadingChallenges, setLoadingChallenges] = useState(false);
   const [pendingChallenges, setPendingChallenges] = useState<SandboxChallenge[] | null>(null);
+  const [selectedLlm, setSelectedLlm] = useState<LlmChoice>("gemini");
+  const [ollamaAvailable, setOllamaAvailable] = useState(false);
 
   const challenge = challenges[challengeIndex] ?? challenges[0];
   const runStatus = getRunStatus(result, challenge.expectedOutput);
@@ -223,11 +226,31 @@ export default function KnowledgeAssistSandboxPage() {
     setError(null);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const check = async () => {
+      try {
+        const opts = await sandboxApi.getLlmOptions();
+        if (cancelled) return;
+        setOllamaAvailable(opts.ollama_available);
+        if (!opts.ollama_available) {
+          if (!cancelled) setSelectedLlm("gemini");
+          retry = setTimeout(check, 10_000);
+        }
+      } catch {
+        if (!cancelled) retry = setTimeout(check, 10_000);
+      }
+    };
+    void check();
+    return () => { cancelled = true; if (retry) clearTimeout(retry); };
+  }, []);
+
   const fetchBatch = useCallback(
-    async (mode: "mount" | "manual" | "auto") => {
+    async (mode: "mount" | "manual" | "auto", llm: LlmChoice = "gemini") => {
       setLoadingChallenges(true);
       try {
-        const res = await sandboxApi.getChallenges(3);
+        const res = await sandboxApi.getChallenges(3, undefined, llm);
         if (!res.challenges.length) return;
         const src: SourceTag = !res.degraded
           ? "generated"
@@ -254,23 +277,24 @@ export default function KnowledgeAssistSandboxPage() {
     [applyChallenges],
   );
 
-  // Load a fresh Gemini batch on mount (replaces the offline fallback).
+  // Load a fresh batch on mount (replaces the offline fallback).
   useEffect(() => {
-    void fetchBatch("mount");
+    void fetchBatch("mount", selectedLlm);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchBatch]);
 
   // While a repo review is running, rotate in new questions every 90s.
   useEffect(() => {
     if (!reviewRunning) return;
-    const id = setInterval(() => void fetchBatch("auto"), 90_000);
+    const id = setInterval(() => void fetchBatch("auto", selectedLlm), 90_000);
     return () => clearInterval(id);
-  }, [reviewRunning, fetchBatch]);
+  }, [reviewRunning, fetchBatch, selectedLlm]);
 
   const loadNewQuestions = () => {
     if (pendingChallenges) {
       applyChallenges(pendingChallenges, challengeSource);
     } else {
-      void fetchBatch("manual");
+      void fetchBatch("manual", selectedLlm);
     }
   };
 
@@ -396,6 +420,47 @@ export default function KnowledgeAssistSandboxPage() {
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+          {/* LLM toggle */}
+          <div className="mb-3">
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+              Question model
+            </p>
+            <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-white/10 bg-white/5 p-1">
+              <button
+                type="button"
+                onClick={() => setSelectedLlm("gemini")}
+                disabled={loadingChallenges}
+                className={`flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed ${
+                  selectedLlm === "gemini"
+                    ? "bg-gradient-to-r from-teal-500 to-teal-400 text-[#061016]"
+                    : "text-white/55 hover:text-white"
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Gemini
+              </button>
+              <button
+                type="button"
+                onClick={() => ollamaAvailable && setSelectedLlm("ollama")}
+                disabled={!ollamaAvailable || loadingChallenges}
+                title={ollamaAvailable ? "Use local Ollama (llama3)" : "Ollama not reachable — start it locally first"}
+                className={`flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                  selectedLlm === "ollama"
+                    ? "bg-gradient-to-r from-teal-500 to-teal-400 text-[#061016]"
+                    : "text-white/55 hover:text-white"
+                }`}
+              >
+                <Cpu className="h-3.5 w-3.5" />
+                Ollama
+              </button>
+            </div>
+            {!ollamaAvailable && (
+              <p className="mt-1 text-[10px] text-amber-300/70">
+                Local model offline · start Ollama to enable
+              </p>
+            )}
+          </div>
+
           <div className="flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
               <Code2 className="h-4 w-4 text-cyan-300" />
@@ -417,7 +482,8 @@ export default function KnowledgeAssistSandboxPage() {
             <p className="mt-2 text-[11px] text-white/40">Generating fresh questions…</p>
           ) : challengeSource === "generated" ? (
             <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-teal-300/80">
-              <Sparkles className="h-3 w-3" /> AI-generated · refreshes during review
+              {selectedLlm === "ollama" ? <Cpu className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+              {selectedLlm === "ollama" ? "Local model · llama3" : "AI-generated · refreshes during review"}
             </p>
           ) : challengeSource === "seed" || challengeSource === "mixed" ? (
             <p className="mt-2 text-[11px] text-amber-300/70">Practice set (AI offline)</p>

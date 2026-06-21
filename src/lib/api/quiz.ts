@@ -145,4 +145,15 @@ export const quizApi = {
     );
     return unwrap<AnswerResponse>(res);
   },
+
+  async analyzeAuto(): Promise<void> {
+    const res = await fetch(`${KNOWLEDGE_API_BASE_URL}/analyze/auto`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as ApiEnvelope<unknown>;
+      throw new Error(body.detail || `HTTP ${res.status}`);
+    }
+  },
 };

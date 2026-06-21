@@ -108,6 +108,10 @@ export default function SkillCheckPanel({
       setPendingNext(response.next_question);
       setResults(response.results);
       setPhase("answered");
+      if (response.completed) {
+        // Fire-and-forget: build mastery profile from stored quiz + sandbox data
+        quizApi.analyzeAuto().catch(() => undefined);
+      }
     } catch (err) {
       setError(getMessage(err));
     } finally {

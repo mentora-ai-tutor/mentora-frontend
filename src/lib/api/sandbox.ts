@@ -87,9 +87,11 @@ const toChallenge = (r: RawChallenge): SandboxChallenge => ({
   stdin: r.stdin ?? undefined,
 });
 
+export type LlmChoice = "gemini" | "ollama";
+
 export const sandboxApi = {
-  async getChallenges(count = 3, topics?: string[]): Promise<SandboxChallengesResult> {
-    const params = new URLSearchParams({ count: String(count) });
+  async getChallenges(count = 3, topics?: string[], llm: LlmChoice = "gemini"): Promise<SandboxChallengesResult> {
+    const params = new URLSearchParams({ count: String(count), llm });
     if (topics?.length) params.set("topics", topics.join(","));
     const res = await fetch(
       `${KNOWLEDGE_API_BASE_URL}/api/v1/sandbox/challenges?${params.toString()}`,
@@ -101,5 +103,13 @@ export const sandboxApi = {
       source: data.source,
       degraded: data.degraded,
     };
+  },
+
+  async getLlmOptions(): Promise<{ providers: LlmChoice[]; default: LlmChoice; ollama_available: boolean }> {
+    const res = await fetch(
+      `${KNOWLEDGE_API_BASE_URL}/api/v1/github-review/llm-options`,
+      { headers: authHeaders() },
+    );
+    return unwrap(res);
   },
 };
