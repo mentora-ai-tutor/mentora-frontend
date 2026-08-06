@@ -273,13 +273,13 @@ export default function LearningGeneratorDashboard() {
       {/* ── HERO CARD ── */}
       <div className="relative p-[1px] rounded-3xl overflow-hidden group">
         <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500 to-teal-500/0 group-hover:rotate-180 transition-transform duration-1000 ease-linear animate-pulse" />
-        <div className="relative bg-[#1e293b]/90 backdrop-blur-xl rounded-3xl p-6 lg:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="relative bg-[#1e293b]/90 backdrop-blur-xl rounded-3xl p-6 lg:p-7">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-3 shadow-[0_0_10px_rgba(13,148,136,0.3)]">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-2 shadow-[0_0_10px_rgba(13,148,136,0.3)]">
                 <Sparkles className="w-3 h-3" /> AI-Powered Learning
               </div>
-              <h1 className="text-2xl lg:text-3xl font-black text-white mb-2">
+              <h1 className="text-xl lg:text-2xl font-black text-white mb-1">
                 Material Generator
               </h1>
               <p className="text-white/50 text-sm lg:text-base max-w-xl">
@@ -287,20 +287,20 @@ export default function LearningGeneratorDashboard() {
               </p>
             </div>
 
-            <div className="flex gap-3 shrink-0">
-              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 text-center min-w-[100px]">
-                <p className="text-2xl font-black text-teal-400">{totalGaps}</p>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Gaps Found</p>
+            <div className="flex gap-2.5 shrink-0">
+              <div className="bg-[#0F172A] border border-white/10 rounded-xl p-3.5 text-center min-w-[90px]">
+                <p className="text-xl font-black text-teal-400">{totalGaps}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Gaps Found</p>
               </div>
               {fundamentalGaps > 0 && (
-                <div className="bg-[#0F172A] border border-red-500/20 rounded-2xl p-4 text-center min-w-[100px]">
-                  <p className="text-2xl font-black text-red-400">{fundamentalGaps}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Critical</p>
+                <div className="bg-[#0F172A] border border-red-500/20 rounded-xl p-3.5 text-center min-w-[90px]">
+                  <p className="text-xl font-black text-red-400">{fundamentalGaps}</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Critical</p>
                 </div>
               )}
-              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 text-center min-w-[100px]">
-                <p className="text-2xl font-black text-amber-400">{materials.length}</p>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Materials</p>
+              <div className="bg-[#0F172A] border border-white/10 rounded-xl p-3.5 text-center min-w-[90px]">
+                <p className="text-xl font-black text-amber-400">{materials.length}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Materials</p>
               </div>
             </div>
           </div>
@@ -364,7 +364,7 @@ export default function LearningGeneratorDashboard() {
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <GitBranch className="w-5 h-5 text-blue-400" /> Prerequisite Materials
                 </h2>
-                <span className="text-xs text-blue-400/70">essential foundations you're missing — master these first</span>
+                <span className="text-xs text-blue-400/70">essential foundations you&apos;re missing — master these first</span>
               </div>
               <div className="grid md:grid-cols-2 gap-3">
                 {implicitMaterials.map((m) => (
