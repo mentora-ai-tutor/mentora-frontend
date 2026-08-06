@@ -216,12 +216,34 @@ interface LearningMaterial {
   updated_at: string;
 }
 
+interface CoverageNode {
+  concept_id: string;
+  name: string;
+  category?: string;
+  bloom_level?: string;
+}
+
+interface CoverageGapItem {
+  concept_id: string;
+  name?: string;
+  reason?: string;
+}
+
+interface CoverageUnresolvedItem {
+  concept_id: string;
+  name?: string;
+  blocks?: string;
+}
+
 interface ConceptCoverage {
   totalNodes: number;
   coveredNodes: number;
   coveragePct: number;
   implicitGapsCount: number;
   unverifiedCount: number;
+  covered?: CoverageNode[];
+  implicitGaps?: CoverageGapItem[];
+  unresolved?: CoverageUnresolvedItem[];
 }
 
 interface AgentStats {
@@ -308,6 +330,10 @@ class LearningGeneratorApi {
 
   async getProfile(studentId: string): Promise<ApiResponse> {
     return this.request('GET', `/api/mastery/${studentId}`);
+  }
+
+  async getProfileById(profileId: string): Promise<ApiResponse> {
+    return this.request('GET', `/api/mastery/profile/${profileId}`);
   }
 
   async getProfileHistory(studentId: string, page = 1, limit = 10): Promise<ApiResponse> {
@@ -413,4 +439,7 @@ export type {
   ProgressStats,
   ConceptCoverage,
   ConceptContext,
+  CoverageNode,
+  CoverageGapItem,
+  CoverageUnresolvedItem,
 };

@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats, type ConceptCoverage as ConceptCoverageData } from "@/lib/api/learningGenerator";
-import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap } from "lucide-react";
+import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap, GitBranch } from "lucide-react";
 import { ActiveJobsList } from "@/components/learning-generator/JobCard";
 import ProgressStatsCards from "@/components/learning-generator/ProgressStats";
 import KnowledgeGapCard from "@/components/learning-generator/KnowledgeGapCard";
+import MaterialCard from "@/components/learning-generator/MaterialCard";
 import SubmitProfileDialog from "@/components/learning-generator/SubmitProfileDialog";
 import { QuickActions, ModuleProgressList, ScoreHistory, StrengthsList, ConceptCoverage } from "@/components/learning-generator/OverviewSidebar";
 
@@ -251,6 +252,9 @@ export default function LearningGeneratorDashboard() {
 
   const totalGaps = profile?.knowledge_gaps?.length || 0;
   const fundamentalGaps = profile?.knowledge_gaps?.filter((g: KnowledgeGap) => g.gap_type === "FUNDAMENTAL_GAP").length || 0;
+  const implicitMaterials = materials.filter(
+    (m) => m.structured_material.generation_source === "implicit_prerequisite"
+  );
 
   if (loading) {
     return (
@@ -350,6 +354,23 @@ export default function LearningGeneratorDashboard() {
               >
                 <Zap className="w-4 h-4" /> Submit Profile
               </button>
+            </div>
+          )}
+
+          {/* ── PREREQUISITE MATERIALS (concept-graph injected) ── */}
+          {implicitMaterials.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <GitBranch className="w-5 h-5 text-blue-400" /> Prerequisite Materials
+                </h2>
+                <span className="text-xs text-blue-400/70">essential foundations you're missing — master these first</span>
+              </div>
+              <div className="grid md:grid-cols-2 gap-3">
+                {implicitMaterials.map((m) => (
+                  <MaterialCard key={m._id} material={m} />
+                ))}
+              </div>
             </div>
           )}
         </div>
