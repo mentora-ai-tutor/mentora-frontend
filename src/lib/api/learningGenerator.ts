@@ -170,6 +170,15 @@ interface Assessment {
   };
 }
 
+interface ConceptContext {
+  concept_id?: string;
+  name?: string;
+  category?: string;
+  bloom_level?: string;
+  description?: string;
+  [key: string]: any;
+}
+
 interface LearningMaterial {
   _id: string;
   structured_material: {
@@ -184,9 +193,17 @@ interface LearningMaterial {
       llm?: string;
       slm?: string;
     };
+    // Concept-Graph Coverage-and-Prerequisite Layer fields. Absent on
+    // materials generated before the concept-graph enrichment, hence optional.
+    generation_source?: 'explicit_gap' | 'implicit_prerequisite';
+    resolution_method?: 'exact' | 'alias' | 'embedding' | 'llm' | 'llm_no_match' | 'unresolved' | 'implicit';
     lesson: Lesson;
     assessment: Assessment;
-    personalisation?: any;
+    personalisation?: {
+      concept_context?: ConceptContext | null;
+      prerequisite_reason?: string | null;
+      [key: string]: any;
+    };
     study_plan?: any;
     syntax_reference?: {
       basic_syntax: string;
@@ -197,6 +214,14 @@ interface LearningMaterial {
   };
   created_at: string;
   updated_at: string;
+}
+
+interface ConceptCoverage {
+  totalNodes: number;
+  coveredNodes: number;
+  coveragePct: number;
+  implicitGapsCount: number;
+  unverifiedCount: number;
 }
 
 interface AgentStats {
@@ -364,6 +389,11 @@ class LearningGeneratorApi {
   async getProgressStats(studentId: string): Promise<ApiResponse<ProgressStats>> {
     return this.request('GET', `/api/progress/student/${studentId}/stats`);
   }
+
+  async getConceptCoverage(studentId: string, category?: string): Promise<ApiResponse<ConceptCoverage>> {
+    const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+    return this.request('GET', `/api/concept-graph/coverage/${studentId}${qs}`);
+  }
 }
 
 export const learningGeneratorApi = new LearningGeneratorApi();
@@ -381,4 +411,6 @@ export type {
   AgentStats,
   StudentProgress,
   ProgressStats,
+  ConceptCoverage,
+  ConceptContext,
 };

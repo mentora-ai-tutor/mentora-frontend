@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats } from "@/lib/api/learningGenerator";
+import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats, type ConceptCoverage as ConceptCoverageData } from "@/lib/api/learningGenerator";
 import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap } from "lucide-react";
 import { ActiveJobsList } from "@/components/learning-generator/JobCard";
 import ProgressStatsCards from "@/components/learning-generator/ProgressStats";
 import KnowledgeGapCard from "@/components/learning-generator/KnowledgeGapCard";
 import SubmitProfileDialog from "@/components/learning-generator/SubmitProfileDialog";
-import { QuickActions, ModuleProgressList, ScoreHistory, StrengthsList } from "@/components/learning-generator/OverviewSidebar";
+import { QuickActions, ModuleProgressList, ScoreHistory, StrengthsList, ConceptCoverage } from "@/components/learning-generator/OverviewSidebar";
 
 export default function LearningGeneratorDashboard() {
   const { user } = useAuth();
@@ -26,17 +26,19 @@ export default function LearningGeneratorDashboard() {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [closingJobs, setClosingJobs] = useState<string[]>([]);
+  const [conceptCoverage, setConceptCoverage] = useState<ConceptCoverageData | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user?.student_id) return;
     try {
-      const [materialsRes, profileRes, historyRes, jobsRes, progressRes, progressStatsRes] = await Promise.all([
+      const [materialsRes, profileRes, historyRes, jobsRes, progressRes, progressStatsRes, coverageRes] = await Promise.all([
         learningGeneratorApi.getMaterials(user.student_id),
         learningGeneratorApi.getProfile(user.student_id),
         learningGeneratorApi.getProfileHistory(user.student_id, 1, 5),
         learningGeneratorApi.getJobsByStudent(user.student_id),
         learningGeneratorApi.getProgressByStudent(user.student_id),
         learningGeneratorApi.getProgressStats(user.student_id),
+        learningGeneratorApi.getConceptCoverage(user.student_id),
       ]);
 
       if (materialsRes.success && materialsRes.data) {
@@ -78,6 +80,9 @@ export default function LearningGeneratorDashboard() {
       }
       if (progressStatsRes.success && progressStatsRes.data) {
         setProgressStats(progressStatsRes.data);
+      }
+      if (coverageRes.success && coverageRes.data) {
+        setConceptCoverage(coverageRes.data);
       }
     } catch (err: any) {
       setError(err.message || "Failed to load data");
@@ -352,6 +357,7 @@ export default function LearningGeneratorDashboard() {
         {/* ── RIGHT: Sidebar ── */}
         <div className="space-y-6">
           <QuickActions onGenerateClick={() => setShowSubmitDialog(true)} />
+          <ConceptCoverage coverage={conceptCoverage} />
           <ModuleProgressList progress={materialProgress} />
           <ScoreHistory history={profileHistory} />
           <StrengthsList strengths={profile?.strengths || []} />

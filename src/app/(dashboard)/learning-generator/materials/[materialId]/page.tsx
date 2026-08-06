@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { learningGeneratorApi, type LearningMaterial } from "@/lib/api/learningGenerator";
 import { aiEngineApi } from "@/lib/api/aiEngine";
-import { Loader2, XCircle } from "lucide-react";
+import { Loader2, XCircle, Info } from "lucide-react";
 import LearningPathSidebar from "@/components/learning-generator/LearningPathSidebar";
 import ContentRenderer from "@/components/learning-generator/ContentRenderer";
 import QuizSection from "@/components/learning-generator/QuizSection";
@@ -413,6 +413,15 @@ export default function MaterialWorkspace() {
         />
 
         <div className="flex-1 flex flex-col min-w-0 bg-[#0F172A] relative min-h-0">
+          {sm?.generation_source === "implicit_prerequisite" && (
+            <div className="px-6 py-2.5 bg-blue-500/10 border-b border-blue-500/20 flex items-start gap-2 text-xs text-blue-200/90 shrink-0">
+              <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <p>
+                Auto-added from your prerequisite gap{sm.personalisation?.concept_context?.name ? ` on ${sm.personalisation.concept_context.name}` : ""} —{" "}
+                {sm.personalisation?.prerequisite_reason || "this concept is required before you can master the topics you're missing."}
+              </p>
+            </div>
+          )}
           {currentStepId === "quiz" ? (
             <div className={`flex-1 overflow-y-auto p-8 lg:p-12 animate-fade-in flex justify-center ${quizScore === null ? 'items-start' : 'items-center'}`}>
               <QuizSection

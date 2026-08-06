@@ -89,10 +89,10 @@ All components are **client components** (`"use client"`) that live under `src/c
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/learning-generator` | Overview Dashboard | Hero card with gap/material counts, `ActiveJobsList` (live 5s polling), `ProgressStatsCards`, `KnowledgeGapCard` list, sidebar (`QuickActions`, `ModuleProgressList`, `ScoreHistory`, `StrengthsList`), `SubmitProfileDialog`. Submits a hardcoded sample mastery profile via `submitProfile()` |
+| `/learning-generator` | Overview Dashboard | Hero card with gap/material counts, `ActiveJobsList` (live 5s polling), `ProgressStatsCards`, `KnowledgeGapCard` list, sidebar (`QuickActions`, `ConceptCoverage`, `ModuleProgressList`, `ScoreHistory`, `StrengthsList`), `SubmitProfileDialog`. Submits a hardcoded sample mastery profile via `submitProfile()` |
 | `/learning-generator/knowledge-gaps` | Knowledge Gaps | `GapSummaryCards` (total/fundamental/partial/surface), `GapFilters` (with counts + filtering helpers), `ExpandableGapCard` accordion list with evidence, misconceptions, error patterns, prerequisites, interventions |
 | `/learning-generator/materials` | Materials Gallery | Summary cards by gap type, `SearchFilterBar` (topic/topic-id search + gap-type filter), `MaterialCard` grid linking to workspaces |
-| `/learning-generator/materials/[materialId]` | Material Workspace | `LearningPathSidebar`, `ContentRenderer` (step-by-step content + AI insights), `CodeEditorPanel` (execution + AI feedback), `QuizSection`, `BottomNav`. Builds steps dynamically from material data; persists AI insights to `sessionStorage` |
+| `/learning-generator/materials/[materialId]` | Material Workspace | `LearningPathSidebar`, `ContentRenderer` (step-by-step content + AI insights), `CodeEditorPanel` (execution + AI feedback), `QuizSection`, `BottomNav`. Builds steps dynamically from material data; persists AI insights to `sessionStorage`. Implicit-prerequisite materials render a blue contextual banner at the top using `personalisation.concept_context` / `personalisation.prerequisite_reason` |
 | `/learning-generator/workspace` | Code Sandbox | Standalone Java workspace using `useWorkspaceSession` hook: `WorkspaceTopBar`, `StdinBar`, `WorkspaceEditor` (inline AI explanation + review overlays), `WorkspaceTabs` (Output/AI/Review/Fix), `ExecutionTimeline`, `FlashcardsPanel`, `TestsPanel` |
 
 **Step building (`MaterialWorkspace`):** The `buildSteps()` function (in `[materialId]/page.tsx`) derives the learning path from available material sections:
@@ -122,7 +122,7 @@ All components are in `src/components/learning-generator/` and default-exported 
 | `ProgressStats` | `ProgressStats.tsx` | Exports `ProgressStatsCards`. Receives `ProgressStats`, optional `StudentProgress[]`, and `LearningMaterial[]`. Computes 4 stat cards (Overall Progress %, Modules Completed, In Progress, Avg Quiz Score) plus a "Learning Progress" panel with a steps-completed progress bar and completed/in-progress/not-started counts. Returns `null` if no stats |
 | `KnowledgeGapCard` | `KnowledgeGapCard.tsx` | Compact dashboard card for a single `KnowledgeGap`. Color-coded gap-type badge (red/amber/blue), evidence summary (2-line clamp), up to 3 misconception chips (`+N more` overflow), optional material progress bar, confidence %, completed state, and a link to the material workspace (or "Pending generation" placeholder) |
 | `SubmitProfileDialog` | `SubmitProfileDialog.tsx` | Portal-based modal (`createPortal` → `document.body`, z-index 9999). Lists what gets sent (knowledge gaps, strengths/skill level, evidence from quizzes/sandbox/GitHub). Buttons: Cancel + "Submit & Generate". Disables both while submitting, shows spinner, backdrop click-to-close disabled while submitting |
-| `OverviewSidebar` | `OverviewSidebar.tsx` | Exports 4 named components: **`QuickActions`** (Generate Materials button → opens submit dialog + Browse Materials link), **`ModuleProgressList`** (progress list of modules with per-module bars, quiz scores, completion check), **`ScoreHistory`** (list of mastery profile scores color-coded by score range: ≥80 green, ≥60 amber, ≥40 orange, else red), **`StrengthsList`** (list of strengths from profile, with confidence/mastery level when provided). All return `null` on empty input |
+| `OverviewSidebar` | `OverviewSidebar.tsx` | Exports 5 named components: **`QuickActions`** (Generate Materials button → opens submit dialog + Browse Materials link), **`ConceptCoverage`** (concept-graph coverage panel: coverage % color-coded with the same thresholds as `ScoreHistory`, progress bar, covered/total node counts, a blue "prerequisite gaps" tile when `implicitGapsCount > 0`, and a muted note when `unverifiedCount > 0`. Returns `null` when no coverage data), **`ModuleProgressList`** (progress list of modules with per-module bars, quiz scores, completion check), **`ScoreHistory`** (list of mastery profile scores color-coded by score range: ≥80 green, ≥60 amber, ≥40 orange, else red), **`StrengthsList`** (list of strengths from profile, with confidence/mastery level when provided). All return `null` on empty input |
 
 ### Knowledge Gap Components
 
@@ -136,7 +136,7 @@ All components are in `src/components/learning-generator/` and default-exported 
 
 | Component | File | Details |
 |-----------|------|---------|
-| `MaterialCard` | `MaterialCard.tsx` | Card for a `LearningMaterial`: difficulty badge (green/amber/red), gap-type badge, topic + topic_id, content-type summary (Concepts/Examples/Quiz), generated date, generation model, and an "Open Workspace" link to `/learning-generator/materials/{_id}` |
+| `MaterialCard` | `MaterialCard.tsx` | Card for a `LearningMaterial`: difficulty badge (green/amber/red), gap-type badge, topic + topic_id, content-type summary (Concepts/Examples/Quiz), generated date, generation model, and an "Open Workspace" link to `/learning-generator/materials/{_id}`. Shows a neutral-blue **Prerequisite** badge next to the gap-type badge when `structured_material.generation_source === "implicit_prerequisite"` |
 | `SearchFilterBar` | `SearchFilterBar.tsx` | Search input (topic or topic_id, case-insensitive) + gap-type filter buttons derived from `gapTypes` prop. Active filter color-coded; "All" uses teal |
 
 ### Learning Workspace Components
@@ -172,7 +172,7 @@ All components are in `src/components/learning-generator/` and default-exported 
 - **Base URL:** `NEXT_PUBLIC_LMG_API_URL` (default `http://localhost:5012`)
 - **Auth:** attaches `Authorization: Bearer <accessToken>` from `localStorage` to every request (except `/health`)
 - **Class:** `LearningGeneratorApi` (exported as singleton `learningGeneratorApi`)
-- **Types exported:** `ApiResponse`, `KnowledgeGap`, `StrengthItem`, `MasteryProfile`, `SubmitProfilePayload`, `GenerationJob`, `LearningMaterial`, `Lesson`, `Assessment`, `QuizQuestion`, `AgentStats`, `StudentProgress`, `ProgressStats`
+- **Types exported:** `ApiResponse`, `KnowledgeGap`, `StrengthItem`, `MasteryProfile`, `SubmitProfilePayload`, `GenerationJob`, `LearningMaterial`, `Lesson`, `Assessment`, `QuizQuestion`, `AgentStats`, `StudentProgress`, `ProgressStats`, `ConceptCoverage`, `ConceptContext`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -196,6 +196,7 @@ All components are in `src/components/learning-generator/` and default-exported 
 | `updateProgress` | `PUT /api/progress/material/:materialId` | Update step completion, active step, quiz score, completion |
 | `getProgressByStudent` | `GET /api/progress/student/:studentId` | All progress records |
 | `getProgressStats` | `GET /api/progress/student/:studentId/stats` | Progress statistics |
+| `getConceptCoverage` | `GET /api/concept-graph/coverage/:studentId?category=` | Concept coverage (`ConceptCoverage`: totalNodes/coveredNodes/coveragePct/implicitGapsCount/unverifiedCount) |
 
 ### AI Engine API — `src/lib/api/aiEngine.ts`
 
@@ -246,7 +247,7 @@ On step change, previously stored insights are rehydrated automatically.
 
 ## Data Flow
 
-1. **Dashboard load:** `fetchData` runs `Promise.all` over materials, profile, profile history, jobs, progress, and progress stats. If any non-closed jobs exist, a **5-second polling interval** is started that refreshes materials + jobs.
+1. **Dashboard load:** `fetchData` runs `Promise.all` over materials, profile, profile history, jobs, progress, progress stats, and **concept coverage**. If any non-closed jobs exist, a **5-second polling interval** is started that refreshes materials + jobs.
 2. **Profile submission:** `handleSubmitProfile` posts a sample mastery profile → on success, a new `GenerationJob` (status `processing`) is optimistically appended to `activeJobs` and the dialog closes.
 3. **Job dismissal:** `handleDismissJob` calls `closeJob` then removes the job from the local list.
 4. **Workspace load:** parallel `getMaterial` + `getProgressByMaterial` → builds steps, restores completed steps / active step / quiz score.
