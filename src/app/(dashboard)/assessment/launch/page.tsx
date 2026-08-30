@@ -25,140 +25,59 @@ import {
 } from "lucide-react";
 import { assessmentApi } from "@/lib/api/assessment";
 
-const MOCK_PROFILE = {
-  learner_id: "STU-2026-1147",
-  data_sources: {
-    github: "available",
-    sandbox: "available",
-    quizzes: "available",
-  },
-  mastery_profile: {
-    overall_mastery_score: 63,
-    knowledge_gaps: [
-      {
-        topic: "Recursion",
-        topic_id: "CS202-REC",
-        gap_type: "FUNDAMENTAL_GAP",
-        confidence: 0.86,
-        misconceptions: [
-          "Does not understand base cases",
-          "Confuses recursive calls with loops",
-          "Cannot trace recursive stack execution"
-        ],
-        observed_error_patterns: {
-          sandbox: [
-            "infinite recursion causing stack overflow",
-            "missing return statements in recursive methods",
-            "incorrect factorial implementation"
-          ],
-          quizzes: [
-            "incorrect answers on recursion tracing",
-            "failed recursive tree traversal questions",
-            "could not identify recursion stopping condition"
-          ],
-          github: [
-            "avoids recursive solutions",
-            "recursive algorithms replaced with inefficient loops"
-          ]
-        },
-        evidence_summary: "Student struggles to understand recursive flow, stack behavior, and base condition logic.",
-        prerequisite_topics: ["Methods", "Loops", "Functions"],
-        related_topics: ["Tree Traversal", "Dynamic Programming", "Divide and Conquer"],
-        suggested_intervention: {
-          primary: "recursive_stack_visualization",
-          secondary: ["recursive_tracing_exercises", "factorial_debugging_tasks"],
-          difficulty_level: "intermediate",
-          estimated_time_minutes: 100,
-          learning_objectives: [
-            "Understand recursive call flow",
-            "Identify proper base conditions",
-            "Trace recursive execution stacks",
-            "Implement recursive algorithms correctly"
-          ]
-        }
-      },
-      {
-        topic: "HashMaps",
-        topic_id: "CS203-HMAP",
-        gap_type: "PARTIAL_GAP",
-        confidence: 0.72,
-        misconceptions: [
-          "Believes duplicate keys create multiple entries",
-          "Confuses keys and values",
-          "Does not understand collision handling"
-        ],
-        observed_error_patterns: {
-          sandbox: [
-            "null values retrieved unexpectedly",
-            "incorrect iteration through HashMap",
-            "overwrites existing values accidentally"
-          ],
-          quizzes: [
-            "incorrect answers about put() behavior",
-            "difficulty tracing key-value updates",
-            "confused about retrieval methods"
-          ],
-          github: [
-            "basic HashMap usage only",
-            "inefficient searching instead of using map lookups"
-          ]
-        },
-        evidence_summary: "Student understands basic HashMap syntax but struggles with internal behavior and key management.",
-        prerequisite_topics: ["Arrays", "Objects", "Loops"],
-        related_topics: ["Collections Framework", "Sets", "Caching"],
-        suggested_intervention: {
-          primary: "hashmap_execution_tracing",
-          secondary: ["collision_simulation_exercises", "key_value_debugging_tasks"],
-          difficulty_level: "intermediate",
-          estimated_time_minutes: 80,
-          learning_objectives: [
-            "Understand put() overwrite behavior",
-            "Retrieve values correctly using keys",
-            "Trace HashMap updates",
-            "Explain collision handling concepts"
-          ]
-        }
-      }
-    ],
-    strengths: [
-      {
-        topic: "Arrays",
-        topic_id: "CS101-ARR",
-        confidence: 0.93,
-        mastery_level: "advanced",
-        evidence_summary: "Strong understanding of array traversal, indexing, and manipulation.",
-        can_teach_others: true
-      },
-      {
-        topic: "Object-Oriented Programming",
-        topic_id: "CS201-OOP",
-        confidence: 0.87,
-        mastery_level: "proficient",
-        evidence_summary: "Good understanding of classes, inheritance, and encapsulation concepts.",
-        can_teach_others: false
-      }
-    ]
-  },
-  recommendations: {
-    priority_order: ["Recursion", "HashMaps"],
-    general_advice: "Student should strengthen recursive problem-solving and execution tracing before progressing to advanced algorithm design.",
-    for_instructor: "Use recursion visualization tools and HashMap tracing exercises with debugging-focused activities."
-  }
-};
-
 export default function LaunchScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Record<number, boolean>>({});
-  const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [noProfile, setNoProfile] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setProfile(MOCK_PROFILE);
-      setIsPageLoaded(true);
-    }, 800);
-    return () => clearTimeout(timer);
+    let mounted = true;
+    const loadProfile = async () => {
+      try {
+        const res = await assessmentApi.getSessions();
+        const sessions = Array.isArray(res?.data) ? res.data : [];
+        const latest = sessions.find(
+          (s: any) => s && s.mastery_profile && Array.isArray(s.mastery_profile.knowledge_gaps) && s.mastery_profile.knowledge_gaps.length > 0
+        );
+        if (!latest) {
+          if (mounted) setNoProfile(true);
+          return;
+        }
+        const mp = latest.mastery_profile;
+        const hasObserved = (key: string) =>
+          mp.knowledge_gaps.some((gap: any) => Array.isArray(gap?.observed_error_patterns?.[key]) && gap.observed_error_patterns[key].length > 0);
+        if (mounted) {
+          setProfile({
+            learner_id: latest.learner_id,
+            data_sources: {
+              github: hasObserved('github') ? 'available' : null,
+              sandbox: hasObserved('sandbox') ? 'available' : null,
+              quizzes: hasObserved('quizzes') ? 'available' : null,
+            },
+            mastery_profile: mp,
+            recommendations: {
+              priority_order: mp.knowledge_gaps.map((gap: any) => gap.topic),
+              general_advice:
+                mp.overall_mastery_score >= 70
+                  ? "You're in a strong position — sharpen the identified gaps to reach full mastery."
+                  : (mp.overall_mastery_score ?? 0) >= 45
+                    ? "You have a partial grasp — close the prioritized gaps below to build a solid foundation."
+                    : "Foundational gaps detected — the assessment will scaffold concepts step by step.",
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load knowledge profile:', error);
+        if (mounted) setNoProfile(true);
+      } finally {
+        if (mounted) setIsProfileLoading(false);
+      }
+    };
+    loadProfile();
+    return () => { mounted = false; };
   }, []);
 
   const toggleCard = (index: number) => {
@@ -216,11 +135,30 @@ export default function LaunchScreen() {
     router.push("/assessment/session");
   };
 
-  if (!isPageLoaded || !profile) {
+  if (isProfileLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center animate-pulse text-teal-400">
         <Loader2 className="w-10 h-10 animate-spin mb-4" />
         <p className="font-semibold text-white/70">Loading your profile insights...</p>
+      </div>
+    );
+  }
+
+  if (!profile || noProfile) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-6">
+        <div className="w-20 h-20 rounded-3xl bg-[#1e293b]/90 border border-white/5 flex items-center justify-center mb-6">
+          <BrainCircuit className="w-10 h-10 text-teal-400" />
+        </div>
+        <h1 className="text-2xl lg:text-3xl font-black text-white mb-3">No Knowledge Profile Found Yet</h1>
+        <p className="text-white/60 max-w-md mb-2">
+          Your personalized assessment profile hasn&apos;t been generated for this learner yet.
+        </p>
+        <p className="text-white/40 text-sm max-w-md">
+          Submit a knowledge analysis profile to the{" "}
+          <code className="text-teal-400 font-semibold">/api/ame/start-session</code> endpoint with
+          this learner&apos;s token — the mastery profile and knowledge gaps will appear here.
+        </p>
       </div>
     );
   }
