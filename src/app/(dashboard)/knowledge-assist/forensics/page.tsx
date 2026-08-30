@@ -175,8 +175,13 @@ export default function KnowledgeAssistForensicsPage() {
         const options = await reviewApi.getLlmOptions();
         if (cancelled) return;
         setLlmOptions(options);
-        // If Ollama isn't reachable, never leave it selected.
-        if (!options.ollama_available) setSelectedLlm("gemini");
+        // Follow the backend's recommended default. The backend hands out
+        // "ollama" when Gemini is not configured and Ollama is available.
+        if (options.ollama_available) {
+          setSelectedLlm(options.default === "ollama" ? "ollama" : "gemini");
+        } else {
+          setSelectedLlm("gemini");
+        }
         if (!options.ollama_available) {
           retryTimer = setTimeout(loadLlmOptions, 10000);
         }
