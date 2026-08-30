@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats, type ConceptCoverage as ConceptCoverageData } from "@/lib/api/learningGenerator";
+import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats, type ConceptCoverage as ConceptCoverageData, type SubmitProfilePayload } from "@/lib/api/learningGenerator";
+import { knowledgeProfileApi, type CanonicalMasteryProfile } from "@/lib/api/knowledgeProfile";
 import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap, GitBranch } from "lucide-react";
 import { ActiveJobsList } from "@/components/learning-generator/JobCard";
 import ProgressStatsCards from "@/components/learning-generator/ProgressStats";
@@ -26,6 +27,7 @@ export default function LearningGeneratorDashboard() {
   const [materialProgress, setMaterialProgress] = useState<StudentProgress[]>([]);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [masteryGenerating, setMasteryGenerating] = useState(false);
   const [closingJobs, setClosingJobs] = useState<string[]>([]);
   const [conceptCoverage, setConceptCoverage] = useState<ConceptCoverageData | null>(null);
 
@@ -213,24 +215,7 @@ export default function LearningGeneratorDashboard() {
       const res = await learningGeneratorApi.submitProfile(payload);
 
       if (res.success && res.data) {
-        setActiveJobs((prev) => {
-          if (prev.find((j) => j.job_id === res.data!.job_id)) return prev;
-          return [
-            ...prev,
-            {
-              job_id: res.data!.job_id,
-              student_id: res.data!.student_id,
-              profile_id: "",
-              status: "processing",
-              gaps_total: res.data!.gaps_queued,
-              gaps_completed: 0,
-              gaps_failed: 0,
-              materials_generated: 0,
-              materials_failed: 0,
-              created_at: new Date().toISOString(),
-            },
-          ];
-        });
+        addJobToActive(res.data);
         setShowSubmitDialog(false);
       } else {
         setError(res.message || res.error || "Failed to submit profile");
@@ -239,6 +224,84 @@ export default function LearningGeneratorDashboard() {
       setError("Network error. Check LMG service.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const addJobToActive = (job: { job_id: string; student_id: string; gaps_queued: number }) => {
+    setActiveJobs((prev) => {
+      if (prev.find((j) => j.job_id === job.job_id)) return prev;
+      return [
+        ...prev,
+        {
+          job_id: job.job_id,
+          student_id: job.student_id,
+          profile_id: "",
+          status: "processing",
+          gaps_total: job.gaps_queued,
+          gaps_completed: 0,
+          gaps_failed: 0,
+          materials_generated: 0,
+          materials_failed: 0,
+          created_at: new Date().toISOString(),
+        },
+      ];
+    });
+  };
+
+  const masteryToSubmitPayload = (mastery: CanonicalMasteryProfile, studentId: string): SubmitProfilePayload => ({
+    student_id: studentId,
+    analysis_timestamp: mastery.analysis_timestamp || new Date().toISOString(),
+    mastery_profile: {
+      overall_mastery_score: mastery.mastery_profile.overall_mastery_score,
+      knowledge_gaps: mastery.mastery_profile.knowledge_gaps.map((gap) => ({
+        topic: gap.topic,
+        topic_id: gap.topic_id,
+        gap_type: gap.gap_type,
+        confidence: gap.confidence,
+        misconceptions: gap.misconceptions,
+        observed_error_patterns: gap.observed_error_patterns,
+        evidence_summary: gap.evidence_summary,
+        prerequisite_topics: gap.prerequisite_topics,
+        related_topics: gap.related_topics,
+        suggested_intervention: gap.suggested_intervention,
+      })),
+      strengths: mastery.mastery_profile.strengths.map((s) => ({
+        topic: s.topic,
+        topic_id: s.topic_id,
+        confidence: s.confidence,
+        mastery_level: s.mastery_level,
+        evidence_summary: s.evidence_summary,
+        can_teach_others: s.can_teach_others,
+      })),
+    },
+    recommendations: mastery.recommendations,
+    data_sources: mastery.data_sources,
+  });
+
+  const handleGenerateFromMastery = async () => {
+    if (!user?.student_id) return;
+    setMasteryGenerating(true);
+    setError(null);
+
+    try {
+      const mastery = await knowledgeProfileApi.getLatestMasteryProfile(user.student_id);
+      const gaps = mastery.mastery_profile?.knowledge_gaps || [];
+      if (gaps.length === 0) {
+        setError("No knowledge gaps found in the saved mastery profile. Run KAA /analyze first.");
+        return;
+      }
+
+      const res = await learningGeneratorApi.submitProfile(masteryToSubmitPayload(mastery, user.student_id));
+
+      if (res.success && res.data) {
+        addJobToActive(res.data);
+      } else {
+        setError(res.message || res.error || "Failed to submit mastery profile");
+      }
+    } catch (err: any) {
+      setError(err?.message || "Could not load the saved mastery profile. Run KAA /analyze first.");
+    } finally {
+      setMasteryGenerating(false);
     }
   };
 
@@ -377,7 +440,16 @@ export default function LearningGeneratorDashboard() {
 
         {/* ── RIGHT: Sidebar ── */}
         <div className="space-y-6">
-          <QuickActions onGenerateClick={() => setShowSubmitDialog(true)} />
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+          <QuickActions
+            onGenerateClick={() => setShowSubmitDialog(true)}
+            onMasteryGenerateClick={handleGenerateFromMastery}
+            masteryGenerating={masteryGenerating}
+          />
           <ConceptCoverage coverage={conceptCoverage} />
           <ModuleProgressList progress={materialProgress} />
           <ScoreHistory history={profileHistory} />
