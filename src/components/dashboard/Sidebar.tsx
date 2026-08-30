@@ -45,7 +45,16 @@ const navItems: NavItem[] = [
       { name: "Learn Code", href: "/learning-generator/workspace" },
     ],
   },
-  { name: "Assessment", href: "/assessment", icon: Target },
+  {
+    name: "Assessment",
+    icon: Target,
+    subItems: [
+      { name: "Overview", href: "/assessment" },
+      { name: "Questions & Answers", href: "/assessment/questions-answers" },
+      { name: "Report", href: "/assessment/report" },
+     // { name: "Suggested Resources", href: "/assessment/resources" },
+    ],
+  },
   { name: "Peer Learning", href: "/peer-learning", icon: Users },
   { name: "Progress", href: "/progress", icon: TrendingUp },
 ];
@@ -66,13 +75,11 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
   const isActive = (item: NavItem) => {
     if (item.href) return pathname === item.href;
     return item.subItems?.some((subItem) => {
-      if (subItem.href === "/learning-generator") return pathname === "/learning-generator";
       return pathname === subItem.href || pathname.startsWith(subItem.href + "/");
     }) ?? false;
   };
 
   const isSubActive = (href: string) => {
-    if (href === "/learning-generator") return pathname === href;
     return pathname === href || pathname.startsWith(href + "/");
   };
 
@@ -111,17 +118,18 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
 
           if (item.subItems) {
             const isExpanded = expandedMenu === item.name;
+            const basePath = item.subItems[0]?.href.split('/').slice(0, 2).join('/') || '';
+            const isInBasePath = pathname.startsWith(basePath);
             return (
               <div key={item.name} className="space-y-1">
                 <button
                   type="button"
                   onClick={() => {
-                    const isInLearningGenerator = pathname.startsWith("/learning-generator");
                     if (!sidebarOpen) {
-                      router.push("/learning-generator");
+                      router.push(item.subItems![0].href);
                       onMobileClose();
-                    } else if (!isInLearningGenerator) {
-                      router.push("/learning-generator");
+                    } else if (!isInBasePath) {
+                      router.push(item.subItems![0].href);
                     }
                     setExpandedMenu(isExpanded ? null : item.name);
                   }}
