@@ -33,6 +33,11 @@ interface User {
     total_materials_generated: number;
     total_sessions: number;
   };
+  github?: {
+    linked: boolean;
+    gh_login?: string;
+    linked_at?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -69,7 +74,7 @@ class AuthApi {
     localStorage.removeItem('user');
   }
 
-  private normalizeOutput(result: any) {
+  private normalizeOutput(result: AuthResponse): AuthResponse {
      if (result.success && result.data) {
         const at = result.data.access_token || result.data.accessToken;
         const rt = result.data.refresh_token || result.data.refreshToken;

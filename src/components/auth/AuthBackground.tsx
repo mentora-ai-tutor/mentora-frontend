@@ -2,15 +2,6 @@
 
 import { useEffect, useRef } from "react";
 
-interface Particle {
-  x: number;
-  y: number;
-  size: number;
-  speed: number;
-  delay: number;
-  color: string;
-}
-
 export default function AuthBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
