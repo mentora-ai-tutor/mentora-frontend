@@ -47,7 +47,16 @@ const navItems: NavItem[] = [
       { name: "Learn Code", href: "/learning-generator/workspace" },
     ],
   },
-  { name: "Assessment", href: "/assessment", icon: Target },
+  {
+    name: "Assessment",
+    icon: Target,
+    subItems: [
+      { name: "Overview", href: "/assessment" },
+      { name: "Questions & Answers", href: "/assessment/questions-answers" },
+      { name: "Report", href: "/assessment/report" },
+     // { name: "Suggested Resources", href: "/assessment/resources" },
+    ],
+  },
   { name: "Peer Learning", href: "/peer-learning", icon: Users },
   { name: "Progress", href: "/progress", icon: TrendingUp },
 ];
@@ -70,11 +79,13 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
 
   const isActive = (item: NavItem) => {
     if (item.href) return pathname === item.href;
+
     return item.subItems?.some((subItem) => isSubActive(subItem.href)) ?? false;
   };
 
   const isSubActive = (href: string) => {
     if (exactSubItemHrefs.has(href)) return pathname === href;
+
     return pathname === href || pathname.startsWith(href + "/");
   };
 
@@ -118,11 +129,13 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
               ? sandboxHref(undefined, "sidebar-active-review")
               : item.subItems[0]?.href;
             const isInGroup = item.subItems.some((subItem) => isSubActive(subItem.href));
+
             return (
               <div key={item.name} className="space-y-1">
                 <button
                   type="button"
                   onClick={() => {
+
                     if (reviewGuided && defaultHref) {
                       router.push(defaultHref);
                       setExpandedMenu(item.name);
@@ -135,6 +148,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
                       onMobileClose();
                     } else if (!isInGroup && defaultHref) {
                       router.push(defaultHref);
+
                     }
                     setExpandedMenu(isExpanded ? null : item.name);
                   }}

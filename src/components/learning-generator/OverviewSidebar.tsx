@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles, Plus, BookOpen, Target, BarChart3, CheckCircle2 } from "lucide-react";
+import { Sparkles, Plus, BookOpen, Target, BarChart3, CheckCircle2, Layers, ChevronRight } from "lucide-react";
+import type { ConceptCoverage as ConceptCoverageData } from "@/lib/api/learningGenerator";
 
 interface QuickActionsProps {
   onGenerateClick: () => void;
@@ -89,11 +90,69 @@ export function ModuleProgressList({ progress }: ModuleProgressListProps) {
 
 interface ScoreHistoryProps {
   history: Array<{
+    id?: string;
     overall_mastery_score?: number;
     overall_score?: number;
     gaps_count?: number;
     submitted_at: string;
   }>;
+}
+
+interface ConceptCoverageProps {
+  coverage: ConceptCoverageData | null;
+}
+
+export function ConceptCoverage({ coverage }: ConceptCoverageProps) {
+  if (!coverage || typeof coverage.totalNodes !== "number") return null;
+
+  const { totalNodes, coveredNodes, coveragePct, implicitGapsCount, unverifiedCount } = coverage;
+
+  const getCoverageColor = (pct: number) => {
+    if (pct >= 80) return "text-green-400";
+    if (pct >= 60) return "text-amber-400";
+    if (pct >= 40) return "text-orange-400";
+    return "text-red-400";
+  };
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-lg font-bold text-white flex items-center gap-2">
+        <Layers className="w-5 h-5 text-teal-400" /> Concept Coverage
+      </h2>
+      <Link href="/learning-generator/coverage" className="block p-4 bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-xl hover:scale-[1.02] hover:border-teal-500/40 transition-all">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-bold text-white">Mastered concepts</span>
+          <span className={`text-2xl font-black ${getCoverageColor(coveragePct)}`}>{coveragePct}%</span>
+        </div>
+        <div className="h-2 bg-[#0F172A] rounded-full overflow-hidden mb-3">
+          <div
+            className={`h-full rounded-full transition-all ${coveragePct >= 60 ? "bg-linear-to-r from-green-600 to-green-400" : "bg-linear-to-r from-teal-600 to-teal-400"}`}
+            style={{ width: `${Math.min(100, coveragePct)}%` }}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="p-2 bg-white/5 rounded-lg">
+            <p className="font-bold text-white">{coveredNodes}</p>
+            <p className="text-white/40">of {totalNodes} nodes</p>
+          </div>
+          {implicitGapsCount > 0 && (
+            <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <p className="font-bold text-blue-400">{implicitGapsCount}</p>
+              <p className="text-blue-300/60">prerequisite gaps</p>
+            </div>
+          )}
+        </div>
+        {unverifiedCount > 0 && (
+          <p className="text-[10px] text-amber-400/70 mt-3">
+            {unverifiedCount} unresolved concept{unverifiedCount === 1 ? "" : "s"} — generated as generic materials.
+          </p>
+        )}
+        <p className="text-[10px] text-teal-400/70 mt-3 flex items-center gap-1">
+          View details <ChevronRight className="w-3 h-3" />
+        </p>
+      </Link>
+    </div>
+  );
 }
 
 export function ScoreHistory({ history }: ScoreHistoryProps) {
@@ -112,19 +171,36 @@ export function ScoreHistory({ history }: ScoreHistoryProps) {
         <BarChart3 className="w-5 h-5 text-teal-400" /> Score History
       </h2>
       <div className="space-y-2">
-        {history.map((entry, i) => (
-          <div key={i} className="p-3 bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-lg flex items-center justify-between hover:scale-[1.01] transition-all">
-            <div>
-              <p className={`text-sm font-bold ${getScoreColor(entry.overall_mastery_score || entry.overall_score || 0)}`}>
-                {entry.overall_mastery_score || entry.overall_score || "—"}%
+        {history.map((entry, i) => {
+          const score = entry.overall_mastery_score || entry.overall_score || 0;
+          const content = (
+            <>
+              <div>
+                <p className={`text-sm font-bold ${getScoreColor(score)}`}>
+                  {entry.overall_mastery_score || entry.overall_score || "—"}%
+                </p>
+                <p className="text-[10px] text-white/30">{entry.gaps_count || 0} gaps</p>
+              </div>
+              <p className="text-[10px] text-white/30">
+                {new Date(entry.submitted_at).toLocaleDateString()}
               </p>
-              <p className="text-[10px] text-white/30">{entry.gaps_count || 0} gaps</p>
+            </>
+          );
+          const cardClasses = "p-3 bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-lg flex items-center justify-between hover:scale-[1.01] transition-all";
+          return entry.id ? (
+            <Link
+              key={i}
+              href={`/learning-generator/knowledge-gaps?id=${entry.id}`}
+              className={`${cardClasses} hover:border-teal-500/40`}
+            >
+              {content}
+            </Link>
+          ) : (
+            <div key={i} className={cardClasses}>
+              {content}
             </div>
-            <p className="text-[10px] text-white/30">
-              {new Date(entry.submitted_at).toLocaleDateString()}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

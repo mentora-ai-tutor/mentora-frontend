@@ -33,9 +33,16 @@ export default function MaterialCard({ material }: MaterialCardProps) {
         <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${diffColor}`}>
           {sm.difficulty_level}
         </div>
-        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${colors.bg} ${colors.border} ${colors.text}`}>
-          {sm.gap_type.replace("_", " ")}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {sm.generation_source === "implicit_prerequisite" && (
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-blue-500/10 text-blue-400 border-blue-500/20">
+              Prerequisite
+            </span>
+          )}
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${colors.bg} ${colors.border} ${colors.text}`}>
+            {sm.gap_type.replace("_", " ")}
+          </span>
+        </div>
       </div>
 
       <h3 className="text-base font-bold text-white group-hover:text-teal-300 transition-colors mb-1">

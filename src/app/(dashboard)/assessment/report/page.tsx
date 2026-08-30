@@ -1,9 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Target,
   TrendingUp,
@@ -18,8 +19,10 @@ import {
   Download,
   RotateCcw,
   Heart,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
+import { assessmentApi } from "@/lib/api/assessment";
 
 interface TopicReport {
   topic_name: string;
@@ -40,6 +43,7 @@ interface QAExplanation {
   question_text: string;
   learner_answer: string;
   correct_answer: string;
+  type: string;
   concept_explanation: string;
   why_correct_answer: string;
   common_mistake: string;
@@ -83,84 +87,318 @@ interface ReportData {
   motivational_message: string;
 }
 
-interface ReportPageProps {
-  data?: ReportData;
-  onDownload?: () => void;
-  onStartNew?: () => void;
-}
+export default function ReportPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
 
-export default function ReportPage({
-  data = {
-    report_title: "Java Programming Assessment — Personalized Feedback Report",
-    learner_id: "STU-2026-1147",
-    session_id: "SESSION_001",
-    generated_at: "2026-04-23T14:30:00Z",
-    overall_grade: "Good",
-    overall_assessment: "You have demonstrated solid foundational knowledge in Java programming with room for growth in advanced data structures and algorithm analysis. Your understanding of basic syntax and object-oriented principles is strong, but you would benefit from more practice with complex data structures and their performance characteristics.",
-    overall_mastery_percentage: 72,
-    overall_accuracy_percentage: 68,
-    total_questions: 25,
-    session_duration_minutes: 45,
-    topic_reports: [
-      {
-        topic_name: "Basic Syntax",
-        mastery_percentage: 95,
-        questions_asked: 5,
-        correct_answers: 5,
-        accuracy_percentage: 100,
-        strengths: ["Variable declaration and data types", "Control flow statements", "Method signatures"],
-        weaknesses: [],
-        misconceptions_found: [],
-        improvement_plan: "Continue practicing with edge cases in syntax",
-        recommended_exercises: ["Write programs with complex nested loops", "Practice string manipulation methods"],
-        estimated_study_hours: 2
-      },
-      {
-        topic_name: "Binary Search Trees",
-        mastery_percentage: 78,
-        questions_asked: 8,
-        correct_answers: 6,
-        accuracy_percentage: 75,
-        strengths: ["Basic BST operations", "Traversal algorithms"],
-        weaknesses: ["Time complexity analysis", "Balance maintenance"],
-        misconceptions_found: ["Confusing O(log n) vs O(n) complexity", "Incorrect rotation logic understanding"],
-        improvement_plan: "Focus on algorithmic complexity analysis and practice with AVL trees",
-        recommended_exercises: ["Implement BST with balance checking", "Analyze time complexity for various operations"],
-        estimated_study_hours: 8
+  const [data, setData] = useState<ReportData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadReport = async () => {
+      try {
+        let storedReport = localStorage.getItem('assessment_feedback_report');
+        let storedQaReview = localStorage.getItem('assessment_qa_review');
+
+        if (storedReport) {
+          const report = JSON.parse(storedReport);
+          const currentLearnerId = JSON.parse(localStorage.getItem('user') || '{}').student_id;
+          const belongsToCurrentUser = !currentLearnerId || !report.learner_id || report.learner_id === currentLearnerId;
+
+          if (!belongsToCurrentUser) {
+            localStorage.removeItem('assessment_feedback_report');
+            localStorage.removeItem('assessment_qa_review');
+            localStorage.removeItem('assessment_session_summary');
+            storedReport = null;
+            storedQaReview = null;
+          }
+        }
+
+        if (storedReport) {
+          const report = JSON.parse(storedReport);
+          const qaReview = storedQaReview ? JSON.parse(storedQaReview) : [];
+
+          const topicNames = [...new Set(qaReview.map((q: any) => q.topic).filter(Boolean))] as string[];
+          const rawTopics = report.topic_reports || [];
+          const topicReports = topicNames.map((name: string) => {
+            const items = qaReview.filter((q: any) => q.topic === name);
+            const correct = items.filter((q: any) => q.is_correct).length;
+            const extra = rawTopics.find((t: any) =>
+              (t.topic_name || t.topic || t.name || '').toLowerCase() === name.toLowerCase()
+            ) || {};
+            return {
+              topic_name: name,
+              mastery_percentage: extra.mastery_percentage ?? extra.mastery ?? (items.length > 0 ? Math.round((correct / items.length) * 100) : 0),
+              questions_asked: extra.questions_asked ?? extra.questions ?? extra.total_questions ?? items.length,
+              correct_answers: extra.correct_answers ?? extra.correct ?? extra.total_correct ?? correct,
+              accuracy_percentage: extra.accuracy_percentage ?? extra.accuracy ?? (items.length > 0 ? Math.round((correct / items.length) * 100) : 0),
+              strengths: Array.isArray(extra.strengths) ? extra.strengths : (Array.isArray(extra.topic_strengths) ? extra.topic_strengths : []),
+              weaknesses: Array.isArray(extra.weaknesses) ? extra.weaknesses : (Array.isArray(extra.topic_weaknesses) ? extra.topic_weaknesses : []),
+              misconceptions_found: Array.isArray(extra.misconceptions_found) ? extra.misconceptions_found : (Array.isArray(extra.misconceptions) ? extra.misconceptions : []),
+              improvement_plan: extra.improvement_plan || extra.improvement_roadmap || '',
+              recommended_exercises: Array.isArray(extra.recommended_exercises) ? extra.recommended_exercises : (Array.isArray(extra.exercises) ? extra.exercises : []),
+              estimated_study_hours: extra.estimated_study_hours ?? extra.study_hours ?? 0,
+            };
+          });
+
+          setData({
+            report_title: report.report_title || "Java Programming Assessment — Personalized Feedback Report",
+            learner_id: report.learner_id || 'Unknown',
+            session_id: report.session_id || 'Unknown',
+            generated_at: report.generated_at || new Date().toISOString(),
+            overall_grade: report.overall_grade || 'Completed',
+            overall_assessment: report.overall_assessment || 'Assessment completed successfully.',
+            overall_mastery_percentage: report.overall_mastery_percentage ?? 0,
+            overall_accuracy_percentage: report.overall_accuracy_percentage ?? 0,
+            total_questions: report.total_questions ?? qaReview.length ?? 0,
+            session_duration_minutes: report.session_duration_minutes ?? 0,
+            topic_reports: topicReports,
+            qa_with_explanations: (qaReview || []).map((q: any) => ({
+              question_number: q.question_number || 0,
+              question_text: q.question_text || '',
+              learner_answer: q.learner_answer || '',
+              correct_answer: q.correct_answer || '',
+              type: q.question_type || q.type || '',
+              concept_explanation: '',
+              why_correct_answer: '',
+              common_mistake: '',
+              learning_tip: '',
+            })),
+            key_strengths: report.key_strengths || [],
+            key_weaknesses: report.key_weaknesses || [],
+            misconceptions_to_address: report.misconceptions_to_address || [],
+            learning_path: {
+              immediate_focus: report.learning_path?.immediate_focus || 'Review topics needing improvement',
+              week_1_goals: report.learning_path?.week_1_goals || [],
+              week_2_4_goals: report.learning_path?.week_2_4_goals || [],
+              long_term_goals: typeof report.learning_path?.long_term_goals === 'string'
+                ? [report.learning_path.long_term_goals]
+                : (report.learning_path?.long_term_goals || []),
+            },
+            recommended_resources: report.recommended_resources || [],
+            practice_project_suggestion: report.practice_project_suggestion || '',
+            next_assessment_recommendation: report.next_assessment_recommendation || '',
+            motivational_message: report.motivational_message || 'Great effort! Keep learning.',
+          });
+          setLoading(false);
+          return;
+        }
+
+        let sid = sessionId || JSON.parse(localStorage.getItem('assessment_session') || '{}').session_id;
+
+        if (!sid && !storedReport) {
+          try {
+            const sessionsRes = await assessmentApi.getSessions();
+            if (sessionsRes.success && sessionsRes.data?.length > 0) {
+              sid = sessionsRes.data[0].session_id;
+            }
+          } catch {}
+        }
+
+        if (sid && !storedReport) {
+          const fbRes = await assessmentApi.getFeedbackReport(sid);
+          if (fbRes.success && fbRes.data) {
+            const report = fbRes.data.feedback_report || {};
+            const qaReview = fbRes.data.full_qa_review || [];
+
+            const topicNames = [...new Set(qaReview.map((q: any) => q.topic).filter(Boolean))] as string[];
+            const rawTopics = report.topic_reports || [];
+            const topicReports = topicNames.map((name: string) => {
+              const items = qaReview.filter((q: any) => q.topic === name);
+              const correct = items.filter((q: any) => q.is_correct).length;
+              const extra = rawTopics.find((t: any) =>
+                (t.topic_name || t.topic || t.name || '').toLowerCase() === name.toLowerCase()
+              ) || {};
+              return {
+                topic_name: name,
+                mastery_percentage: extra.mastery_percentage ?? extra.mastery ?? (items.length > 0 ? Math.round((correct / items.length) * 100) : 0),
+                questions_asked: extra.questions_asked ?? extra.questions ?? extra.total_questions ?? items.length,
+                correct_answers: extra.correct_answers ?? extra.correct ?? extra.total_correct ?? correct,
+                accuracy_percentage: extra.accuracy_percentage ?? extra.accuracy ?? (items.length > 0 ? Math.round((correct / items.length) * 100) : 0),
+                strengths: Array.isArray(extra.strengths) ? extra.strengths : (Array.isArray(extra.topic_strengths) ? extra.topic_strengths : []),
+                weaknesses: Array.isArray(extra.weaknesses) ? extra.weaknesses : (Array.isArray(extra.topic_weaknesses) ? extra.topic_weaknesses : []),
+                misconceptions_found: Array.isArray(extra.misconceptions_found) ? extra.misconceptions_found : (Array.isArray(extra.misconceptions) ? extra.misconceptions : []),
+                improvement_plan: extra.improvement_plan || extra.improvement_roadmap || '',
+                recommended_exercises: Array.isArray(extra.recommended_exercises) ? extra.recommended_exercises : (Array.isArray(extra.exercises) ? extra.exercises : []),
+                estimated_study_hours: extra.estimated_study_hours ?? extra.study_hours ?? 0,
+              };
+            });
+
+            setData({
+              report_title: report.report_title || "Java Programming Assessment — Personalized Feedback Report",
+              learner_id: report.learner_id || 'Unknown',
+              session_id: fbRes.data.session_id || sid,
+              generated_at: report.generated_at || new Date().toISOString(),
+              overall_grade: report.overall_grade || 'Completed',
+              overall_assessment: report.overall_assessment || 'Assessment completed successfully.',
+              overall_mastery_percentage: report.overall_mastery_percentage ?? 0,
+              overall_accuracy_percentage: report.overall_accuracy_percentage ?? 0,
+              total_questions: report.total_questions ?? qaReview.length ?? 0,
+              session_duration_minutes: report.session_duration_minutes ?? 0,
+              topic_reports: topicReports,
+              qa_with_explanations: (qaReview || []).map((q: any) => ({
+                question_number: q.question_number || 0,
+                question_text: q.question_text || '',
+                learner_answer: q.learner_answer || '',
+                correct_answer: q.correct_answer || '',
+                type: q.question_type || q.type || '',
+                concept_explanation: '',
+                why_correct_answer: '',
+                common_mistake: '',
+                learning_tip: '',
+              })),
+              key_strengths: report.key_strengths || [],
+              key_weaknesses: report.key_weaknesses || [],
+              misconceptions_to_address: report.misconceptions_to_address || [],
+              learning_path: {
+                immediate_focus: report.learning_path?.immediate_focus || 'Review topics needing improvement',
+                week_1_goals: report.learning_path?.week_1_goals || [],
+                week_2_4_goals: report.learning_path?.week_2_4_goals || [],
+                long_term_goals: typeof report.learning_path?.long_term_goals === 'string'
+                  ? [report.learning_path.long_term_goals]
+                  : (report.learning_path?.long_term_goals || []),
+              },
+              recommended_resources: report.recommended_resources || [],
+              practice_project_suggestion: report.practice_project_suggestion || '',
+              next_assessment_recommendation: report.next_assessment_recommendation || '',
+              motivational_message: report.motivational_message || 'Great effort! Keep learning.',
+            });
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (sid) {
+          const res = await assessmentApi.getSession(sid);
+          if (res.success && res.data) {
+            const session = res.data.updated_session || res.data;
+            const report = res.data.feedback_report || session.feedback_report || {};
+            const qaItems = JSON.parse(localStorage.getItem('assessment_qa') || '[]');
+            const topics = session.all_topics || session.topics || [];
+
+            setData({
+              report_title: "Java Programming Assessment — Personalized Feedback Report",
+              learner_id: session.learner_id || res.data.learner_id || 'Unknown',
+              session_id: sid,
+              generated_at: report.generated_at || new Date().toISOString(),
+              overall_grade: report.overall_grade || 'Completed',
+              overall_assessment: report.overall_assessment || 'Assessment completed successfully.',
+              overall_mastery_percentage: report.overall_mastery_percentage ?? session.current_topic_mastery ?? 0,
+              overall_accuracy_percentage: report.overall_accuracy_percentage ?? session.accuracy_percentage ?? 0,
+              total_questions: report.total_questions ?? qaItems.length ?? 0,
+              session_duration_minutes: report.session_duration_minutes ?? session.duration_minutes ?? 0,
+              topic_reports: topics.map((t: any) => ({
+                topic_name: t.name || t.topic_name || t.topic || 'Unknown',
+                mastery_percentage: t.mastery || t.mastery_percentage || 0,
+                questions_asked: t.questions_asked || 0,
+                correct_answers: t.correct_answers || 0,
+                accuracy_percentage: t.accuracy_percentage || 0,
+                strengths: Array.isArray(t.strengths) ? t.strengths : [],
+                weaknesses: Array.isArray(t.weaknesses) ? t.weaknesses : [],
+                misconceptions_found: Array.isArray(t.misconceptions_found) ? t.misconceptions_found : [],
+                improvement_plan: t.improvement_plan || '',
+                recommended_exercises: Array.isArray(t.recommended_exercises) ? t.recommended_exercises : [],
+                estimated_study_hours: t.estimated_study_hours || 0,
+              })),
+              qa_with_explanations: qaItems.map((q: any) => ({
+                question_number: q.number,
+                question_text: q.question,
+                learner_answer: q.learner_answer,
+                correct_answer: q.correct_answer,
+                type: q.type || q.question_type || '',
+                concept_explanation: q.explanation || '',
+                why_correct_answer: '',
+                common_mistake: '',
+                learning_tip: '',
+              })),
+              key_strengths: report.key_strengths || [],
+              key_weaknesses: report.key_weaknesses || [],
+              misconceptions_to_address: report.misconceptions_to_address || [],
+              learning_path: {
+                immediate_focus: report.learning_path?.immediate_focus || 'Review topics needing improvement',
+                week_1_goals: report.learning_path?.week_1_goals || [],
+                week_2_4_goals: report.learning_path?.week_2_4_goals || [],
+                long_term_goals: typeof report.learning_path?.long_term_goals === 'string'
+                  ? [report.learning_path.long_term_goals]
+                  : (report.learning_path?.long_term_goals || []),
+              },
+              recommended_resources: report.recommended_resources || [],
+              practice_project_suggestion: report.practice_project_suggestion || '',
+              next_assessment_recommendation: report.next_assessment_recommendation || '',
+              motivational_message: report.motivational_message || 'Great effort! Keep learning.',
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {}
+
+      const qaItems = JSON.parse(localStorage.getItem('assessment_qa') || '[]');
+      if (qaItems.length > 0) {
+        const correct = qaItems.filter((q: any) => q.is_correct).length;
+        const topicNames = [...new Set(qaItems.map((q: any) => q.topic))] as string[];
+        const topics = topicNames.map((t: string) => {
+          const items = qaItems.filter((q: any) => q.topic === t);
+          const correctCount = items.filter((q: any) => q.is_correct).length;
+          return {
+            topic_name: t,
+            mastery_percentage: Math.round((correctCount / items.length) * 100),
+            questions_asked: items.length,
+            correct_answers: correctCount,
+            accuracy_percentage: Math.round((correctCount / items.length) * 100),
+            strengths: [],
+            weaknesses: [],
+            misconceptions_found: [],
+            improvement_plan: '',
+            recommended_exercises: [],
+            estimated_study_hours: 0,
+          };
+        });
+
+        setData({
+          report_title: "Java Programming Assessment — Personalized Feedback Report",
+          learner_id: JSON.parse(localStorage.getItem('user') || '{}').student_id || 'Unknown',
+          session_id: 'local',
+          generated_at: new Date().toISOString(),
+          overall_grade: (correct / qaItems.length) >= 0.85 ? 'Excellent' : (correct / qaItems.length) >= 0.7 ? 'Good' : 'Satisfactory',
+          overall_assessment: `You answered ${correct} out of ${qaItems.length} questions correctly (${Math.round((correct / qaItems.length) * 100)}%).`,
+          overall_mastery_percentage: Math.round((correct / qaItems.length) * 100),
+          overall_accuracy_percentage: Math.round((correct / qaItems.length) * 100),
+          total_questions: qaItems.length,
+          session_duration_minutes: 0,
+          topic_reports: topics,
+          qa_with_explanations: qaItems.map((q: any) => ({
+            question_number: q.number,
+            question_text: q.question,
+            learner_answer: q.learner_answer,
+            correct_answer: q.correct_answer,
+            type: q.type || q.question_type || '',
+            concept_explanation: q.explanation || '',
+            why_correct_answer: '',
+            common_mistake: '',
+            learning_tip: '',
+          })),
+          key_strengths: [],
+          key_weaknesses: [],
+          misconceptions_to_address: [],
+          learning_path: {
+            immediate_focus: 'Review topics needing improvement',
+            week_1_goals: [],
+            week_2_4_goals: [],
+            long_term_goals: [],
+          },
+          recommended_resources: [],
+          practice_project_suggestion: '',
+          next_assessment_recommendation: '',
+          motivational_message: 'Great effort! Keep learning.',
+        });
       }
-    ],
-    qa_with_explanations: [
-      {
-        question_number: 3,
-        question_text: "What is the time complexity of inserting an element into a balanced binary search tree?",
-        learner_answer: "O(n)",
-        correct_answer: "O(log n)",
-        concept_explanation: "Binary Search Trees maintain their efficiency through logarithmic height when balanced.",
-        why_correct_answer: "The correct answer is O(log n) because balanced BSTs guarantee that search, insertion, and deletion operations take time proportional to the height of the tree, which is O(log n) for n nodes.",
-        common_mistake: "Students often confuse BST complexity with unbalanced binary trees or linear data structures.",
-        learning_tip: "Always consider the height of the tree when analyzing BST operations - balance is crucial for performance."
-      }
-    ],
-    key_strengths: ["Strong grasp of Java syntax", "Good understanding of basic OOP concepts", "Logical thinking in algorithm design"],
-    key_weaknesses: ["Algorithm complexity analysis", "Advanced data structure implementations", "Performance optimization techniques"],
-    misconceptions_to_address: ["Time complexity confusion between O(log n) and O(n)", "Incorrect understanding of inheritance vs composition"],
-    learning_path: {
-      immediate_focus: "Binary Search Trees and algorithmic complexity",
-      week_1_goals: ["Master BST operations and complexity analysis", "Practice with balanced tree implementations"],
-      week_2_4_goals: ["Study advanced data structures (Heaps, Tries)", "Learn algorithm optimization techniques", "Practice competitive programming problems"],
-      long_term_goals: ["Master system design principles", "Develop expertise in algorithm analysis", "Contribute to open-source projects"]
-    },
-    recommended_resources: [
-      { topic: "Binary Search Trees", name: "GeeksforGeeks BST Tutorial", type: "website", url_hint: "geeksforgeeks.org/binary-search-tree" },
-      { topic: "Algorithm Complexity", name: "Introduction to Algorithms (CLRS)", type: "book", url_hint: "mitpress.mit.edu/9780262033848" }
-    ],
-    practice_project_suggestion: "Build a Java implementation of a self-balancing BST with comprehensive test cases covering insertion, deletion, and search operations. Include performance benchmarks comparing balanced vs unbalanced trees.",
-    next_assessment_recommendation: "Retake this assessment in 2 weeks after completing the recommended exercises. Focus particularly on Binary Search Trees and Java Collections.",
-    motivational_message: "You're building a solid foundation in Java programming! With focused practice on algorithmic thinking and data structures, you'll see significant improvement in your coding skills. Keep pushing forward!"
-  },
-  onDownload = () => {},
-  onStartNew = () => {}
-}: ReportPageProps) {
+      setLoading(false);
+    };
+
+    loadReport();
+  }, [sessionId]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -171,6 +409,220 @@ export default function ReportPage({
       minute: '2-digit'
     });
   };
+
+  const onDownload = () => {
+    if (!data) return;
+    const t = data;
+
+    const topicRows = t.topic_reports.map((topic, i) => `
+      <tr>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b">${topic.topic_name}</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:center">${topic.mastery_percentage}%</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:center">${topic.accuracy_percentage}%</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:center">${topic.correct_answers}/${topic.questions_asked}</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0">${Array.isArray(topic.strengths) ? topic.strengths.slice(0, 2).join('; ') : ''}</td>
+        <td style="padding:12px;border-bottom:1px solid #e2e8f0">${Array.isArray(topic.weaknesses) ? topic.weaknesses.slice(0, 2).join('; ') : ''}</td>
+      </tr>
+    `).join('');
+
+    const isCodeType = (t: string) => ['coding_challenge', 'code_completion', 'code_tracing', 'debugging'].includes(t);
+    const qaRows = t.qa_with_explanations.map((qa) => `
+      <tr>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:center;vertical-align:top">${qa.question_number}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0">${qa.question_text}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#dc2626;vertical-align:top">${
+          isCodeType(qa.type)
+            ? `<pre style="margin:0;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;background:#fef2f2;padding:8px;border-radius:4px">${qa.learner_answer}</pre>`
+            : qa.learner_answer
+        }</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#16a34a;vertical-align:top">${
+          isCodeType(qa.type)
+            ? `<pre style="margin:0;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;background:#f0fdf4;padding:8px;border-radius:4px">${qa.correct_answer}</pre>`
+            : qa.correct_answer
+        }</td>
+      </tr>
+    `).join('');
+
+    const strengthItems = t.key_strengths.map(s => `<li style="margin-bottom:6px">${s}</li>`).join('');
+    const weaknessItems = t.key_weaknesses.map(w => `<li style="margin-bottom:6px">${w}</li>`).join('');
+    const misconceptionItems = t.misconceptions_to_address.map(m => `<li style="margin-bottom:6px">${m}</li>`).join('');
+
+    const week1Goals = (t.learning_path.week_1_goals || []).map(g => `<li>${g}</li>`).join('');
+    const week24Goals = (t.learning_path.week_2_4_goals || []).map(g => `<li>${g}</li>`).join('');
+    const longTermGoals = (t.learning_path.long_term_goals || []).map(g => `<li>${g}</li>`).join('');
+
+    const resourceItems = (t.recommended_resources || []).map(r => `
+      <div style="margin-bottom:10px;padding:10px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0">
+        <strong style="color:#0f172a">${r.name}</strong>
+        <span style="display:inline-block;margin-left:8px;padding:2px 8px;background:#e2e8f0;border-radius:4px;font-size:11px;color:#475569">${r.type}</span>
+        <div style="font-size:12px;color:#64748b;margin-top:4px">Topic: ${r.topic} &mdash; ${r.url_hint}</div>
+      </div>
+    `).join('');
+
+    const masteryColor = t.overall_mastery_percentage >= 70 ? '#16a34a' : t.overall_mastery_percentage >= 40 ? '#d97706' : '#dc2626';
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${t.report_title}</title>
+<style>
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1e293b; margin: 0; padding: 40px; background: #f1f5f9; }
+  .page { max-width: 1000px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
+  .header { background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff; padding: 48px 56px; text-align: center; }
+  .header h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.3px; }
+  .header .meta { margin-top: 16px; font-size: 14px; color: #94a3b8; }
+  .header .grade-badge { display: inline-block; margin-top: 16px; padding: 8px 28px; border-radius: 24px; font-size: 16px; font-weight: 700; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); }
+  .section { padding: 32px 56px; border-bottom: 1px solid #e2e8f0; }
+  .section:last-child { border-bottom: none; }
+  .section h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .overall { font-size: 15px; line-height: 1.7; color: #475569; }
+  .stats { display: flex; gap: 16px; margin-top: 20px; }
+  .stat-card { flex: 1; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; }
+  .stat-card .value { font-size: 28px; font-weight: 800; color: #0f172a; }
+  .stat-card .label { font-size: 12px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f1f5f9; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+  .qa-table th { text-align: center; }
+  .qa-table th:first-child, .qa-table td:first-child { text-align: center; }
+  ul { margin: 0; padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.6; }
+  .footer { background: #f8fafc; padding: 32px 56px; text-align: center; font-size: 13px; color: #94a3b8; }
+  .motivation { text-align: center; padding: 32px 56px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); }
+  .motivation p { font-size: 18px; color: #166534; font-style: italic; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>${t.report_title}</h1>
+    <div class="meta">
+      Learner: ${t.learner_id} &nbsp;|&nbsp; Session: ${t.session_id} &nbsp;|&nbsp; Generated: ${formatDate(t.generated_at)}
+    </div>
+    <div class="grade-badge">Overall Grade: ${t.overall_grade}</div>
+  </div>
+
+  <div class="section">
+    <h2>Overall Assessment</h2>
+    <p class="overall">${t.overall_assessment}</p>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="value" style="color:${masteryColor}">${t.overall_mastery_percentage}%</div>
+        <div class="label">Overall Mastery</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" style="color:#0891b2">${t.overall_accuracy_percentage}%</div>
+        <div class="label">Overall Accuracy</div>
+      </div>
+      <div class="stat-card">
+        <div class="value">${t.total_questions}</div>
+        <div class="label">Total Questions</div>
+      </div>
+      <div class="stat-card">
+        <div class="value">${t.session_duration_minutes}</div>
+        <div class="label">Duration (min)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Topic Analysis</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Topic</th>
+          <th style="text-align:center">Mastery</th>
+          <th style="text-align:center">Accuracy</th>
+          <th style="text-align:center">Correct</th>
+          <th>Strengths</th>
+          <th>Weaknesses</th>
+        </tr>
+      </thead>
+      <tbody>${topicRows}</tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Question &amp; Answer Review</h2>
+    <table class="qa-table">
+      <thead>
+        <tr>
+          <th style="width:60px">#</th>
+          <th>Question</th>
+          <th style="width:25%">Your Answer</th>
+          <th style="width:25%">Correct Answer</th>
+        </tr>
+      </thead>
+      <tbody>${qaRows}</tbody>
+    </table>
+  </div>
+
+  ${strengthItems ? `<div class="section"><h2>Key Strengths</h2><ul>${strengthItems}</ul></div>` : ''}
+  ${weaknessItems ? `<div class="section"><h2>Key Weaknesses</h2><ul>${weaknessItems}</ul></div>` : ''}
+  ${misconceptionItems ? `<div class="section"><h2>Misconceptions to Address</h2><ul>${misconceptionItems}</ul></div>` : ''}
+
+  <div class="section">
+    <h2>Personalized Learning Path</h2>
+    ${t.learning_path.immediate_focus ? `<p style="font-size:14px;color:#475569;line-height:1.6"><strong>Immediate Focus:</strong> ${t.learning_path.immediate_focus}</p>` : ''}
+    ${week1Goals ? `<div style="margin-top:12px"><strong style="font-size:13px;color:#0f172a">Week 1 Goals</strong><ul style="margin-top:6px">${week1Goals}</ul></div>` : ''}
+    ${week24Goals ? `<div style="margin-top:12px"><strong style="font-size:13px;color:#0f172a">Weeks 2-4 Goals</strong><ul style="margin-top:6px">${week24Goals}</ul></div>` : ''}
+    ${longTermGoals ? `<div style="margin-top:12px"><strong style="font-size:13px;color:#0f172a">Long-term Goals</strong><ul style="margin-top:6px">${longTermGoals}</ul></div>` : ''}
+  </div>
+
+  ${resourceItems ? `<div class="section"><h2>Recommended Resources</h2>${resourceItems}</div>` : ''}
+  ${t.practice_project_suggestion ? `<div class="section"><h2>Practice Project Suggestion</h2><p style="font-size:14px;color:#475569;line-height:1.6">${t.practice_project_suggestion}</p></div>` : ''}
+  ${t.next_assessment_recommendation ? `<div class="section"><h2>Next Assessment Recommendation</h2><p style="font-size:14px;color:#475569;line-height:1.6">${t.next_assessment_recommendation}</p></div>` : ''}
+
+  ${t.motivational_message ? `<div class="motivation"><p>&ldquo;${t.motivational_message}&rdquo;</p></div>` : ''}
+
+  <div class="footer">
+    Generated by Mentora AI Assessment Engine &mdash; ${formatDate(t.generated_at)}
+  </div>
+</div>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `assessment-report-${t.session_id}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const onStartNew = () => {
+    localStorage.removeItem('assessment_qa');
+    localStorage.removeItem('assessment_session');
+    router.push('/assessment');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-teal-400 animate-spin mx-auto mb-4" />
+          <p className="text-white/70 font-semibold">Loading report...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-16 h-16 text-amber-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">No Report Available</h2>
+          <p className="text-white/60 mb-6">Complete an assessment session first to view your personalized feedback report.</p>
+          <Button onClick={() => router.push('/assessment')} className="bg-teal-600 hover:bg-teal-500 text-white">
+            Go to Assessment
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
@@ -271,7 +723,7 @@ export default function ReportPage({
                 </div>
 
                 {/* Strengths */}
-                {topic.strengths.length > 0 && (
+                {Array.isArray(topic.strengths) && topic.strengths.length > 0 && (
                   <div>
                     <h4 className="text-green-300 font-semibold mb-2 flex items-center gap-2">
                       <CheckCircle className="w-4 h-4" />
@@ -286,7 +738,7 @@ export default function ReportPage({
                 )}
 
                 {/* Weaknesses */}
-                {topic.weaknesses.length > 0 && (
+                {Array.isArray(topic.weaknesses) && topic.weaknesses.length > 0 && (
                   <div>
                     <h4 className="text-red-300 font-semibold mb-2 flex items-center gap-2">
                       <X className="w-4 h-4" />
@@ -301,7 +753,7 @@ export default function ReportPage({
                 )}
 
                 {/* Misconceptions Found */}
-                {topic.misconceptions_found.length > 0 && (
+                {Array.isArray(topic.misconceptions_found) && topic.misconceptions_found.length > 0 && (
                   <div>
                     <h4 className="text-orange-300 font-semibold mb-2">Misconceptions Found</h4>
                     <ul className="list-disc list-inside text-orange-200 space-y-1">
@@ -319,17 +771,19 @@ export default function ReportPage({
                 </div>
 
                 {/* Recommended Exercises */}
-                <div>
-                  <h4 className="text-purple-300 font-semibold mb-2">Recommended Exercises</h4>
-                  <ul className="list-disc list-inside text-purple-200 space-y-1">
-                    {topic.recommended_exercises.map((exercise, idx) => (
-                      <li key={idx}>{exercise}</li>
-                    ))}
-                  </ul>
-                  <p className="text-purple-400 text-sm mt-2">
-                    Estimated study time: {topic.estimated_study_hours} hours
-                  </p>
-                </div>
+                {Array.isArray(topic.recommended_exercises) && topic.recommended_exercises.length > 0 && (
+                  <div>
+                    <h4 className="text-purple-300 font-semibold mb-2">Recommended Exercises</h4>
+                    <ul className="list-disc list-inside text-purple-200 space-y-1">
+                      {topic.recommended_exercises.map((exercise, idx) => (
+                        <li key={idx}>{exercise}</li>
+                      ))}
+                    </ul>
+                    <p className="text-purple-400 text-sm mt-2">
+                      Estimated study time: {topic.estimated_study_hours} hours
+                    </p>
+                  </div>
+                )}
 
               </CardContent>
             </Card>
@@ -354,43 +808,35 @@ export default function ReportPage({
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
-                    <p className="text-red-300 text-sm font-medium">Your Answer:</p>
-                    <p className="text-red-200 font-mono">{qa.learner_answer}</p>
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded overflow-hidden">
+                    <p className="text-red-300 text-sm font-medium mb-2">Your Answer:</p>
+                    {qa.type === 'coding_challenge' || qa.type === 'code_completion' || qa.type === 'code_tracing' || qa.type === 'debugging' ? (
+                      <pre className="text-red-200 text-xs font-mono whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto">{qa.learner_answer}</pre>
+                    ) : (
+                      <p className="text-red-200 font-mono text-sm">{qa.learner_answer}</p>
+                    )}
                   </div>
-                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded">
-                    <p className="text-green-300 text-sm font-medium">Correct Answer:</p>
-                    <p className="text-green-200 font-mono">{qa.correct_answer}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <h5 className="text-blue-300 font-semibold flex items-center gap-2 mb-2">
-                      <BookOpen className="w-4 h-4" />
-                      Concept Explanation
-                    </h5>
-                    <p className="text-blue-200">{qa.concept_explanation}</p>
-                  </div>
-
-                  <div>
-                    <h5 className="text-green-300 font-semibold mb-2">Why This Answer is Correct</h5>
-                    <p className="text-green-200">{qa.why_correct_answer}</p>
-                  </div>
-
-                  <div>
-                    <h5 className="text-orange-300 font-semibold mb-2">Common Mistake</h5>
-                    <p className="text-orange-200">{qa.common_mistake}</p>
-                  </div>
-
-                  <div>
-                    <h5 className="text-teal-300 font-semibold flex items-center gap-2 mb-2">
-                      <Lightbulb className="w-4 h-4" />
-                      Learning Tip
-                    </h5>
-                    <p className="text-teal-200">{qa.learning_tip}</p>
+                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded overflow-hidden">
+                    <p className="text-green-300 text-sm font-medium mb-2">Correct Answer:</p>
+                    {qa.type === 'coding_challenge' || qa.type === 'code_completion' || qa.type === 'code_tracing' || qa.type === 'debugging' ? (
+                      <pre className="text-green-200 text-xs font-mono whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto">{qa.correct_answer}</pre>
+                    ) : (
+                      <p className="text-green-200 font-mono text-sm">{qa.correct_answer}</p>
+                    )}
                   </div>
                 </div>
+
+                {qa.concept_explanation && (
+                  <div className="space-y-4">
+                    <div>
+                      <h5 className="text-blue-300 font-semibold flex items-center gap-2 mb-2">
+                        <BookOpen className="w-4 h-4" />
+                        Concept Explanation
+                      </h5>
+                      <p className="text-blue-200">{qa.concept_explanation}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </CardContent>
@@ -465,78 +911,92 @@ export default function ReportPage({
           </CardHeader>
           <CardContent className="space-y-6">
 
-            <div>
-              <h4 className="text-teal-300 font-semibold mb-2">Immediate Focus</h4>
-              <p className="text-teal-200">{data.learning_path.immediate_focus}</p>
-            </div>
+            {data.learning_path.immediate_focus && (
+              <div>
+                <h4 className="text-teal-300 font-semibold mb-2">Immediate Focus</h4>
+                <p className="text-teal-200">{data.learning_path.immediate_focus}</p>
+              </div>
+            )}
 
-            <div>
-              <h4 className="text-blue-300 font-semibold mb-2">Week 1 Goals</h4>
-              <ul className="list-disc list-inside text-blue-200 space-y-1">
-                {data.learning_path.week_1_goals.map((goal, index) => (
-                  <li key={index}>{goal}</li>
-                ))}
-              </ul>
-            </div>
+            {data.learning_path.week_1_goals.length > 0 && (
+              <div>
+                <h4 className="text-blue-300 font-semibold mb-2">Week 1 Goals</h4>
+                <ul className="list-disc list-inside text-blue-200 space-y-1">
+                  {data.learning_path.week_1_goals.map((goal, index) => (
+                    <li key={index}>{goal}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            <div>
-              <h4 className="text-purple-300 font-semibold mb-2">Weeks 2-4 Goals</h4>
-              <ul className="list-disc list-inside text-purple-200 space-y-1">
-                {data.learning_path.week_2_4_goals.map((goal, index) => (
-                  <li key={index}>{goal}</li>
-                ))}
-              </ul>
-            </div>
+            {data.learning_path.week_2_4_goals.length > 0 && (
+              <div>
+                <h4 className="text-purple-300 font-semibold mb-2">Weeks 2-4 Goals</h4>
+                <ul className="list-disc list-inside text-purple-200 space-y-1">
+                  {data.learning_path.week_2_4_goals.map((goal, index) => (
+                    <li key={index}>{goal}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            <div>
-              <h4 className="text-indigo-300 font-semibold mb-2">Long-term Goals</h4>
-              <ul className="list-disc list-inside text-indigo-200 space-y-1">
-                {data.learning_path.long_term_goals.map((goal, index) => (
-                  <li key={index}>{goal}</li>
-                ))}
-              </ul>
-            </div>
+            {data.learning_path.long_term_goals.length > 0 && (
+              <div>
+                <h4 className="text-indigo-300 font-semibold mb-2">Long-term Goals</h4>
+                {typeof data.learning_path.long_term_goals === 'string' ? (
+                  <p className="text-indigo-200">{data.learning_path.long_term_goals}</p>
+                ) : (
+                  <ul className="list-disc list-inside text-indigo-200 space-y-1">
+                    {data.learning_path.long_term_goals.map((goal, index) => (
+                      <li key={index}>{goal}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
           </CardContent>
         </Card>
 
-        {/* Recommended Resources */}
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white">Recommended Resources</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              {data.recommended_resources.map((resource, index) => (
-                <div key={index} className="p-4 bg-slate-700/30 rounded-lg border border-slate-600">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant="outline" className="border-slate-500 text-slate-300">
-                      {resource.topic}
-                    </Badge>
-                    <Badge className="bg-slate-600 text-slate-200">
-                      {resource.type}
-                    </Badge>
+        {data.recommended_resources.length > 0 && (
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Recommended Resources</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-4">
+                {data.recommended_resources.map((resource, index) => (
+                  <div key={index} className="p-4 bg-slate-700/30 rounded-lg border border-slate-600">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="outline" className="border-slate-500 text-slate-300">
+                        {resource.topic}
+                      </Badge>
+                      <Badge className="bg-slate-600 text-slate-200">
+                        {resource.type}
+                      </Badge>
+                    </div>
+                    <h5 className="text-white font-medium mb-1">{resource.name}</h5>
+                    <p className="text-slate-400 text-sm">{resource.url_hint}</p>
                   </div>
-                  <h5 className="text-white font-medium mb-1">{resource.name}</h5>
-                  <p className="text-slate-400 text-sm">{resource.url_hint}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Practice Project Suggestion */}
-        <Card className="bg-teal-500/10 border-teal-500/30">
-          <CardHeader>
-            <CardTitle className="text-teal-300 flex items-center gap-2">
-              <Code className="w-5 h-5" />
-              Practice Project Suggestion
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-teal-200 leading-relaxed">{data.practice_project_suggestion}</p>
-          </CardContent>
-        </Card>
+        {data.practice_project_suggestion && (
+          <Card className="bg-teal-500/10 border-teal-500/30">
+            <CardHeader>
+              <CardTitle className="text-teal-300 flex items-center gap-2">
+                <Code className="w-5 h-5" />
+                Practice Project Suggestion
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-teal-200 leading-relaxed">{data.practice_project_suggestion}</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Next Assessment Recommendation */}
         <Card className="bg-slate-800/50 border-slate-700">

@@ -3,6 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 interface AuthResponse {
   success: boolean;
   message?: string;
+  error?: string;
   data?: {
     user?: User;
     student?: User;
@@ -85,6 +86,9 @@ class AuthApi {
            localStorage.setItem('user', JSON.stringify(userObj));
            result.data.user = userObj; // normalize for UI contexts
         }
+     } else if (!result.success && result.error) {
+        // Surfaces the backend error field (e.g. "Email already registered") as message
+        result.message = result.message || result.error;
      }
      return result;
   }

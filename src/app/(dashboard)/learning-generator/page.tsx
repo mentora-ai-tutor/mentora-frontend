@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats } from "@/lib/api/learningGenerator";
-import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap } from "lucide-react";
+import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats, type ConceptCoverage as ConceptCoverageData } from "@/lib/api/learningGenerator";
+import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap, GitBranch } from "lucide-react";
 import { ActiveJobsList } from "@/components/learning-generator/JobCard";
 import ProgressStatsCards from "@/components/learning-generator/ProgressStats";
 import KnowledgeGapCard from "@/components/learning-generator/KnowledgeGapCard";
+import MaterialCard from "@/components/learning-generator/MaterialCard";
 import SubmitProfileDialog from "@/components/learning-generator/SubmitProfileDialog";
-import { QuickActions, ModuleProgressList, ScoreHistory, StrengthsList } from "@/components/learning-generator/OverviewSidebar";
+import { QuickActions, ModuleProgressList, ScoreHistory, StrengthsList, ConceptCoverage } from "@/components/learning-generator/OverviewSidebar";
 
 export default function LearningGeneratorDashboard() {
   const { user } = useAuth();
@@ -26,17 +27,19 @@ export default function LearningGeneratorDashboard() {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [closingJobs, setClosingJobs] = useState<string[]>([]);
+  const [conceptCoverage, setConceptCoverage] = useState<ConceptCoverageData | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user?.student_id) return;
     try {
-      const [materialsRes, profileRes, historyRes, jobsRes, progressRes, progressStatsRes] = await Promise.all([
+      const [materialsRes, profileRes, historyRes, jobsRes, progressRes, progressStatsRes, coverageRes] = await Promise.all([
         learningGeneratorApi.getMaterials(user.student_id),
         learningGeneratorApi.getProfile(user.student_id),
         learningGeneratorApi.getProfileHistory(user.student_id, 1, 5),
         learningGeneratorApi.getJobsByStudent(user.student_id),
         learningGeneratorApi.getProgressByStudent(user.student_id),
         learningGeneratorApi.getProgressStats(user.student_id),
+        learningGeneratorApi.getConceptCoverage(user.student_id),
       ]);
 
       if (materialsRes.success && materialsRes.data) {
@@ -78,6 +81,9 @@ export default function LearningGeneratorDashboard() {
       }
       if (progressStatsRes.success && progressStatsRes.data) {
         setProgressStats(progressStatsRes.data);
+      }
+      if (coverageRes.success && coverageRes.data) {
+        setConceptCoverage(coverageRes.data);
       }
     } catch (err: any) {
       setError(err.message || "Failed to load data");
@@ -246,6 +252,9 @@ export default function LearningGeneratorDashboard() {
 
   const totalGaps = profile?.knowledge_gaps?.length || 0;
   const fundamentalGaps = profile?.knowledge_gaps?.filter((g: KnowledgeGap) => g.gap_type === "FUNDAMENTAL_GAP").length || 0;
+  const implicitMaterials = materials.filter(
+    (m) => m.structured_material.generation_source === "implicit_prerequisite"
+  );
 
   if (loading) {
     return (
@@ -264,13 +273,13 @@ export default function LearningGeneratorDashboard() {
       {/* ── HERO CARD ── */}
       <div className="relative p-[1px] rounded-3xl overflow-hidden group">
         <div className="absolute inset-[-50%] bg-gradient-to-r from-teal-500/0 via-teal-500 to-teal-500/0 group-hover:rotate-180 transition-transform duration-1000 ease-linear animate-pulse" />
-        <div className="relative bg-[#1e293b]/90 backdrop-blur-xl rounded-3xl p-6 lg:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="relative bg-[#1e293b]/90 backdrop-blur-xl rounded-3xl p-6 lg:p-7">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-3 shadow-[0_0_10px_rgba(13,148,136,0.3)]">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold tracking-wider uppercase mb-2 shadow-[0_0_10px_rgba(13,148,136,0.3)]">
                 <Sparkles className="w-3 h-3" /> AI-Powered Learning
               </div>
-              <h1 className="text-2xl lg:text-3xl font-black text-white mb-2">
+              <h1 className="text-xl lg:text-2xl font-black text-white mb-1">
                 Material Generator
               </h1>
               <p className="text-white/50 text-sm lg:text-base max-w-xl">
@@ -278,20 +287,20 @@ export default function LearningGeneratorDashboard() {
               </p>
             </div>
 
-            <div className="flex gap-3 shrink-0">
-              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 text-center min-w-[100px]">
-                <p className="text-2xl font-black text-teal-400">{totalGaps}</p>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Gaps Found</p>
+            <div className="flex gap-2.5 shrink-0">
+              <div className="bg-[#0F172A] border border-white/10 rounded-xl p-3.5 text-center min-w-[90px]">
+                <p className="text-xl font-black text-teal-400">{totalGaps}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Gaps Found</p>
               </div>
               {fundamentalGaps > 0 && (
-                <div className="bg-[#0F172A] border border-red-500/20 rounded-2xl p-4 text-center min-w-[100px]">
-                  <p className="text-2xl font-black text-red-400">{fundamentalGaps}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Critical</p>
+                <div className="bg-[#0F172A] border border-red-500/20 rounded-xl p-3.5 text-center min-w-[90px]">
+                  <p className="text-xl font-black text-red-400">{fundamentalGaps}</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Critical</p>
                 </div>
               )}
-              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-4 text-center min-w-[100px]">
-                <p className="text-2xl font-black text-amber-400">{materials.length}</p>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Materials</p>
+              <div className="bg-[#0F172A] border border-white/10 rounded-xl p-3.5 text-center min-w-[90px]">
+                <p className="text-xl font-black text-amber-400">{materials.length}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Materials</p>
               </div>
             </div>
           </div>
@@ -347,11 +356,29 @@ export default function LearningGeneratorDashboard() {
               </button>
             </div>
           )}
+
+          {/* ── PREREQUISITE MATERIALS (concept-graph injected) ── */}
+          {implicitMaterials.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <GitBranch className="w-5 h-5 text-blue-400" /> Prerequisite Materials
+                </h2>
+                <span className="text-xs text-blue-400/70">essential foundations you&apos;re missing — master these first</span>
+              </div>
+              <div className="grid md:grid-cols-2 gap-3">
+                {implicitMaterials.map((m) => (
+                  <MaterialCard key={m._id} material={m} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── RIGHT: Sidebar ── */}
         <div className="space-y-6">
           <QuickActions onGenerateClick={() => setShowSubmitDialog(true)} />
+          <ConceptCoverage coverage={conceptCoverage} />
           <ModuleProgressList progress={materialProgress} />
           <ScoreHistory history={profileHistory} />
           <StrengthsList strengths={profile?.strengths || []} />
