@@ -41,12 +41,21 @@ export interface RepoReview {
   suggestions: string[];
 }
 
+export type LlmChoice = "gemini" | "ollama";
+
+export interface LlmOptions {
+  providers: LlmChoice[];
+  default: LlmChoice;
+  ollama_available: boolean;
+}
+
 export interface ReviewRepoResult {
   full_name: string;
   status: "queued" | "running" | "done" | "error";
   review?: RepoReview | null;
   error?: string | null;
   finished_at?: string;
+  llm_choice?: LlmChoice | null;
 }
 
 export interface RepoSelectionResponse {
@@ -66,6 +75,7 @@ export interface ReviewJob {
   repos: ReviewRepoResult[];
   java_level_inferred?: string | null;
   signals_evidence?: string | null;
+  llm_choice?: LlmChoice | null;
   created_at?: string;
   updated_at?: string;
   error?: string | null;
@@ -114,13 +124,26 @@ export const reviewApi = {
     return unwrap<RepoSelectionResponse>(res);
   },
 
-  async reviewTopFive(repos: string[]): Promise<ReviewJob> {
+  async getLlmOptions(): Promise<LlmOptions> {
+    const res = await fetch(
+      `${KNOWLEDGE_API_BASE_URL}/api/v1/github-review/llm-options`,
+      {
+        headers: authHeaders(),
+      },
+    );
+    return unwrap<LlmOptions>(res);
+  },
+
+  async reviewTopFive(
+    repos: string[],
+    llm: LlmChoice = "gemini",
+  ): Promise<ReviewJob> {
     const res = await fetch(
       `${KNOWLEDGE_API_BASE_URL}/api/v1/github-review/review-top-5`,
       {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ repos }),
+        body: JSON.stringify({ repos, llm }),
       },
     );
     return unwrap<ReviewJob>(res);
@@ -136,13 +159,13 @@ export const reviewApi = {
     return unwrap<ReviewJob>(res);
   },
 
-  async reReview(repo: string): Promise<ReviewJob> {
+  async reReview(repo: string, llm: LlmChoice = "gemini"): Promise<ReviewJob> {
     const res = await fetch(
       `${KNOWLEDGE_API_BASE_URL}/api/v1/github-review/re-review`,
       {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ repo }),
+        body: JSON.stringify({ repo, llm }),
       },
     );
     return unwrap<ReviewJob>(res);
