@@ -20,7 +20,8 @@ import {
   TrendingDown,
   ExternalLink,
   AlertTriangle,
-  Target
+  Target,
+  Terminal
 } from "lucide-react";
 
 interface FeedbackData {
@@ -58,6 +59,20 @@ interface FeedbackData {
   next_topic_name?: string;
   question_text?: string;
   learner_answer?: string;
+  sandbox_execution?: {
+    attempted?: boolean;
+    compiled?: boolean | null;
+    executed_successfully?: boolean | null;
+    status?: string;
+    stdout?: string | null;
+    stderr?: string | null;
+    compile_output?: string | null;
+    time_seconds?: number | string | null;
+    memory_kb?: number | string | null;
+    source_code_run?: string;
+    reason?: string;
+    sandbox_mode?: "learner_code" | "reference_snippet";
+  } | null;
 }
 
 interface FeedbackPanelProps {
@@ -122,6 +137,9 @@ export default function FeedbackPanel({
 
   const result = getResultBanner();
 
+  const hasSandboxOutput = (sb: NonNullable<FeedbackData["sandbox_execution"]>) =>
+    sb && (sb.stdout || sb.stderr || sb.compile_output || sb.reason);
+
   if (showQuestion) {
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
@@ -185,6 +203,87 @@ export default function FeedbackPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Sandbox Execution Output (code questions) */}
+      {data.sandbox_execution && data.sandbox_execution.attempted !== false && (
+        <Card className="bg-[#0F172A] border-white/10">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-teal-400" />
+                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Code Execution Result
+                </h4>
+              </div>
+              <div className="flex items-center gap-2">
+                {typeof data.sandbox_execution.compiled === "boolean" && (
+                  <Badge
+                    variant="outline"
+                    className={
+                      data.sandbox_execution.compiled
+                        ? "border-emerald-500/30 text-emerald-400"
+                        : "border-red-500/30 text-red-400"
+                    }
+                  >
+                    {data.sandbox_execution.compiled ? "Compiled" : "Compile Error"}
+                  </Badge>
+                )}
+                {data.sandbox_execution.status && (
+                  <Badge
+                    variant="outline"
+                    className={
+                      data.sandbox_execution.executed_successfully
+                        ? "border-emerald-500/30 text-emerald-400"
+                        : data.sandbox_execution.status === "sandbox_unavailable"
+                        ? "border-amber-500/30 text-amber-400"
+                        : "border-red-500/30 text-red-400"
+                    }
+                  >
+                    {data.sandbox_execution.status}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="font-mono text-sm space-y-3 max-h-72 overflow-y-auto">
+              {data.sandbox_execution.compile_output && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1">Compile Output</p>
+                  <pre className="whitespace-pre-wrap break-words text-amber-300 leading-relaxed">{data.sandbox_execution.compile_output}</pre>
+                </div>
+              )}
+              {data.sandbox_execution.stdout && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1">stdout</p>
+                  <pre className="whitespace-pre-wrap break-words text-white leading-relaxed">{data.sandbox_execution.stdout}</pre>
+                </div>
+              )}
+              {data.sandbox_execution.stderr && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-400 mb-1">stderr</p>
+                  <pre className="whitespace-pre-wrap break-words text-red-300 leading-relaxed">{data.sandbox_execution.stderr}</pre>
+                </div>
+              )}
+              {!hasSandboxOutput(data.sandbox_execution) && (
+                <p className="text-slate-500 italic">No output produced.</p>
+              )}
+              {(data.sandbox_execution.time_seconds || data.sandbox_execution.memory_kb) && (
+                <p className="text-slate-500 text-xs pt-2 border-t border-white/5">
+                  {data.sandbox_execution.time_seconds ? `Time: ${data.sandbox_execution.time_seconds}s` : ""}
+                  {data.sandbox_execution.time_seconds && data.sandbox_execution.memory_kb ? " · " : ""}
+                  {data.sandbox_execution.memory_kb ? `Memory: ${data.sandbox_execution.memory_kb} KB` : ""}
+                </p>
+              )}
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              {data.sandbox_execution.sandbox_mode === "reference_snippet"
+                ? "The question's reference snippet was executed in a secure sandbox — this is the program's actual output, used by the evaluator to grade your traced answer."
+                : "Your submitted code was compiled and executed in a secure sandbox. The evaluator used this real output when grading."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Feedback Sections */}
       <div className="space-y-4">

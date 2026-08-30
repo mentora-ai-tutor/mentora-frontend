@@ -157,13 +157,22 @@ All requests include `Authorization: Bearer <accessToken>` header. The access to
 
 ### Question Types
 
+Every code-based generated question (`code_completion`, `code_tracing`, `debugging`, `coding_challenge`) gets full sandbox support — a Monaco sandbox editor with a **Run Code** button that executes against the Judge0 sandbox before submission, and on-submit sandbox execution used as evaluation evidence.
+
 | Type | Badge | Input UI | Evaluation |
 |------|-------|----------|------------|
 | `mcq` | Multiple Choice | Clickable option buttons (A/B/C/D) | Letter match |
-| `code_completion` | Code Completion | Code textarea (monospace, green) | AI evaluation |
-| `code_tracing` | Code Tracing | Plain textarea | AI evaluation |
-| `debugging` | Debugging | Code textarea (monospace, green) | AI evaluation |
-| `coding_challenge` | Coding Challenge | Code textarea (monospace, green) | AI evaluation |
+| `code_completion` | Code Completion | Sandbox code editor + Run Code | AI evaluation + Judge0 execution |
+| `code_tracing` | Code Tracing | Output textarea + sandbox runner for the snippet | AI evaluation + reference snippet execution |
+| `debugging` | Debugging | Sandbox code editor + Run Code | AI evaluation + Judge0 execution |
+| `coding_challenge` | Coding Challenge | Sandbox code editor + Run Code | AI evaluation + Judge0 execution |
+
+### Sandbox Execution
+
+- **Preview ("Run Code")** — `POST /api/ame/run-code` compiles and runs code via Judge0 without touching scoring, mastery, or MongoDB. Available on every code-based question; for `code_tracing` it pre-fills the learner's editable copy with the question's `code_snippet`.
+- **On submit** — code answers (`debugging` included) are executed by Judge0 during evaluation, and the normalized `sandbox_result` grounds the LLM evaluator and is rendered by the FeedbackPanel.
+- **Reference runs** — for `code_tracing`, the learner's answer is expected output (not runnable Java), so the workflow executes the question's original snippet instead (`sandbox_mode: "reference_snippet"`) to capture ground-truth output as grading evidence.
+- Sandbox unavailability never fails an evaluation — results degrade gracefully to text-only grading.
 
 ### Hints System
 

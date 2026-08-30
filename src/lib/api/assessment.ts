@@ -43,6 +43,27 @@ interface SubmitAnswerPayload {
   answer: string;
 }
 
+interface RunCodePayload {
+  session_id?: string | null;
+  question_id?: string | null;
+  code: string;
+  stdin?: string;
+}
+
+interface SandboxResult {
+  attempted?: boolean;
+  compiled?: boolean | null;
+  executed_successfully?: boolean | null;
+  status?: string;
+  stdout?: string | null;
+  stderr?: string | null;
+  compile_output?: string | null;
+  time_seconds?: number | string | null;
+  memory_kb?: number | string | null;
+  source_code_run?: string;
+  reason?: string;
+}
+
 class AssessmentApi {
   private getAccessToken(): string | null {
     if (typeof window === 'undefined') return null;
@@ -83,6 +104,10 @@ class AssessmentApi {
     return this.request('POST', '/api/ame/submit-answer', payload);
   }
 
+  async runCode(payload: RunCodePayload): Promise<ApiResponse<{ run_result: SandboxResult }>> {
+    return this.request('POST', '/api/ame/run-code', payload);
+  }
+
   async getSession(sessionId: string): Promise<ApiResponse<any>> {
     return this.request('GET', `/api/ame/session/${sessionId}`);
   }
@@ -102,4 +127,4 @@ class AssessmentApi {
 }
 
 export const assessmentApi = new AssessmentApi();
-export type { ApiResponse, MasteryProfile, StartSessionPayload, SubmitAnswerPayload };
+export type { ApiResponse, MasteryProfile, StartSessionPayload, SubmitAnswerPayload, RunCodePayload, SandboxResult };
