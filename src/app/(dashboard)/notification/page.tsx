@@ -10,13 +10,15 @@ import { peerLearningApi } from "@/lib/api/peerLearning";
 export default function NotificationPage() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
-    const result = await peerLearningApi.getNotifications();
-    if (result.success) {
-      setNotifications(result.data || []);
+    const result = await peerLearningApi.getPeerNotifications("all");
+    if (result.success && result.data) {
+      setNotifications(result.data.notifications || []);
+      setUnreadCount(result.data.unread_count || 0);
     }
     setLoading(false);
   }, []);
@@ -27,27 +29,34 @@ export default function NotificationPage() {
 
   const markAllAsRead = async () => {
     await peerLearningApi.markAllNotificationsRead();
-    setNotifications(prev => prev.map(n => ({ ...n, status: 'read' as const })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, status: "read" as const })));
+    setUnreadCount(0);
   };
 
   const handleMarkRead = async (notification: Notification) => {
-    if (notification.status !== 'unread') return;
-    await peerLearningApi.markNotificationRead(notification.notification_id);
-    setNotifications(prev =>
-      prev.map(n =>
-        n.notification_id === notification.notification_id ? { ...n, status: 'read' as const } : n
-      )
+    if (notification.status !== "unread") return;
+    await peerLearningApi.markNotificationRead(notification._id);
+    setNotifications((prev) =>
+      prev.map((n) => (n._id === notification._id ? { ...n, status: "read" as const } : n))
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleStartSession = async (notification: Notification) => {
+    // Mark as read then navigate to the session room
+    if (notification.status === "unread") {
+      await peerLearningApi.markNotificationRead(notification._id);
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === notification._id ? { ...n, status: "read" as const } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    }
+
+    const isLearner = notification.role === "learner";
+    router.push(
+      `/peer-learning/pair-session?roomId=${notification.room_id}&peerId=${notification.matched_student_id}&peerName=${encodeURIComponent(notification.matched_student_name)}&topic=${encodeURIComponent(notification.topic)}&knowledgeGap=${encodeURIComponent(notification.topic)}&ai=0`
     );
   };
-
-  const handleAccept = async (notification: Notification) => {
-    const result = await peerLearningApi.acceptNotification(notification.notification_id);
-    if (result?.session_id) {
-      router.push(`/peer-learning/pair-session?start=true`);
-    }
-  };
-
-  const unreadCount = notifications.filter(n => n.status === 'unread').length;
 
   return (
     <div className="h-screen w-full max-w-full bg-[#0F172A] flex flex-col overflow-hidden">
@@ -55,8 +64,8 @@ export default function NotificationPage() {
       <div className="flex-shrink-0 bg-[#0F172A]/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-4xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link 
-              href="/dashboard" 
+            <Link
+              href="/dashboard"
               className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-teal-400 hover:border-teal-500/30 transition-all active:scale-95"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -76,7 +85,7 @@ export default function NotificationPage() {
 
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <button 
+              <button
                 onClick={markAllAsRead}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/60 hover:text-teal-400 hover:bg-teal-500/10 rounded-xl transition-all"
               >
@@ -94,21 +103,21 @@ export default function NotificationPage() {
       {/* Content */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-4 pt-8 pb-20">
         <div className="max-w-4xl mx-auto">
-        {loading ? (
-          <div className="space-y-4 animate-pulse">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-32 bg-white/5 border border-white/10 rounded-2xl" />
-            ))}
-          </div>
-        ) : (
-          <div className="animate-slide-up">
-            <NotificationList
-              notifications={notifications}
-              onAccept={handleAccept}
-              onMarkRead={handleMarkRead}
-            />
-          </div>
-        )}
+          {loading ? (
+            <div className="space-y-4 animate-pulse">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-32 bg-white/5 border border-white/10 rounded-2xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="animate-slide-up">
+              <NotificationList
+                notifications={notifications}
+                onStartSession={handleStartSession}
+                onMarkRead={handleMarkRead}
+              />
+            </div>
+          )}
         </div>
       </main>
 

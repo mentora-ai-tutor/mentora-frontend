@@ -7,6 +7,7 @@ import { Search, Bell, LogOut, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { peerLearningApi } from "@/lib/api/peerLearning";
 
+
 interface HeaderProps {
   scrolled: boolean;
   mounted: boolean;

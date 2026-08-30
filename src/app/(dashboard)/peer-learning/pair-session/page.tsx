@@ -1,750 +1,665 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, CheckCircle2, AlertCircle, MessageSquare, Users, Wifi, WifiOff, Monitor, MonitorOff, Clock, Play } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { peerLearningApi } from "@/lib/api/peerLearning";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { peerLearningApi, type CodingTask, type TaskProgressItem, type ChatWsMessage, type ChatSupportResponse, type DiagnosticSessionTaskResponse, type DiagnosticSessionCompleteResponse, type CodeEvaluation, type SummaryResponse, type ContentRecommendation } from '@/lib/api/peerLearning';
+import ParticipantDetails from '@/components/peer-learning/ParticipantDetails';
+import CodeEditor from '@/components/peer-learning/CodeEditor';
+import ChatTab from '@/components/peer-learning/ChatTab';
+import EvaluateTab from '@/components/peer-learning/EvaluateTab';
+import SummaryTab from '@/components/peer-learning/SummaryTab';
+import LearnTab from '@/components/peer-learning/LearnTab';
+import EndSessionScreen from '@/components/peer-learning/EndSessionScreen';
+import CollaborativeOverlay, { type DrawTool, type RemoteCursor, type WhiteboardElement } from '@/components/peer-learning/CollaborativeOverlay';
+import { MessageSquare, Code2, FileText, Lightbulb, StopCircle, ChevronDown, ChevronRight, Wifi, WifiOff, Loader2, CheckCircle2 } from 'lucide-react';
 
-interface ChatMessage {
-  type: string;
-  from: string;
-  role: string;
-  message: string;
-  timestamp: string;
-}
+type TabId = 'chat' | 'evaluate' | 'summary' | 'learn';
 
-interface Participant {
-  student_id: string;
-  role: string;
-  is_online: boolean;
-  joined_at?: string;
+const tabs: { id: TabId; label: string; icon: typeof MessageSquare }[] = [
+  { id: 'chat', label: 'Chat', icon: MessageSquare },
+  { id: 'evaluate', label: 'Evaluate', icon: Code2 },
+  { id: 'summary', label: 'Summary', icon: FileText },
+  { id: 'learn', label: 'Learn', icon: Lightbulb },
+];
+
+function toRecordList(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) return value.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'));
+  if (value && typeof value === 'object') return Object.values(value).filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'));
+  return [];
 }
 
 export default function PairSessionPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
-  const [questionsAsked, setQuestionsAsked] = useState(0);
-  const [answer, setAnswer] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState<any>(null);
-  const [sessionFinished, setSessionFinished] = useState(false);
-  const [sessionResult, setSessionResult] = useState<any>(null);
-  const [error, setError] = useState("");
+  const roomIdParam = searchParams.get('roomId');
+  const [defaultRoomId] = useState(() => `room_${user?.student_id || 'unknown'}_default_${Date.now()}`);
+  const roomId = roomIdParam || defaultRoomId;
+  const peerId = searchParams.get('peerId') || 'unknown';
+  const topic = searchParams.get('topic') || 'General Programming';
+  const knowledgeGapParam = searchParams.get('knowledgeGap') || topic;
+  const isAiSession = searchParams.get('ai') === '1';
 
-  // Live room state
-  const [sessionId, setSessionId] = useState<string | null>(searchParams.get("sessionId"));
-  const [myRole, setMyRole] = useState<string | null>(null);
-  const [wsConnected, setWsConnected] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [myStudentId, setMyStudentId] = useState<string | null>(null);
-  const [sessionReady, setSessionReady] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [isSharing, setIsSharing] = useState(false);
-  const [screenShareActive, setScreenShareActive] = useState(false);
-  const [sharerId, setSharerId] = useState<string | null>(null);
-  const [videoPlaying, setVideoPlaying] = useState(false);
+  const studentId = user?.student_id || user?._id || 'unknown';
+  const studentName = user?.name || 'Student';
+  const peerNameParam = searchParams.get('peerName') || (isAiSession ? 'AI Assistant Teacher' : 'Peer Teacher');
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>('chat');
+  const [code, setCode] = useState('');
+  const [connected, setConnected] = useState(false);
+  const [activeUsers, setActiveUsers] = useState(1);
+  const [codingTask, setCodingTask] = useState<CodingTask | null>(null);
+  const [hintsRevealed, setHintsRevealed] = useState(false);
+  const [taskProgress, setTaskProgress] = useState<TaskProgressItem[]>([]);
+  const [currentTask, setCurrentTask] = useState(1);
+  const [totalTasks, setTotalTasks] = useState(0);
+  const [sequenceComplete, setSequenceComplete] = useState(false);
+  const [drawMode, setDrawMode] = useState<DrawTool>('cursor');
+  const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
+  const [whiteboardElements, setWhiteboardElements] = useState<WhiteboardElement[]>([]);
 
-  const totalQuestions = 5;
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [evaluation] = useState<CodeEvaluation | null>(null);
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [recommendations, setRecommendations] = useState<ContentRecommendation[]>([]);
+  const [messages, setMessages] = useState<ChatWsMessage[]>([]);
+  const [aiLoading, setAiLoading] = useState(isAiSession);
+  const [aiSessionComplete, setAiSessionComplete] = useState(false);
+  const [aiSessionSummary, setAiSessionSummary] = useState<DiagnosticSessionCompleteResponse['session_summary'] | null>(null);
 
-  const scrollChatToBottom = useCallback(() => {
-    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-  }, []);
+  const collabWsRef = useRef<WebSocket | null>(null);
+  const chatWsRef = useRef<WebSocket | null>(null);
+  const codeLoadedRef = useRef(false);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const messageIdsRef = useRef<Set<string>>(new Set());
 
-  // Get student ID from token
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setMyStudentId(payload.student_id || payload.id);
-      } catch {}
+  const sendCollabMessage = useCallback((message: Record<string, unknown>) => {
+    if (collabWsRef.current?.readyState === WebSocket.OPEN) {
+      collabWsRef.current.send(JSON.stringify(message));
     }
   }, []);
 
-  // Resolve session if not provided
-  useEffect(() => {
-    if (sessionId) return;
-    const resolveSession = async () => {
-      const room = await peerLearningApi.getMyLiveRoom();
-      if (room?.session_id) {
-        setSessionId(room.session_id);
-      }
+  const normalizeCursor = useCallback((value: Record<string, unknown>): RemoteCursor | null => {
+    const id = String(value.student_id || value.participant_id || value.id || '');
+    if (!id || id === studentId) return null;
+    const position = (value.position as Record<string, unknown> | undefined) || value;
+    return {
+      id,
+      name: String(value.student_name || value.name || value.user_name || 'Student'),
+      role: String(value.role || (id === peerId ? 'Peer Teacher' : 'Learner')),
+      color: String(value.color || '#38bdf8'),
+      x: Number(position.x || 0),
+      y: Number(position.y || 0),
     };
-    resolveSession();
-  }, [sessionId]);
+  }, [peerId, studentId]);
 
-  // Check session readiness
-  useEffect(() => {
-    if (!sessionId) return;
-    const checkReady = async () => {
-      const ready = await peerLearningApi.getSessionReady(sessionId);
-      if (!ready) return;
-      if (ready.ready) {
-        setSessionReady(true);
-      } else if (ready.remaining_seconds) {
-        setCountdown(ready.remaining_seconds);
-      }
-    };
-    checkReady();
-  }, [sessionId]);
+  const normalizeElement = useCallback((value: Record<string, unknown>): WhiteboardElement | null => {
+    const id = String(value.id || value.element_id || `${Date.now()}-${Math.random()}`);
+    const type = String(value.type || value.tool || '') as WhiteboardElement['type'];
+    if (!['pen', 'line', 'arrow', 'rectangle', 'circle', 'text'].includes(type)) return null;
+    return { ...value, id, type, color: String(value.color || '#38bdf8') } as WhiteboardElement;
+  }, []);
 
-  // Countdown timer
+  // Connect to collab WebSocket — read coding_task from INIT_STATE (peer sessions only)
   useEffect(() => {
-    if (countdown === null || countdown <= 0) return;
-    const interval = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === null || prev <= 1) {
-          setSessionReady(true);
-          return null;
+    if (isAiSession) return;
+
+    const ws = peerLearningApi.connectCollabWebSocket(
+      roomId,
+      (msg) => {
+        if (msg.type === 'INIT_STATE') {
+          setConnected(true);
+          setActiveUsers(msg.active_users_count || 1);
+
+          // Read task from INIT_STATE (backend sends 'task', not 'coding_task')
+          if (msg.task) {
+            setCodingTask(msg.task);
+          }
+          if (msg.task_progress) setTaskProgress(msg.task_progress);
+          if (msg.current_task) setCurrentTask(msg.current_task);
+          if (msg.total_tasks) setTotalTasks(msg.total_tasks);
+          if (msg.sequence_complete !== undefined) setSequenceComplete(msg.sequence_complete);
+
+          const initialCursors = toRecordList(msg.cursors).map(normalizeCursor).filter(Boolean) as RemoteCursor[];
+          setRemoteCursors(initialCursors);
+          const initialBoard = toRecordList(msg.whiteboard || msg.whiteboard_state).map(normalizeElement).filter(Boolean) as WhiteboardElement[];
+          setWhiteboardElements(initialBoard);
+
+          // Load starter_code only when room is initially empty (first INIT_STATE only)
+          if (!codeLoadedRef.current) {
+            codeLoadedRef.current = true;
+            const serverCode = msg.code || '';
+            if (serverCode.trim()) {
+              setCode(serverCode);
+            } else if (msg.task?.starter_code) {
+              setCode(msg.task.starter_code);
+            }
+          }
+        } else if (msg.type === 'TASK_PROGRESS') {
+          // Backend broadcasts this after a task is graded and advanced
+          if (msg.task) setCodingTask(msg.task);
+          if (msg.task_progress) setTaskProgress(msg.task_progress);
+          if (msg.current_task) setCurrentTask(msg.current_task);
+          if (msg.total_tasks) setTotalTasks(msg.total_tasks);
+          if (msg.sequence_complete !== undefined) setSequenceComplete(msg.sequence_complete);
+          if (msg.status) {
+            // Load the next task's starter_code into the editor
+            if (msg.task?.starter_code) {
+              setCode(msg.task.starter_code);
+              codeLoadedRef.current = true;
+            }
+          }
+          setHintsRevealed(false);
+        } else if (msg.type === 'CODE_CHANGE' && msg.code !== undefined) {
+          setCode(msg.code);
+        } else if (msg.type === 'CURSOR_MOVE') {
+          const cursor = normalizeCursor((msg.cursor || msg) as Record<string, unknown>);
+          if (cursor) setRemoteCursors((previous) => [...previous.filter((item) => item.id !== cursor.id), cursor]);
+        } else if (msg.type === 'PRESENCE_JOINED') {
+          const cursor = normalizeCursor((msg.cursor || msg) as Record<string, unknown>);
+          if (cursor) setRemoteCursors((previous) => [...previous.filter((item) => item.id !== cursor.id), cursor]);
+        } else if (msg.type === 'PRESENCE_LEFT' || msg.type === 'USER_DISCONNECTED') {
+          const id = String(msg.student_id || msg.participant_id || msg.id || '');
+          if (id) setRemoteCursors((previous) => previous.filter((item) => item.id !== id));
+          if (msg.type === 'USER_DISCONNECTED') setActiveUsers(msg.active_users_count || 0);
+        } else if (msg.type === 'WHITEBOARD_DRAW') {
+          const element = normalizeElement((msg.element || msg) as Record<string, unknown>);
+          if (element) setWhiteboardElements((previous) => [...previous.filter((item) => item.id !== element.id), element]);
+        } else if (msg.type === 'WHITEBOARD_ERASE') {
+          const id = String(msg.element_id || (msg.element as Record<string, unknown> | undefined)?.id || msg.id || '');
+          if (id) setWhiteboardElements((previous) => previous.filter((item) => item.id !== id));
+        } else if (msg.type === 'WHITEBOARD_CLEAR') {
+          setWhiteboardElements([]);
+        } else if (msg.active_users_count !== undefined) {
+          setActiveUsers(msg.active_users_count);
         }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [countdown]);
+      },
+      () => setConnected(true),
+      () => setConnected(false),
+    );
 
-  // Poll readiness during countdown to detect early activation by teacher
+    collabWsRef.current = ws;
+    return () => ws.close();
+  }, [isAiSession, normalizeCursor, normalizeElement, roomId]);
+
+  // AI Session: reset any stale session, then call onboardAndDiagnose to get Task 1
   useEffect(() => {
-    if (!sessionId || sessionReady) return;
-    const interval = setInterval(async () => {
+    if (!isAiSession) return;
+
+    let cancelled = false;
+
+    const startAiSession = async () => {
       try {
-        const ready = await peerLearningApi.getSessionReady(sessionId);
-        if (ready?.ready) {
-          setSessionReady(true);
-          setCountdown(null);
-        }
-      } catch {}
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [sessionId, sessionReady]);
+        // Reset any previous session so we always start from Task 1
+        await peerLearningApi.resetDiagnosticSession();
+      } catch {
+        // Ignore reset errors (session may not exist yet)
+      }
+      if (cancelled) return;
 
-  // Connect live room WebSocket
+      const res = await peerLearningApi.onboardAndDiagnose();
+      if (cancelled) return;
+
+      if (!res.success || !res.data) {
+        setAiLoading(false);
+        return;
+      }
+
+      const data = res.data as unknown as Record<string, unknown>;
+      if (data.status === 'session_complete') {
+        setAiLoading(false);
+        setAiSessionComplete(true);
+        setAiSessionSummary((res.data as DiagnosticSessionCompleteResponse).session_summary);
+        setSequenceComplete(true);
+        return;
+      }
+
+      const taskResp = res.data as DiagnosticSessionTaskResponse;
+      if (taskResp.task) {
+        setAiLoading(false);
+        setCodingTask(taskResp.task);
+        setCurrentTask(taskResp.current_task_number);
+        setTotalTasks(taskResp.total_tasks);
+        setCode(taskResp.task.starter_code);
+        codeLoadedRef.current = true;
+      }
+    };
+
+    startAiSession();
+
+    return () => { cancelled = true; };
+  }, [isAiSession]);
+
+  const handleCodeChange = useCallback(
+    (value: string) => {
+      setCode(value);
+      if (collabWsRef.current?.readyState === WebSocket.OPEN) {
+        collabWsRef.current.send(JSON.stringify({ type: 'CODE_CHANGE', code: value }));
+      }
+    },
+    [],
+  );
+
+  // Chat WebSocket — single connection for the whole session, survives tab switches (peer sessions only)
   useEffect(() => {
-    if (!sessionId || !sessionReady) return;
+    if (isAiSession) return;
 
-    const onMessage = (data: any) => {
-      switch (data.type) {
-        case "welcome":
-          if (data.role) setMyRole(data.role);
-          break;
-        case "chat":
-          setChatMessages(prev => [...prev, data]);
-          scrollChatToBottom();
-          break;
-        case "user_joined":
-          setParticipants(prev => {
-            const exists = prev.find(p => p.student_id === data.student_id);
-            if (exists) return prev.map(p => p.student_id === data.student_id ? { ...p, is_online: true } : p);
-            return [...prev, { student_id: data.student_id, role: data.role, is_online: true }];
-          });
-          break;
-        case "user_left":
-          setParticipants(prev => prev.map(p => p.student_id === data.student_id ? { ...p, is_online: false } : p));
-          break;
-        case "presence":
-          setParticipants(prev => prev.map(p => p.student_id === data.student_id ? { ...p, is_online: data.status === "online" } : p));
-          break;
-        case "screen_share":
-          if (data.signal_type === "started") {
-            setScreenShareActive(true);
-            setSharerId(data.from);
-          } else if (data.signal_type === "stopped") {
-            setScreenShareActive(false);
-            setSharerId(null);
-          } else if (data.signal_type === "offer") {
-            handleScreenShareOffer(data);
-          } else if (data.signal_type === "answer") {
-            handleScreenShareAnswer(data);
-          } else if (data.signal_type === "ice_candidate") {
-            handleIceCandidate(data);
+    const ws = peerLearningApi.connectChatWebSocket(
+      roomId,
+      studentId,
+      (msg) => {
+        // CHAT_HISTORY is sent on connect with all stored messages
+        const raw = msg as unknown as Record<string, unknown>;
+        if (raw.type === 'CHAT_HISTORY') {
+          const history = raw.messages as ChatWsMessage[] | undefined;
+          if (Array.isArray(history)) {
+            setMessages((prev) => {
+              const existing = new Set(
+                prev.map((m) => `${m.sender}::${m.content}`),
+              );
+              const merged = [...prev];
+              for (const m of history) {
+                const key = `${m.sender}::${m.content}`;
+                if (!existing.has(key)) {
+                  merged.push(m);
+                  existing.add(key);
+                }
+              }
+              return merged;
+            });
           }
-          break;
-        case "session_action":
-          if (data.action === "question_started" && data.payload) {
-            setCurrentQuestion(data.payload.question);
-            setQuestionsAsked(data.payload.questions_asked);
-          } else if (data.action === "answer_submitted" && data.payload) {
-            setQuestionsAsked(data.payload.questions_asked);
-            setFeedback(data.payload.feedback);
-          }
-          break;
-        case "pong":
-          break;
-      }
-    };
-
-    const onOpen = () => setWsConnected(true);
-    const onClose = (code?: number, reason?: string) => {
-      setWsConnected(false);
-      if (code === 4006) {
-        setError(`Session not ready: ${reason || "Please wait"}`);
-      }
-    };
-
-    const ws = peerLearningApi.connectLiveRoomWebSocket(sessionId, onMessage, onOpen, onClose);
-    wsRef.current = ws;
-
-    // Fetch room members
-    peerLearningApi.getLiveRoomMembers(sessionId).then(m => {
-      if (m?.participants) setParticipants(m.participants);
-    });
-
-    // Check screen share state
-    peerLearningApi.getScreenShareState(sessionId).then(s => {
-      if (s?.is_sharing) {
-        setScreenShareActive(true);
-        setSharerId(s.sharer_id);
-      }
-    });
-
-    return () => {
-      if (ws) ws.close();
-      if (sessionId) peerLearningApi.leaveLiveRoom(sessionId);
-      stopScreenShare();
-    };
-  }, [sessionId, sessionReady, scrollChatToBottom]);
-
-  // WebRTC screen share handlers
-  const handleScreenShareOffer = async (data: any) => {
-    if (!wsRef.current) return;
-    setVideoPlaying(false);
-    streamRef.current = null;
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-    pcRef.current = pc;
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        wsRef.current?.send(JSON.stringify({
-          type: "screen_share",
-          signal_type: "ice_candidate",
-          signal_data: e.candidate.toJSON(),
-          target_student_id: data.from,
-        }));
-      }
-    };
-
-    pc.ontrack = (e) => {
-      streamRef.current = e.streams[0];
-      if (videoRef.current) {
-        videoRef.current.srcObject = e.streams[0];
-      }
-    };
-
-    try {
-      const desc = new RTCSessionDescription(JSON.parse(data.signal_data));
-      await pc.setRemoteDescription(desc);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      wsRef.current.send(JSON.stringify({
-        type: "screen_share",
-        signal_type: "answer",
-        signal_data: JSON.stringify(pc.localDescription),
-        target_student_id: data.from,
-      }));
-    } catch {}
-  };
-
-  const handleScreenShareAnswer = async (data: any) => {
-    if (!pcRef.current) return;
-    try {
-      const desc = new RTCSessionDescription(JSON.parse(data.signal_data));
-      await pcRef.current.setRemoteDescription(desc);
-    } catch {}
-  };
-
-  const handleIceCandidate = async (data: any) => {
-    if (!pcRef.current) return;
-    try {
-      await pcRef.current.addIceCandidate(new RTCIceCandidate(JSON.parse(data.signal_data)));
-    } catch {}
-  };
-
-  const startScreenShare = async () => {
-    if (!wsRef.current) return;
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      mediaStreamRef.current = stream;
-
-      const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-      pcRef.current = pc;
-
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-      pc.onicecandidate = (e) => {
-        if (e.candidate) {
-          wsRef.current?.send(JSON.stringify({
-            type: "screen_share",
-            signal_type: "ice_candidate",
-            signal_data: e.candidate.toJSON(),
-          }));
+          return;
         }
-      };
+        // Regular chat message — deduplicate
+        const key = `${msg.sender}::${msg.content}`;
+        if (messageIdsRef.current.has(key)) return;
+        messageIdsRef.current.add(key);
+        setMessages((prev) => [...prev, msg]);
+      },
+      () => setConnected(true),
+      () => setConnected(false),
+    );
+    chatWsRef.current = ws;
+    return () => ws.close();
+  }, [isAiSession, roomId, studentId]);
 
-      stream.getVideoTracks()[0].onended = () => stopScreenShare();
+  const sendChatMessage = useCallback(
+    (text: string) => {
+      if (isAiSession) {
+        // AI session: use /api/chat/support HTTP endpoint
+        const userMsg: ChatWsMessage = { sender: studentId, content: text };
+        setMessages((prev) => [...prev, userMsg]);
+        setAiLoading(true);
+        peerLearningApi.chatSupport(text).then((res) => {
+          setAiLoading(false);
+          if (res.success && res.data) {
+            const reply = (res.data as ChatSupportResponse).reply || 'I could not process that request.';
+            setMessages((prev) => [...prev, { sender: 'Java AI Assistant Teacher', content: reply }]);
+          } else {
+            setMessages((prev) => [...prev, { sender: 'Java AI Assistant Teacher', content: 'Sorry, I encountered an error. Please try again.' }]);
+          }
+        });
+        return;
+      }
+      // Peer session: use chat WebSocket
+      if (chatWsRef.current?.readyState === WebSocket.OPEN) {
+        chatWsRef.current.send(text);
+      }
+    },
+    [isAiSession, studentId],
+  );
 
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+  // AI session: advance to next task only after evaluation passes
+  const handleAiTaskAdvance = useCallback(async (passed: boolean) => {
+    if (!isAiSession || !passed) return;
+    setAiLoading(true);
+    const res = await peerLearningApi.onboardAndDiagnose();
+    setAiLoading(false);
+    if (!res.success || !res.data) return;
 
-      wsRef.current.send(JSON.stringify({
-        type: "screen_share",
-        signal_type: "offer",
-        signal_data: JSON.stringify(pc.localDescription),
-      }));
-
-      wsRef.current.send(JSON.stringify({
-        type: "screen_share",
-        signal_type: "started",
-      }));
-
-      setIsSharing(true);
-    } catch {
-      // User cancelled screen share
-    }
-  };
-
-  const stopScreenShare = () => {
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(t => t.stop());
-      mediaStreamRef.current = null;
-    }
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
-    setIsSharing(false);
-    wsRef.current?.send(JSON.stringify({ type: "screen_share", signal_type: "stopped" }));
-  };
-
-  const sendChatMessage = () => {
-    if (!chatInput.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    wsRef.current.send(JSON.stringify({ type: "chat", message: chatInput.trim() }));
-    setChatInput("");
-  };
-
-  const handleChatKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendChatMessage();
-    }
-  };
-
-  const handleStartQuestion = async () => {
-    setLoading(true);
-    setError("");
-    setFeedback(null);
-
-    const result = await peerLearningApi.startQuestion();
-    if (result.question_id || result.question_text) {
-      setCurrentQuestion(result);
-      setQuestionsAsked(1);
-      setAnswer("");
-      if (result.session_id) setSessionId(result.session_id);
-      wsRef.current?.send(JSON.stringify({
-        type: "session_action",
-        action: "question_started",
-        payload: { question: result, questions_asked: 1 },
-      }));
-    } else {
-      setError(result.detail || result.error || "Failed to start question");
-    }
-    setLoading(false);
-  };
-
-  const handleSubmitAnswer = async () => {
-    if (!answer.trim()) return;
-    setLoading(true);
-    setError("");
-
-    const result = await peerLearningApi.submitAnswer(answer);
-    if (result.is_correct !== undefined) {
-      setFeedback(result);
-      if (result.questions_asked) setQuestionsAsked(result.questions_asked);
-      if (result.performance) setSessionResult(result.performance);
-      wsRef.current?.send(JSON.stringify({
-        type: "session_action",
-        action: "answer_submitted",
-        payload: {
-          is_correct: result.is_correct,
-          questions_asked: result.questions_asked,
-          feedback: result,
-        },
-      }));
-    } else {
-      setError(result.detail || result.error || JSON.stringify(result));
-    }
-    setLoading(false);
-  };
-
-  const handleNextQuestion = async () => {
-    if (feedback?.performance) setSessionResult(feedback.performance);
-    setFeedback(null);
-    setError("");
-    setLoading(true);
-
-    if (questionsAsked >= totalQuestions) {
-      setSessionFinished(true);
-      setLoading(false);
+    const data = res.data as unknown as Record<string, unknown>;
+    if (data.status === 'session_complete') {
+      setAiSessionComplete(true);
+      setAiSessionSummary((res.data as DiagnosticSessionCompleteResponse).session_summary);
+      setSequenceComplete(true);
       return;
     }
 
-    const result = await peerLearningApi.startQuestion();
-    if (result.question_id || result.question_text) {
-      setCurrentQuestion(result);
-      setQuestionsAsked(prev => prev + 1);
-      setAnswer("");
-      wsRef.current?.send(JSON.stringify({
-        type: "session_action",
-        action: "question_started",
-        payload: { question: result, questions_asked: questionsAsked + 1 },
-      }));
-    } else {
-      if (result.error === "No active question" || questionsAsked >= totalQuestions) {
-        setSessionFinished(true);
-      } else {
-        setError(result.detail || result.error || "Failed to load next question");
-      }
+    const taskResp = res.data as DiagnosticSessionTaskResponse;
+    if (taskResp.task) {
+      setCodingTask(taskResp.task);
+      setCurrentTask(taskResp.current_task_number);
+      setTotalTasks(taskResp.total_tasks);
+      setCode(taskResp.task.starter_code);
+      codeLoadedRef.current = true;
+      setHintsRevealed(false);
     }
-    setLoading(false);
+  }, [isAiSession]);
+
+  const handleCursorMove = useCallback((point: { x: number; y: number }) => {
+    sendCollabMessage({ type: 'CURSOR_MOVE', student_id: studentId, student_name: studentName, role: 'Learner', x: point.x, y: point.y });
+  }, [sendCollabMessage, studentId, studentName]);
+
+  const handleWorkspaceMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const bounds = workspaceRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    handleCursorMove({
+      x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
+    });
+  }, [handleCursorMove]);
+
+  const handleDraw = useCallback((element: WhiteboardElement) => {
+    setWhiteboardElements((previous) => [...previous, element]);
+    sendCollabMessage({ type: 'WHITEBOARD_DRAW', element });
+  }, [sendCollabMessage]);
+
+  const handleErase = useCallback((elementId: string) => {
+    setWhiteboardElements((previous) => previous.filter((element) => element.id !== elementId));
+    sendCollabMessage({ type: 'WHITEBOARD_ERASE', element_id: elementId });
+  }, [sendCollabMessage]);
+
+  const handleClearBoard = useCallback(() => {
+    setWhiteboardElements([]);
+    sendCollabMessage({ type: 'WHITEBOARD_CLEAR' });
+  }, [sendCollabMessage]);
+
+  const handleEndSession = async () => {
+    const [summaryRes, recommendationsRes] = await Promise.allSettled([
+      peerLearningApi.summarizeSession(roomId),
+      peerLearningApi.recommendContent({ topic }),
+    ]);
+
+    if (summaryRes.status === 'fulfilled' && summaryRes.value.success) {
+      setSummary(summaryRes.value.data || null);
+    }
+    if (recommendationsRes.status === 'fulfilled' && recommendationsRes.value.success) {
+      setRecommendations(recommendationsRes.value.data?.recommendations || []);
+    }
+
+    setSessionEnded(true);
   };
 
-  const isMyMessage = (msg: ChatMessage) => msg.from === myStudentId;
-
-  // Countdown view
-  if (countdown !== null && countdown > 0 && !sessionReady) {
-    const minutes = Math.floor(countdown / 60);
-    const seconds = countdown % 60;
+  if (sessionEnded) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="bg-[#334155]/30 border border-white/10 rounded-3xl p-12 text-center max-w-md">
-          <Clock className="w-16 h-16 text-teal-400 mx-auto mb-6" />
-          <h1 className="text-2xl font-black text-white mb-2">Session Scheduled</h1>
-          <p className="text-white/60 mb-8">Your session starts in:</p>
-          <div className="text-6xl font-black text-teal-400 mb-8 font-mono tracking-widest">
-            {minutes}:{seconds.toString().padStart(2, "0")}
-          </div>
-          <p className="text-xs text-white/40">The quiz will be available and the live room will open at the scheduled time.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Session finished view
-  if (sessionFinished) {
-    const sr = sessionResult || feedback?.performance || {};
-    const bloomBefore = sr.bloom_level_before ?? feedback?.bloom_level_before ?? "—";
-    const bloomAfter = sr.bloom_level_after ?? feedback?.bloom_level_after ?? "—";
-    const masteryBefore = sr.previous_mastery_score ?? "—";
-    const masteryAfter = sr.current_mastery_score ?? feedback?.current_mastery_score ?? "—";
-    const improvement = sr.score_improvement ?? (masteryAfter !== "—" && masteryBefore !== "—" ? (masteryAfter - masteryBefore).toFixed(1) : null);
-    const outcome = sr.learner_outcome || "—";
-    const teacherScore = sr.teacher_score ?? "—";
-
-    return (
-      <div className="space-y-6 animate-slide-up pb-8 text-white">
-        <div className="bg-[#334155]/30 border border-teal-500/30 rounded-2xl p-8">
-          <div className="text-center mb-8">
-            <CheckCircle2 className="w-16 h-16 text-teal-400 mx-auto mb-4" />
-            <h1 className="text-3xl font-black text-white mb-2">Session Complete!</h1>
-            <p className="text-white/60">You have completed all {totalQuestions} questions.</p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-[#0F172A]/50 rounded-xl p-4 text-center border border-white/5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Bloom Level Before</p>
-              <p className="text-2xl font-black text-teal-400">{bloomBefore}</p>
-            </div>
-            <div className="bg-[#0F172A]/50 rounded-xl p-4 text-center border border-white/5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Bloom Level After</p>
-              <p className="text-2xl font-black text-teal-400">{bloomAfter}</p>
-            </div>
-            <div className="bg-[#0F172A]/50 rounded-xl p-4 text-center border border-white/5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Mastery Before</p>
-              <p className="text-2xl font-black text-white">{masteryBefore}{masteryBefore !== "—" ? "%" : ""}</p>
-            </div>
-            <div className="bg-[#0F172A]/50 rounded-xl p-4 text-center border border-white/5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Mastery After</p>
-              <p className="text-2xl font-black text-teal-400">{masteryAfter}{masteryAfter !== "—" ? "%" : ""}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-4 justify-center mb-8">
-            {improvement !== null && (
-              <div className="bg-[#0F172A]/50 rounded-xl px-6 py-3 text-center border border-white/5">
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Score Improvement</p>
-                <p className={`text-xl font-black ${Number(improvement) >= 0 ? 'text-teal-400' : 'text-red-400'}`}>
-                  {Number(improvement) >= 0 ? "+" : ""}{improvement}%
-                </p>
-              </div>
-            )}
-            <div className="bg-[#0F172A]/50 rounded-xl px-6 py-3 text-center border border-white/5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Outcome</p>
-              <p className="text-xl font-black text-teal-400">{outcome}</p>
-            </div>
-            {teacherScore !== "—" && (
-              <div className="bg-[#0F172A]/50 rounded-xl px-6 py-3 text-center border border-white/5">
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Teacher Score</p>
-                <p className="text-xl font-black text-amber-400">{teacherScore}%</p>
-              </div>
-            )}
-          </div>
-
-          <div className="text-center">
-            <Link href="/peer-learning">
-              <Button className="bg-teal-600 hover:bg-teal-500 text-white">Back to Dashboard</Button>
-            </Link>
-          </div>
-        </div>
-      </div>
+      <EndSessionScreen
+        studentName={studentName}
+        studentId={studentId}
+        peerName={peerNameParam}
+        peerId={peerId}
+        isAiSession={isAiSession}
+        topic={topic}
+        gapTopic={topic}
+        evaluation={evaluation}
+        summary={summary}
+        recommendations={recommendations}
+        onReturnHome={() => router.push('/peer-learning')}
+      />
     );
   }
 
   return (
-    <div className="space-y-6 animate-slide-up pb-8 text-white h-full flex flex-col">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between gap-4 bg-[#334155]/30 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
-        <div>
-          <h1 className="text-xl font-black text-teal-400">COLLABORATIVE TUTORING SESSION</h1>
-          <div className="flex gap-4 text-sm text-white/60 mt-1">
-            <span>
-              {myRole === "teacher" ? "TEACHER" : "LEARNER"}
-              {myRole === "teacher" ? " (monitoring)" : ""}
-            </span>
-            <span>Question: {questionsAsked + (currentQuestion && !feedback ? 1 : 0)} of {totalQuestions}</span>
-            {sessionId && <span>Session: {sessionId.slice(0, 8)}...</span>}
+    <div className="space-y-3 animate-slide-up">
+      {/* ═══ Session Header Bar ═══ */}
+      <div className="rounded-2xl border border-white/10 bg-[#1e293b]/55 px-5 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Session</span>
+              <span className="text-xs text-white/60 font-mono">{roomId}</span>
+            </div>
+            <div className="w-px h-4 bg-white/10" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Learner</span>
+              <span className="text-xs text-teal-400 font-semibold">{studentId}</span>
+              <span className="text-[10px] text-white/30">({studentName})</span>
+            </div>
+            <div className="w-px h-4 bg-white/10" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">{isAiSession ? 'AI Teacher' : 'Peer Teacher'}</span>
+              <span className="text-xs text-amber-400 font-semibold">{peerId}</span>
+              <span className="text-[10px] text-white/30">({peerNameParam})</span>
+            </div>
+            <div className="w-px h-4 bg-white/10" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Topic</span>
+              <span className="text-xs text-teal-400 font-semibold">{topic}</span>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {wsConnected ? (
-            <span className="flex items-center gap-1.5 text-xs text-teal-400 font-bold">
-              <Wifi className="w-3.5 h-3.5" /> Live
-            </span>
-          ) : sessionId ? (
-            <span className="flex items-center gap-1.5 text-xs text-amber-400 font-bold">
-              <WifiOff className="w-3.5 h-3.5" /> Reconnecting...
-            </span>
-          ) : null}
-          {myRole === "learner" && (
-            <Button
-              onClick={isSharing ? stopScreenShare : startScreenShare}
-              size="sm"
-              className={`text-xs ${isSharing ? 'bg-red-600 hover:bg-red-500' : 'bg-teal-600 hover:bg-teal-500'} text-white`}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-[10px]">
+              {(connected || (isAiSession && codingTask)) ? (
+                <>
+                  <Wifi className="w-3 h-3 text-emerald-400" />
+                  <span className="text-emerald-400">Connected</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3 h-3 text-white/30" />
+                  <span className="text-white/30">Connecting...</span>
+                </>
+              )}
+            </div>
+            <button
+              onClick={handleEndSession}
+              className="px-4 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
             >
-              {isSharing ? <MonitorOff className="w-3.5 h-3.5 mr-1" /> : <Monitor className="w-3.5 h-3.5 mr-1" />}
-              {isSharing ? "Stop Share" : "Share Screen"}
-            </Button>
-          )}
+              <StopCircle className="w-3.5 h-3.5" />
+              End Session
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6 flex-1">
-        {/* LEFT PANEL */}
-        <div className="lg:col-span-2 space-y-6 flex flex-col">
-          {/* Screen share viewer (teacher sees learner's screen) */}
-          {screenShareActive && myRole === "teacher" && (
-            <div className="bg-[#0F172A] border border-teal-500/20 rounded-2xl overflow-hidden">
-              <div className="p-2 bg-[#0F172A]/80 border-b border-white/5 flex items-center gap-2">
-                <Monitor className="w-4 h-4 text-teal-400" />
-                <span className="text-xs font-bold text-teal-400">Live Screen — {sharerId ? sharerId.slice(0, 8) : "Learner"}</span>
+      {/* ═══ Coding Task Panel ═══ */}
+      {codingTask && (
+        <div className="rounded-2xl border border-teal-500/20 bg-teal-500/5 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1 bg-teal-500/20 border border-teal-500/30 rounded-lg">
+                <span className="text-xs font-bold text-teal-400 uppercase">{codingTask.task_type.replace(/_/g, ' ')}</span>
               </div>
-              <div className="relative">
-                {!videoPlaying && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs text-white/60">Connecting to screen share...</span>
-                    </div>
-                  </div>
-                )}
-                <video ref={(el) => { videoRef.current = el; if (el && streamRef.current && !el.srcObject) el.srcObject = streamRef.current; }} autoPlay playsInline onPlaying={() => setVideoPlaying(true)} className="w-full h-auto max-h-[400px] bg-black" />
-              </div>
+              <h3 className="text-base font-black text-white">Java Coding Task</h3>
+              {totalTasks > 0 && (
+                <span className="text-[10px] text-white/40 font-mono">
+                  Task {currentTask} of {totalTasks}
+                </span>
+              )}
             </div>
-          )}
-
-          {!currentQuestion ? (
-            <div className="bg-[#334155]/30 border border-white/5 rounded-2xl p-8 text-center">
-              {loading ? (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-8 h-8 border-[3px] border-teal-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-white/60">Generating your first question...</p>
-                </div>
+            <div className="flex items-center gap-2">
+              {sequenceComplete ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/10 border-emerald-500/20 text-emerald-400">
+                  Complete
+                </span>
               ) : (
-                <>
-                  {myRole === "teacher" ? (
-                    <>
-                      <h2 className="text-2xl font-bold text-white mb-4">Monitoring Mode</h2>
-                      <p className="text-white/60 mb-6">You are connected as the teacher. You can see the learner's screen and chat with them. The learner will start the quiz when ready.</p>
-                    </>
-                  ) : (
-                    <>
-                      <h2 className="text-2xl font-bold text-white mb-4">Ready to Start?</h2>
-                      <p className="text-white/60 mb-6">Click the button below to generate your first question.</p>
-                      <Button
-                        onClick={handleStartQuestion}
-                        disabled={loading}
-                        className="px-8 py-4 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl text-lg"
-                      >
-                        {loading ? "Generating..." : <><Play className="w-5 h-5 mr-2" /> START QUESTION</>}
-                      </Button>
-                    </>
-                  )}
-                </>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-amber-500/10 border-amber-500/20 text-amber-400">
+                  In Progress
+                </span>
               )}
             </div>
-          ) : (
-            <>
-              {/* Question (learner only) */}
-              {myRole !== "teacher" && (
-                <>
-                  <div className="bg-[#334155]/30 border border-white/5 rounded-2xl overflow-hidden">
-                    <div className="p-5">
-                      <h2 className="font-bold text-lg mb-2">QUESTION {questionsAsked}:</h2>
-                      <div className="text-sm text-white/80 mb-4 leading-relaxed">
-                        <p>{currentQuestion.question_text || currentQuestion.question}</p>
+          </div>
 
-                      </div>
-                    </div>
-                  </div>
+          <p className="text-sm text-white/70 leading-relaxed mb-3">{codingTask.task_description}</p>
 
-                  {(!feedback || (feedback && !feedback.is_correct)) && (
-                    <div className="bg-[#334155]/30 border border-white/5 rounded-2xl overflow-hidden flex-1 flex flex-col">
-                      <div className="p-3 border-b border-white/5 bg-[#0F172A]/80">
-                        <h2 className="font-bold text-sm">YOUR ANSWER:</h2>
-                      </div>
-                      <textarea
-                        value={answer}
-                        onChange={(e) => setAnswer(e.target.value)}
-                        placeholder="Type your answer here..."
-                        className="flex-1 p-4 bg-[#0F172A] text-white text-sm font-mono placeholder:text-white/30 focus:outline-none resize-none border-none"
-                        rows={8}
-                      />
-                      <div className="p-3 border-t border-white/5 bg-[#0F172A]/80 flex gap-2">
-                        <Button onClick={handleSubmitAnswer} disabled={loading || !answer.trim()} className="bg-teal-600 hover:bg-teal-500 text-white">
-                          <Send className="w-4 h-4 mr-2" />
-                          {loading ? "Submitting..." : "SUBMIT ANSWER"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {feedback && (
-                    <div className={`bg-[#334155]/30 border rounded-2xl overflow-hidden ${feedback.is_correct ? 'border-teal-500/20' : 'border-red-500/20'}`}>
-                      <div className="p-4">
-                        <div className={`flex items-center gap-2 mb-2 ${feedback.is_correct ? 'text-teal-400' : 'text-red-400'}`}>
-                          {feedback.is_correct ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                          <span className="font-bold">{feedback.is_correct ? "Correct!" : "Incorrect"}</span>
-                        </div>
-                        {feedback.feedback && <p className="text-sm text-white/70">{feedback.feedback}</p>}
-                        {feedback.current_mastery_score && <p className="text-xs text-white/50 mt-2">Current Mastery: {feedback.current_mastery_score}%</p>}
-                        <Button onClick={handleNextQuestion} disabled={loading} className="mt-4 bg-teal-600 hover:bg-teal-500 text-white">
-                          {loading ? "Loading..." : (questionsAsked >= totalQuestions ? "Finish Session" : "NEXT QUESTION")}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {myRole === "teacher" && (
-                <div className="bg-[#334155]/30 border border-white/5 rounded-2xl p-6 text-center flex-1 flex flex-col items-center justify-center">
-                  <Monitor className="w-12 h-12 text-teal-400 mb-4" />
-                  <h2 className="text-xl font-bold text-white mb-2">Watching Learner's Progress</h2>
-                  <p className="text-white/60">The learner is on question {questionsAsked}. Their screen is shared below so you can guide them.</p>
-                  {currentQuestion?.question_text && (
-                    <div className="mt-4 bg-[#0F172A]/50 p-4 rounded-xl border border-white/5 text-left max-w-lg">
-                      <p className="text-xs font-bold text-white/40 mb-1 uppercase">Current Question:</p>
-                      <p className="text-sm text-white/80">{currentQuestion.question_text}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
+          {codingTask.requirements.length > 0 && (
+            <div className="mb-3">
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">Requirements</p>
+              <ul className="space-y-1">
+                {codingTask.requirements.map((req, i) => (
+                  <li key={i} className="text-xs text-white/60 flex items-start gap-2">
+                    <span className="text-teal-400 mt-0.5">{i + 1}.</span>
+                    {req}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-red-400">
-              <p className="font-bold">Error:</p>
-              <p className="text-sm mt-1">{error}</p>
+          {codingTask.hints.length > 0 && (
+            <div>
+              {!hintsRevealed ? (
+                <button
+                  onClick={() => setHintsRevealed(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg text-xs font-semibold text-amber-400 transition-colors"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                  Show Hint ({codingTask.hints.length})
+                </button>
+              ) : (
+                <div className="space-y-1.5">
+                  <button
+                    onClick={() => setHintsRevealed(false)}
+                    className="flex items-center gap-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider"
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                    Hints
+                  </button>
+                  {codingTask.hints.map((hint, i) => (
+                    <div key={i} className="px-3 py-2 bg-amber-500/5 border border-amber-500/10 rounded-lg">
+                      <p className="text-xs text-amber-300/80">{hint}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
+      )}
 
-        {/* RIGHT PANEL - LIVE CHAT */}
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-[#334155]/30 border border-white/5 rounded-2xl flex-1 flex flex-col overflow-hidden">
-            <div className="p-3 border-b border-white/5 bg-[#0F172A]/80 flex items-center justify-between">
-              <h2 className="font-bold text-sm flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-teal-400" /> LIVE CHAT
-              </h2>
-              <div className="flex items-center gap-2">
-                {participants.map((p, i) => (
-                  <div key={i} className="flex items-center gap-1 text-xs text-white/60" title={`${p.student_id.slice(0, 8)} (${p.role})`}>
-                    <span className={`relative flex h-2 w-2 ${!p.is_online ? 'opacity-40' : ''}`}>
-                      <span className={`absolute inline-flex h-full w-full rounded-full ${p.is_online ? 'animate-ping bg-teal-400 opacity-75' : ''}`}></span>
-                      <span className={`relative inline-flex rounded-full h-2 w-2 ${p.is_online ? 'bg-teal-500' : 'bg-gray-500'}`}></span>
-                    </span>
-                    {p.role === "teacher" ? <Users className="w-3 h-3" /> : <span className="w-3 h-3 flex items-center justify-center text-[8px] font-bold">L</span>}
-                  </div>
-                ))}
-              </div>
+      {/* ═══ AI Session Loading ═══ */}
+      {isAiSession && aiLoading && !codingTask && (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-8 flex flex-col items-center gap-3">
+          <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+          <p className="text-sm text-amber-300 font-semibold">Generating your first diagnostic task...</p>
+          <p className="text-xs text-white/40">The AI teacher is preparing a personalized coding challenge.</p>
+        </div>
+      )}
+
+      {/* ═══ AI Session Complete ═══ */}
+      {isAiSession && aiSessionComplete && aiSessionSummary && (
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-base font-black text-white">Diagnostic Session Complete</h3>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="rounded-xl bg-[#0F172A] border border-white/5 p-3 text-center">
+              <p className="text-[10px] text-white/40 uppercase mb-1">Tasks Completed</p>
+              <p className="text-lg font-black text-emerald-400">{aiSessionSummary.tasks_passed}/{aiSessionSummary.total_tasks}</p>
             </div>
-
-            <div className="flex-1 overflow-auto space-y-3 p-4 bg-black/10">
-              {chatMessages.length === 0 && (
-                <div className="text-center text-xs text-white/30 my-4 font-medium uppercase tracking-wider">
-                  {wsConnected ? "Connected. Start chatting!" : "Connecting..."}
-                </div>
-              )}
-              {chatMessages.map((msg, idx) => (
-                <div key={idx} className={`flex ${isMyMessage(msg) ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${isMyMessage(msg) ? 'bg-teal-600/30 border border-teal-500/20 rounded-tr-md' : 'bg-[#0F172A]/80 border border-white/5 rounded-tl-md'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${isMyMessage(msg) ? 'text-teal-300' : 'text-white/40'}`}>
-                        {isMyMessage(msg) ? 'You' : `${msg.role} (${msg.from.slice(0, 6)})`}
-                      </span>
-                      <span className="text-[9px] text-white/30">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-white/90 leading-relaxed">{msg.message}</p>
-                  </div>
-                </div>
-              ))}
-              <div ref={chatEndRef} />
+            <div className="rounded-xl bg-[#0F172A] border border-white/5 p-3 text-center">
+              <p className="text-[10px] text-white/40 uppercase mb-1">Mastery Score</p>
+              <p className="text-lg font-black text-amber-400">{aiSessionSummary.mastery_score}%</p>
             </div>
+            <div className="rounded-xl bg-[#0F172A] border border-white/5 p-3 text-center">
+              <p className="text-[10px] text-white/40 uppercase mb-1">Status</p>
+              <p className="text-sm font-bold text-emerald-400">Passed</p>
+            </div>
+          </div>
+          <p className="text-xs text-white/50">You can continue chatting with the AI teacher or end the session.</p>
+        </div>
+      )}
 
-            <div className="p-3 border-t border-white/5 bg-[#0F172A]/80">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={handleChatKeyDown}
-                  placeholder={wsConnected ? "Type your message..." : "Waiting for connection..."}
-                  disabled={!wsConnected}
-                  className="flex-1 bg-[#0F172A] border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-teal-500/50 disabled:opacity-50"
-                />
-                <Button
-                  size="icon"
-                  onClick={sendChatMessage}
-                  disabled={!wsConnected || !chatInput.trim()}
-                  className="bg-teal-600 hover:bg-teal-500 text-white shrink-0 rounded-xl border-none disabled:opacity-50"
+      {/* ═══ Main Workspace: Editor + Tabs ═══ */}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-3" style={{ minHeight: 'calc(100vh - 320px)' }}>
+        {/* Left: Shared Java Editor */}
+        <div ref={workspaceRef} onMouseMove={handleWorkspaceMouseMove} className="relative min-h-[400px] lg:min-h-0">
+          <CodeEditor
+            value={code}
+            onChange={handleCodeChange}
+            connected={connected}
+            activeUsers={activeUsers}
+            questionText={codingTask?.task_description}
+          />
+          <CollaborativeOverlay
+            drawMode={drawMode}
+            onToolChange={setDrawMode}
+            onClear={handleClearBoard}
+            cursors={remoteCursors}
+            elements={whiteboardElements}
+            onDraw={handleDraw}
+            onErase={handleErase}
+            onCursorMove={handleCursorMove}
+          />
+        </div>
+
+        {/* Right: Collaboration Panel */}
+        <div className="flex flex-col rounded-xl border border-white/10 bg-[#1e293b]/55 overflow-hidden min-h-[400px] lg:min-h-0">
+          {/* Tab bar */}
+          <div className="flex border-b border-white/5">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
+                    isActive
+                      ? 'text-teal-400 border-b-2 border-teal-400 bg-teal-500/5'
+                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.02]'
+                  }`}
                 >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {activeTab === 'chat' && (
+              <ChatTab
+                roomId={roomId}
+                studentId={studentId}
+                studentName={studentName}
+                peerId={peerId}
+                peerName={peerNameParam}
+                role="learner"
+                messages={messages}
+                onSend={sendChatMessage}
+                aiLoading={isAiSession && aiLoading}
+              />
+            )}
+            {activeTab === 'evaluate' && (
+              <EvaluateTab
+                getCode={() => code}
+                codingTask={codingTask}
+                onEvaluateSuccess={isAiSession ? handleAiTaskAdvance : undefined}
+              />
+            )}
+            {activeTab === 'summary' && (
+              <SummaryTab
+                roomId={roomId}
+                studentName={studentName}
+                peerName={peerNameParam}
+                topic={topic}
+              />
+            )}
+            {activeTab === 'learn' && (
+              <LearnTab gapTopic={topic} />
+            )}
+          </div>
+
+          {/* Participant Details - always visible */}
+          <div className="border-t border-white/5 p-3">
+            <ParticipantDetails
+              learner={{
+                id: studentId,
+                name: studentName,
+                role: 'Learner',
+                topic: topic,
+              }}
+              peerTeacher={{
+                id: peerId,
+                name: peerNameParam,
+                role: isAiSession ? 'AI Teacher' : 'Peer Teacher',
+                topic: topic,
+              }}
+            />
           </div>
         </div>
       </div>
