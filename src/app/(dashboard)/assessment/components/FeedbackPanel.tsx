@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +14,14 @@ import {
   Lightbulb,
   Pencil,
   ArrowRight,
+  ArrowLeft,
   Trophy,
   TrendingUp,
   TrendingDown,
   ExternalLink,
   AlertTriangle,
-  Target
+  Target,
+  Terminal
 } from "lucide-react";
 
 interface FeedbackData {
@@ -54,6 +57,22 @@ interface FeedbackData {
   };
   next_action: "continue" | "next_topic" | "complete";
   next_topic_name?: string;
+  question_text?: string;
+  learner_answer?: string;
+  sandbox_execution?: {
+    attempted?: boolean;
+    compiled?: boolean | null;
+    executed_successfully?: boolean | null;
+    status?: string;
+    stdout?: string | null;
+    stderr?: string | null;
+    compile_output?: string | null;
+    time_seconds?: number | string | null;
+    memory_kb?: number | string | null;
+    source_code_run?: string;
+    reason?: string;
+    sandbox_mode?: "learner_code" | "reference_snippet";
+  } | null;
 }
 
 interface FeedbackPanelProps {
@@ -89,6 +108,7 @@ export default function FeedbackPanel({
   },
   onNext = () => {}
 }: FeedbackPanelProps) {
+  const [showQuestion, setShowQuestion] = useState(false);
 
   const getResultBanner = () => {
     if (data.is_correct) {
@@ -117,6 +137,57 @@ export default function FeedbackPanel({
 
   const result = getResultBanner();
 
+  const hasSandboxOutput = (sb: NonNullable<FeedbackData["sandbox_execution"]>) =>
+    sb && (sb.stdout || sb.stderr || sb.compile_output || sb.reason);
+
+  if (showQuestion) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-white">Review Question</h3>
+        </div>
+
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-6">
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-sm font-semibold text-teal-400 uppercase tracking-wider mb-2">The Question</h4>
+                <p className="text-base text-white leading-relaxed">
+                  {data.question_text || "Question text not available."}
+                </p>
+              </div>
+
+              <div className="p-4 bg-[#0F172A] rounded-xl border border-white/5">
+                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Your Answer</h4>
+                <p className="text-white font-medium">
+                  {data.learner_answer || "No answer recorded."}
+                </p>
+              </div>
+
+              <div className={`p-4 rounded-xl border ${data.is_correct ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                <h4 className={`text-sm font-semibold uppercase tracking-wider mb-2 ${data.is_correct ? 'text-green-400' : 'text-red-400'}`}>
+                  Result
+                </h4>
+                <p className={data.is_correct ? 'text-green-200' : 'text-red-200'}>
+                  {data.is_correct ? "You answered correctly!" : "This answer was incorrect."}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="text-center pt-4">
+          <Button
+            onClick={() => setShowQuestion(false)}
+            className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 font-semibold rounded-lg"
+          >
+            Return to Feedback Panel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
 
@@ -132,6 +203,87 @@ export default function FeedbackPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Sandbox Execution Output (code questions) */}
+      {data.sandbox_execution && data.sandbox_execution.attempted !== false && (
+        <Card className="bg-[#0F172A] border-white/10">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-teal-400" />
+                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Code Execution Result
+                </h4>
+              </div>
+              <div className="flex items-center gap-2">
+                {typeof data.sandbox_execution.compiled === "boolean" && (
+                  <Badge
+                    variant="outline"
+                    className={
+                      data.sandbox_execution.compiled
+                        ? "border-emerald-500/30 text-emerald-400"
+                        : "border-red-500/30 text-red-400"
+                    }
+                  >
+                    {data.sandbox_execution.compiled ? "Compiled" : "Compile Error"}
+                  </Badge>
+                )}
+                {data.sandbox_execution.status && (
+                  <Badge
+                    variant="outline"
+                    className={
+                      data.sandbox_execution.executed_successfully
+                        ? "border-emerald-500/30 text-emerald-400"
+                        : data.sandbox_execution.status === "sandbox_unavailable"
+                        ? "border-amber-500/30 text-amber-400"
+                        : "border-red-500/30 text-red-400"
+                    }
+                  >
+                    {data.sandbox_execution.status}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="font-mono text-sm space-y-3 max-h-72 overflow-y-auto">
+              {data.sandbox_execution.compile_output && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1">Compile Output</p>
+                  <pre className="whitespace-pre-wrap break-words text-amber-300 leading-relaxed">{data.sandbox_execution.compile_output}</pre>
+                </div>
+              )}
+              {data.sandbox_execution.stdout && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1">stdout</p>
+                  <pre className="whitespace-pre-wrap break-words text-white leading-relaxed">{data.sandbox_execution.stdout}</pre>
+                </div>
+              )}
+              {data.sandbox_execution.stderr && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-400 mb-1">stderr</p>
+                  <pre className="whitespace-pre-wrap break-words text-red-300 leading-relaxed">{data.sandbox_execution.stderr}</pre>
+                </div>
+              )}
+              {!hasSandboxOutput(data.sandbox_execution) && (
+                <p className="text-slate-500 italic">No output produced.</p>
+              )}
+              {(data.sandbox_execution.time_seconds || data.sandbox_execution.memory_kb) && (
+                <p className="text-slate-500 text-xs pt-2 border-t border-white/5">
+                  {data.sandbox_execution.time_seconds ? `Time: ${data.sandbox_execution.time_seconds}s` : ""}
+                  {data.sandbox_execution.time_seconds && data.sandbox_execution.memory_kb ? " · " : ""}
+                  {data.sandbox_execution.memory_kb ? `Memory: ${data.sandbox_execution.memory_kb} KB` : ""}
+                </p>
+              )}
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              {data.sandbox_execution.sandbox_mode === "reference_snippet"
+                ? "The question's reference snippet was executed in a secure sandbox — this is the program's actual output, used by the evaluator to grade your traced answer."
+                : "Your submitted code was compiled and executed in a secure sandbox. The evaluator used this real output when grading."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Feedback Sections */}
       <div className="space-y-4">
@@ -262,34 +414,105 @@ export default function FeedbackPanel({
       </div>
 
       {/* Mastery Progress Update */}
-      <Card className="bg-slate-800/30 border-slate-700">
+      <Card className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 overflow-hidden">
         <CardContent className="p-6">
-          <h4 className="text-white font-semibold mb-4">Mastery Progress Update</h4>
-
-          <div className="mb-4">
-            <p className="text-white font-medium">{data.mastery_update.topic}</p>
-            <div className="flex items-center gap-4 mt-2">
-              <span className="text-slate-400">Before: {data.mastery_update.before_mastery}%</span>
-              <ArrowRight className="w-4 h-4 text-slate-400" />
-              <span className="text-white font-bold">After: {data.mastery_update.after_mastery}%</span>
+          <div className="flex items-center gap-3 mb-6">
+            <div className={`p-2 rounded-xl ${
+              data.mastery_update.after_mastery >= data.mastery_update.target
+                ? "bg-emerald-500/10"
+                : "bg-teal-500/10"
+            }`}>
+              <Target className={`w-5 h-5 ${
+                data.mastery_update.after_mastery >= data.mastery_update.target
+                  ? "text-emerald-400"
+                  : "text-teal-400"
+              }`} />
             </div>
+            <div>
+              <h4 className="text-white font-bold">Mastery Progress</h4>
+              <p className="text-white/40 text-xs">{data.mastery_update.topic}</p>
+            </div>
+            {data.mastery_update.after_mastery >= data.mastery_update.target && (
+              <div className="ml-auto px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+                <p className="text-emerald-400 text-xs font-bold">MASTERED</p>
+              </div>
+            )}
           </div>
 
-          <div className="mb-4">
-            <div className="w-full bg-slate-700 rounded-full h-2">
-              <div
-                className="bg-teal-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${data.mastery_update.after_mastery}%` }}
-              />
-              <div
-                className="w-1 h-4 bg-amber-400 absolute -mt-1"
-                style={{ left: `${data.mastery_update.target}%`, marginLeft: '-2px' }}
-              />
+          {/* Progress Visualization */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-center">
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">Before</p>
+                <p className="text-2xl font-black text-white/60">{data.mastery_update.before_mastery}%</p>
+              </div>
+
+              <div className="flex-1 mx-6 relative">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <ArrowRight className="w-5 h-5 text-teal-400" />
+                </div>
+              </div>
+
+              <div className="text-center">
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">After</p>
+                <p className={`text-2xl font-black ${
+                  data.mastery_update.after_mastery >= data.mastery_update.target
+                    ? "text-emerald-400"
+                    : "text-teal-400"
+                }`}>{data.mastery_update.after_mastery}%</p>
+              </div>
             </div>
-            <p className="text-slate-400 text-sm mt-1">
+
+            {/* Progress Bar */}
+            <div className="relative mt-4">
+              <div className="w-full h-3 bg-[#0F172A] rounded-full overflow-visible">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    data.mastery_update.after_mastery >= data.mastery_update.target
+                      ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                      : "bg-gradient-to-r from-teal-500 to-teal-400"
+                  }`}
+                  style={{ width: `${Math.min(data.mastery_update.after_mastery, 100)}%` }}
+                />
+              </div>
+
+              {/* Target Marker */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -mt-0.5"
+                style={{ left: `${data.mastery_update.target}%` }}
+              >
+                <div className="relative -translate-x-1/2">
+                  <div className="w-0.5 h-5 bg-amber-400 rounded-full" />
+                  <p className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] text-amber-400 font-bold whitespace-nowrap">
+                    TARGET {data.mastery_update.target}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Current Position Marker */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -mt-0.5"
+                style={{ left: `${Math.min(data.mastery_update.after_mastery, 100)}%` }}
+              >
+                <div className="relative -translate-x-1/2">
+                  <div className={`w-3 h-3 rounded-full border-2 border-[#0F172A] ${
+                    data.mastery_update.after_mastery >= data.mastery_update.target
+                      ? "bg-emerald-400"
+                      : "bg-teal-400"
+                  } shadow-lg`} />
+                </div>
+              </div>
+            </div>
+
+            {/* Status Message */}
+            <p className={`text-center text-sm font-medium mt-8 ${
+              data.mastery_update.after_mastery >= data.mastery_update.target
+                ? "text-emerald-400"
+                : "text-white/60"
+            }`}>
               {data.mastery_update.after_mastery >= data.mastery_update.target
-                ? "Topic Mastered!"
-                : `${data.mastery_update.target - data.mastery_update.after_mastery}% more to master this topic`}
+                ? "🎉 Congratulations! You've mastered this topic!"
+                : `Keep going! Just ${data.mastery_update.target - data.mastery_update.after_mastery}% more to reach your target.`}
             </p>
           </div>
         </CardContent>
@@ -331,11 +554,19 @@ export default function FeedbackPanel({
         </div>
       )}
 
-      {/* Next Action Button */}
-      <div className="text-center">
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <Button
+          onClick={() => setShowQuestion(true)}
+          variant="outline"
+          className="border-teal-500/30 text-teal-400 hover:bg-teal-500/10 px-6 py-3 font-semibold rounded-lg order-2 sm:order-1"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Review Question
+        </Button>
         <Button
           onClick={onNext}
-          className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 font-semibold rounded-lg"
+          className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 font-semibold rounded-lg order-1 sm:order-2"
         >
           {data.next_action === "continue" && "Next Question →"}
           {data.next_action === "next_topic" && `Next Topic: ${data.next_topic_name} →`}
