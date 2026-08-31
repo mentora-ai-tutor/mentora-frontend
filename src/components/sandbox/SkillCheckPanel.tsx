@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -20,6 +20,7 @@ import {
   QuizMode,
   QuizResults,
   QuizSource,
+  StartSessionResponse,
   quizApi,
 } from "@/lib/api/quiz";
 
@@ -40,6 +41,10 @@ type SkillCheckPanelProps = {
   subtitle?: string;
   onGenerated?: () => void;
   className?: string;
+  /** Optional custom starter (e.g. retaking a saved set) that replaces the default session start. */
+  customStart?: () => Promise<StartSessionResponse>;
+  /** Automatically invoke the starter on mount (used by one-click retakes). */
+  autoStart?: boolean;
 };
 
 const getMessage = (error: unknown) =>
@@ -54,6 +59,8 @@ export default function SkillCheckPanel({
   subtitle = "Adaptive questions that start simple and get harder as you answer correctly.",
   onGenerated,
   className = "",
+  customStart,
+  autoStart = false,
 }: SkillCheckPanelProps) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -77,12 +84,14 @@ export default function SkillCheckPanel({
     setResults(null);
     setSelected(null);
     try {
-      const session = await quizApi.startSession({
-        mode,
-        job_id: jobId,
-        topics,
-        max_questions: maxQuestions,
-      });
+      const session = customStart
+        ? await customStart()
+        : await quizApi.startSession({
+            mode,
+            job_id: jobId,
+            topics,
+            max_questions: maxQuestions,
+          });
       setSessionId(session.session_id);
       setSource(session.source);
       setTotalPlanned(session.total_planned);
@@ -99,7 +108,17 @@ export default function SkillCheckPanel({
       setError(getMessage(err));
       setPhase("idle");
     }
-  }, [mode, jobId, topics, maxQuestions, onGenerated]);
+  }, [mode, jobId, topics, maxQuestions, onGenerated, customStart]);
+
+  const submittedRef = useRef(false);
+  const startRef = useRef(start);
+  startRef.current = start;
+  useEffect(() => {
+    if (autoStart && !submittedRef.current) {
+      submittedRef.current = true;
+      startRef.current();
+    }
+  }, [autoStart]);
 
   const submit = useCallback(async () => {
     if (!sessionId || !question || !selected || submitting) return;
