@@ -13,7 +13,7 @@ interface ApiEnvelope<T> {
 
 export type QuizDifficulty = "easy" | "medium" | "hard";
 export type QuizQuestionType = "mcq" | "predict_output";
-export type QuizMode = "repo-aware" | "sandbox" | "onboarding";
+export type QuizMode = "repo-aware" | "sandbox" | "onboarding" | "assessment";
 export type QuizSource = "generated" | "seed" | "mixed";
 export type OptionId = "A" | "B" | "C" | "D";
 
@@ -82,6 +82,38 @@ export interface StartSessionPayload {
   topics?: string[];
   job_id?: string;
   max_questions?: number;
+}
+
+/** One stored, previously generated question set (a quiz session's pool). */
+export interface QuestionSetSummary {
+  session_id: string;
+  mode: QuizMode;
+  status: "active" | "completed";
+  source: QuizSource;
+  degraded: boolean;
+  topics: string[];
+  topic_counts: Record<string, number>;
+  total_questions: number;
+  covered_count: number;
+  answered: number;
+  total_planned: number;
+  score_percent: number | null;
+  created_at: string;
+}
+
+/** Full read-only view of a generated question set. */
+export interface QuestionSetView {
+  session_id: string;
+  mode: QuizMode;
+  status: "active" | "completed";
+  source: QuizSource;
+  degraded: boolean;
+  topics: string[];
+  total_questions: number;
+  answered: number;
+  total_planned: number;
+  questions: ClientQuestion[];
+  results: QuizResults | null;
 }
 
 const authHeaders = (): HeadersInit => {
@@ -155,5 +187,21 @@ export const quizApi = {
       const body = await res.json().catch(() => ({})) as ApiEnvelope<unknown>;
       throw new Error(body.detail || `HTTP ${res.status}`);
     }
+  },
+
+  async listSets(): Promise<QuestionSetSummary[]> {
+    const res = await fetch(`${KNOWLEDGE_API_BASE_URL}/api/v1/quiz/sets`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+    return unwrap<QuestionSetSummary[]>(res);
+  },
+
+  async getSet(sessionId: string): Promise<QuestionSetView> {
+    const res = await fetch(
+      `${KNOWLEDGE_API_BASE_URL}/api/v1/quiz/sets/${encodeURIComponent(sessionId)}`,
+      { method: "GET", headers: authHeaders() },
+    );
+    return unwrap<QuestionSetView>(res);
   },
 };
