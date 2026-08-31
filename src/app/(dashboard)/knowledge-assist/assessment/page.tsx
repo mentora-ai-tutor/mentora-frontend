@@ -8,7 +8,9 @@ import {
   Database,
   FileQuestion,
   RefreshCw,
+  RotateCcw,
   Sparkles,
+  X,
 } from "lucide-react";
 import SkillCheckPanel from "@/components/sandbox/SkillCheckPanel";
 import {
@@ -99,6 +101,9 @@ export default function KnowledgeAssistAssessmentPage() {
   const [openView, setOpenView] = useState<QuestionSetView | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [expandedSet, setExpandedSet] = useState<string | null>(null);
+  const [retake, setRetake] = useState<{ sourceId: string; key: number } | null>(null);
+  const [retakingId, setRetakingId] = useState<string | null>(null);
+  const [retakeError, setRetakeError] = useState<string | null>(null);
 
   const loadSets = useCallback(async () => {
     setLoadingSets(true);
@@ -117,6 +122,25 @@ export default function KnowledgeAssistAssessmentPage() {
   useEffect(() => {
     loadSets();
   }, [loadSets]);
+
+  const startRetake = useCallback(
+    async (sessionId: string) => {
+      setRetakeError(null);
+      setRetakingId(sessionId);
+      try {
+        // Verify the set exists first; the panel then reuses it to start the retake.
+        await quizApi.getSet(sessionId);
+        setRetake({ sourceId: sessionId, key: Date.now() });
+      } catch (error) {
+        setRetakeError(
+          error instanceof Error ? error.message : "Could not retake this question set.",
+        );
+      } finally {
+        setRetakingId(null);
+      }
+    },
+    [],
+  );
 
   const openSet = useCallback(
     async (sessionId: string) => {
@@ -161,11 +185,49 @@ export default function KnowledgeAssistAssessmentPage() {
 
       <SkillCheckPanel
         mode="assessment"
-        maxQuestions={20}
         title="Comprehensive Java skills assessment"
         subtitle="Questions are generated to cover every topic in the course — re-generate anytime for a fresh set. Your generated sets are stored and can be re-opened below."
         onGenerated={loadSets}
       />
+
+      {retake && (
+        <section className="rounded-2xl border border-teal-400/20 bg-[#1e293b]/55 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-300">
+                Retaking saved assessment
+              </p>
+              <h3 className="text-lg font-black text-white">
+                Answer the saved set again
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setRetake(null);
+                loadSets();
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+              Close retake
+            </button>
+          </div>
+          {retakeError && (
+            <p className="mb-3 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-100">
+              {retakeError}
+            </p>
+          )}
+          <SkillCheckPanel
+            key={retake.key}
+            mode="assessment"
+            title="Answer the saved set again"
+            customStart={() => quizApi.retakeSet(retake.sourceId)}
+            autoStart
+            onGenerated={loadSets}
+          />
+        </section>
+      )}
 
       <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
         <div className="flex items-center justify-between gap-3">
@@ -190,7 +252,7 @@ export default function KnowledgeAssistAssessmentPage() {
 
         <p className="mt-1 text-sm text-white/45">
           Every set you generate is stored in the database — open one to see its
-          questions again, or regenerate a fresh set above.
+          questions again, retake it, or regenerate a fresh set above.
         </p>
 
         {sets.length === 0 && !loadingSets && (
@@ -211,11 +273,12 @@ export default function KnowledgeAssistAssessmentPage() {
                 key={set.session_id}
                 className="rounded-xl border border-white/10 bg-[#0F172A]"
               >
-                <button
-                  type="button"
-                  onClick={() => openSet(set.session_id)}
-                  className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-white/[0.03]"
-                >
+                <div className="flex items-stretch">
+                  <button
+                    type="button"
+                    onClick={() => openSet(set.session_id)}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-white/[0.03]"
+                  >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-white">
@@ -240,7 +303,27 @@ export default function KnowledgeAssistAssessmentPage() {
                         : ""}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2 text-white/40">
+                </button>
+                <div className="flex shrink-0 items-center gap-2 p-4 pl-0">
+                  <button
+                    type="button"
+                    onClick={() => startRetake(set.session_id)}
+                    disabled={retakingId === set.session_id}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-teal-400/30 bg-teal-400/10 px-3 py-1.5 text-xs font-semibold text-teal-100 transition-colors hover:bg-teal-400/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {retakingId === set.session_id ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    )}
+                    Retake
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openSet(set.session_id)}
+                    aria-label={isOpen ? "Close questions" : "Show questions"}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                  >
                     {openingId === set.session_id ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />
                     ) : (
@@ -248,8 +331,9 @@ export default function KnowledgeAssistAssessmentPage() {
                         className={`h-4 w-4 transition-transform ${isOpen ? "rotate-90" : ""}`}
                       />
                     )}
-                  </div>
-                </button>
+                  </button>
+                </div>
+                </div>
                 {isOpen && (openView?.session_id === set.session_id ? (
                   <SetView view={openView} />
                 ) : (
