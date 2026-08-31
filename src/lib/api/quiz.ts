@@ -204,4 +204,15 @@ export const quizApi = {
     );
     return unwrap<QuestionSetView>(res);
   },
+
+  async retakeSet(sessionId: string): Promise<StartSessionResponse> {
+    const res = await fetch(
+      `${KNOWLEDGE_API_BASE_URL}/api/v1/quiz/sets/${encodeURIComponent(sessionId)}/retake`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+      },
+    );
+    return unwrap<StartSessionResponse>(res);
+  },
 };
