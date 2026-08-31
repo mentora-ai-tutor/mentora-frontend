@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, FileText, Calendar, Sparkles, Eye } from "lucide-react";
+import { FileText, Calendar, Sparkles, Eye, Trash2 } from "lucide-react";
 import type { LearningMaterial } from "@/lib/api/learningGenerator";
 
 interface MaterialCardProps {
   material: LearningMaterial;
+  onDelete?: (material: LearningMaterial) => void;
 }
 
 const gapColorMap: Record<string, { bg: string; border: string; text: string }> = {
@@ -22,47 +23,67 @@ const difficultyColorMap: Record<string, string> = {
   default: "bg-white/5 text-white/50 border-white/10",
 };
 
-export default function MaterialCard({ material }: MaterialCardProps) {
+export default function MaterialCard({ material, onDelete }: MaterialCardProps) {
   const sm = material.structured_material;
   const colors = gapColorMap[sm.gap_type] || gapColorMap.default;
   const diffColor = difficultyColorMap[sm.difficulty_level] || difficultyColorMap.default;
 
   return (
     <div className="group p-5 bg-[#334155]/20 border border-white/5 rounded-2xl hover:border-teal-500/30 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(0,0,0,0.3)]">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${diffColor}`}>
-          {sm.difficulty_level}
-        </div>
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${diffColor}`}>
+            {sm.difficulty_level}
+          </span>
           {sm.generation_source === "implicit_prerequisite" && (
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-blue-500/10 text-blue-400 border-blue-500/20">
+            <span className="whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-blue-500/10 text-blue-400 border-blue-500/20">
               Prerequisite
             </span>
           )}
-          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${colors.bg} ${colors.border} ${colors.text}`}>
+          <span className={`whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${colors.bg} ${colors.border} ${colors.text}`}>
             {sm.gap_type.replace("_", " ")}
           </span>
         </div>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(material);
+            }}
+            className="mt-0.5 shrink-0 p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-colors"
+            aria-label={`Delete ${sm.topic}`}
+            title="Delete material"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
-      <h3 className="text-base font-bold text-white group-hover:text-teal-300 transition-colors mb-1">
+      <h3 className="text-base font-bold text-white group-hover:text-teal-300 transition-colors mb-1 truncate" title={sm.topic}>
         {sm.topic}
       </h3>
-      <p className="text-xs text-white/30 mb-4 font-mono">{sm.topic_id}</p>
+      <p className="text-xs text-white/30 mb-4 font-mono truncate" title={sm.topic_id}>
+        {sm.topic_id}
+      </p>
 
       <div className="space-y-2 mb-4">
-        <div className="flex items-center gap-2 text-xs text-white/40">
-          <FileText className="w-3.5 h-3.5" />
-          <span>{sm.lesson?.concept_explained ? "Concepts" : ""}{sm.lesson?.examples ? " + Examples" : ""}{sm.assessment?.quiz ? " + Quiz" : ""}</span>
+        <div className="flex items-center gap-2.5 text-xs text-white/40">
+          <FileText className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">
+            {[sm.lesson?.concept_explained && "Concepts", sm.lesson?.examples && "Examples", sm.assessment?.quiz && "Quiz"]
+              .filter(Boolean)
+              .join(" + ")}
+          </span>
         </div>
-        <div className="flex items-center gap-2 text-xs text-white/40">
-          <Calendar className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-2.5 text-xs text-white/40">
+          <Calendar className="w-3.5 h-3.5 shrink-0" />
           <span>{new Date(sm.generated_at).toLocaleDateString()}</span>
         </div>
         {sm.generation_models && (
-          <div className="flex items-center gap-2 text-xs text-white/40">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{sm.generation_models.llm || "N/A"}</span>
+          <div className="flex items-center gap-2.5 text-xs text-white/40">
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{sm.generation_models.llm || "N/A"}</span>
           </div>
         )}
       </div>

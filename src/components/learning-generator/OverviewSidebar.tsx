@@ -1,29 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles, Plus, BookOpen, Target, BarChart3, CheckCircle2, Layers, ChevronRight } from "lucide-react";
+import { Sparkles, BookOpen, Target, BarChart3, CheckCircle2, Layers, ChevronRight, Wand2, Loader2 } from "lucide-react";
 import type { ConceptCoverage as ConceptCoverageData } from "@/lib/api/learningGenerator";
 
 interface QuickActionsProps {
-  onGenerateClick: () => void;
+  onMasteryGenerateClick: () => void;
+  masteryGenerating?: boolean;
 }
 
-export function QuickActions({ onGenerateClick }: QuickActionsProps) {
+export function QuickActions({ onMasteryGenerateClick, masteryGenerating }: QuickActionsProps) {
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-bold text-white flex items-center gap-2">
         <Sparkles className="w-5 h-5 text-teal-400" /> Quick Actions
       </h2>
       <button
-        onClick={onGenerateClick}
-        className="w-full p-4 bg-[#1e293b]/90 backdrop-blur-xl border border-teal-500/20 rounded-xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(13,148,136,0.15)] transition-all text-left flex items-start gap-3"
+        onClick={onMasteryGenerateClick}
+        disabled={masteryGenerating}
+        className="w-full p-4 bg-[#1e293b]/90 backdrop-blur-xl border border-cyan-500/25 rounded-xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] transition-all text-left flex items-start gap-3 disabled:cursor-wait disabled:opacity-60"
       >
-        <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center shrink-0">
-          <Plus className="w-5 h-5 text-teal-400" />
+        <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0">
+          {masteryGenerating ? (
+            <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+          ) : (
+            <Wand2 className="w-5 h-5 text-cyan-400" />
+          )}
         </div>
         <div>
           <h3 className="text-sm font-bold text-white mb-0.5">Generate Materials</h3>
-          <p className="text-xs text-teal-100/60">Submit mastery profile to AI engine</p>
+          <p className="text-xs text-cyan-100/60">
+            {masteryGenerating ? "Reading saved mastery gaps..." : "Generate from Knowledge Assist saved gaps"}
+          </p>
         </div>
       </button>
       <Link href="/learning-generator/materials" className="w-full p-4 bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-xl hover:scale-[1.02] hover:border-white/20 transition-all flex items-start gap-3">

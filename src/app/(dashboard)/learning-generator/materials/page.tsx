@@ -4,9 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { learningGeneratorApi, type LearningMaterial } from "@/lib/api/learningGenerator";
-import { BookOpen, ChevronLeft, Loader2 } from "lucide-react";
+import { BookOpen, ChevronLeft, Loader2, Trash2 } from "lucide-react";
 import MaterialCard from "@/components/learning-generator/MaterialCard";
 import SearchFilterBar from "@/components/learning-generator/SearchFilterBar";
+import ConfirmDialog from "@/components/learning-generator/ConfirmDialog";
+
+type DeleteTarget =
+  | { mode: "all" }
+  | { mode: "single"; material: LearningMaterial }
+  | null;
 
 export default function MaterialsPage() {
   const { user } = useAuth();
@@ -14,6 +20,9 @@ export default function MaterialsPage() {
   const [materials, setMaterials] = useState<LearningMaterial[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterGap, setFilterGap] = useState<string>("ALL");
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user?.student_id) return;
@@ -31,6 +40,53 @@ export default function MaterialsPage() {
   useEffect(() => {
     if (user?.student_id) fetchData();
   }, [user?.student_id, fetchData]);
+
+  const startSingleDelete = (material: LearningMaterial) => {
+    setDeleteError(null);
+    setDeleteTarget({ mode: "single", material });
+  };
+
+  const startDeleteAll = () => {
+    setDeleteError(null);
+    setDeleteTarget({ mode: "all" });
+  };
+
+  const performDelete = async () => {
+    if (!deleteTarget || deleting || !user?.student_id) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      if (deleteTarget.mode === "single") {
+        const res = await learningGeneratorApi.deleteMaterial(deleteTarget.material._id);
+        if (!res.success) {
+          throw new Error(res.message || res.error || "Delete failed");
+        }
+      } else {
+        const results = await Promise.all(
+          materials.map((m) => learningGeneratorApi.deleteMaterial(m._id)),
+        );
+        if (results.some((r) => !r.success)) {
+          throw new Error("One or more materials could not be deleted");
+        }
+      }
+      setDeleteTarget(null);
+      setDeleting(false);
+      await fetchData();
+    } catch {
+      setDeleteError(
+        deleteTarget.mode === "all"
+          ? "Failed to delete all materials. Please try again."
+          : "Failed to delete this material. Please try again.",
+      );
+      setDeleting(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteError(null);
+  };
 
   const filteredMaterials = materials.filter((m) => {
     const matchesSearch =
@@ -57,14 +113,27 @@ export default function MaterialsPage() {
         <Link href="/learning-generator" className="inline-flex items-center gap-2 text-teal-400 hover:text-teal-300 text-sm font-bold mb-4 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back to Overview
         </Link>
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
-            <BookOpen className="w-6 h-6 text-teal-400" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-teal-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-white">Learning Materials</h1>
+              <p className="text-sm text-white/50">All AI-generated personalized learning content.</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-white">Learning Materials</h1>
-            <p className="text-sm text-white/50">All AI-generated personalized learning content.</p>
-          </div>
+          {materials.length > 0 && (
+            <button
+              type="button"
+              onClick={startDeleteAll}
+              disabled={deleting}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-500/20 transition-colors disabled:opacity-60"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete All
+            </button>
+          )}
         </div>
       </div>
 
@@ -104,7 +173,7 @@ export default function MaterialsPage() {
       {filteredMaterials.length > 0 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredMaterials.map((material) => (
-            <MaterialCard key={material._id} material={material} />
+            <MaterialCard key={material._id} material={material} onDelete={startSingleDelete} />
           ))}
         </div>
       ) : (
@@ -120,6 +189,21 @@ export default function MaterialsPage() {
           </p>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title={deleteTarget?.mode === "all" ? "Delete all materials?" : "Delete this material?"}
+        message={
+          deleteTarget?.mode === "all"
+            ? `This will permanently delete all ${materials.length} of your learning materials. This action cannot be undone.`
+            : `Are you sure you want to delete "${deleteTarget && deleteTarget.mode === "single" ? deleteTarget.material.structured_material.topic : ""}"? This action cannot be undone.`
+        }
+        confirmLabel={deleteTarget?.mode === "all" ? "Delete All" : "Delete"}
+        isDeleting={deleting}
+        error={deleteError}
+        onConfirm={performDelete}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 }

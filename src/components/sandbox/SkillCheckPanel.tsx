@@ -36,6 +36,9 @@ type SkillCheckPanelProps = {
   jobId?: string;
   topics?: string[];
   maxQuestions?: number;
+  title?: string;
+  subtitle?: string;
+  onGenerated?: () => void;
   className?: string;
 };
 
@@ -47,6 +50,9 @@ export default function SkillCheckPanel({
   jobId,
   topics,
   maxQuestions,
+  title = "Do this quiz while your code is being reviewed",
+  subtitle = "Adaptive questions that start simple and get harder as you answer correctly.",
+  onGenerated,
   className = "",
 }: SkillCheckPanelProps) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -88,11 +94,12 @@ export default function SkillCheckPanel({
       setQuestion(session.question);
       setQuestionStartedAt(Date.now());
       setPhase("question");
+      onGenerated?.();
     } catch (err) {
       setError(getMessage(err));
       setPhase("idle");
     }
-  }, [mode, jobId, topics, maxQuestions]);
+  }, [mode, jobId, topics, maxQuestions, onGenerated]);
 
   const submit = useCallback(async () => {
     if (!sessionId || !question || !selected || submitting) return;
@@ -145,12 +152,8 @@ export default function SkillCheckPanel({
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-300">
               Java Skill Check
             </p>
-            <h2 className="mt-1 text-lg font-black text-white">
-              Do this quiz while your code is being reviewed
-            </h2>
-            <p className="mt-1 max-w-xl text-sm text-white/55">
-              Adaptive questions that start simple and get harder as you answer correctly.
-            </p>
+            <h2 className="mt-1 text-lg font-black text-white">{title}</h2>
+            <p className="mt-1 max-w-xl text-sm text-white/55">{subtitle}</p>
           </div>
         </div>
 

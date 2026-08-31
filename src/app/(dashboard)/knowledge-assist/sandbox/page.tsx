@@ -29,8 +29,8 @@ import { aiEngineApi, CodeExecutionResult } from "@/lib/api/aiEngine";
 import { ActiveReviewState, useActiveReview } from "@/contexts/ActiveReviewContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { knowledgeProfileApi } from "@/lib/api/knowledgeProfile";
-import SkillCheckPanel from "@/components/sandbox/SkillCheckPanel";
 import { LlmChoice, sandboxApi } from "@/lib/api/sandbox";
+import { quizApi } from "@/lib/api/quiz";
 
 type SandboxChallenge = {
   id: string;
@@ -340,6 +340,11 @@ export default function KnowledgeAssistSandboxPage() {
           runtime_ms: Date.now() - startedAt,
           review_job_id: reviewJobId ?? activeReview?.jobId,
         });
+
+        // Fire-and-forget: refresh the mastery profile with this attempt's evidence
+        // via the github_review_bridge (single profile shape). Execution feedback
+        // stays unaffected if the refresh is slow or unavailable.
+        quizApi.analyzeAuto().catch(() => undefined);
       } catch {
         // Execution feedback should remain visible even if profile evidence sync is unavailable.
       }
@@ -406,8 +411,7 @@ export default function KnowledgeAssistSandboxPage() {
         </div>
       </section>
 
-      {/* Adaptive Java MCQs (simple -> hard) — runs alongside the repo review. */}
-      <SkillCheckPanel mode="sandbox" jobId={reviewJobId ?? activeReview?.jobId} />
+      {/* Adaptive Java MCQs moved to /knowledge-assist/assessment (Java Skill Check). */}
 
       {error && (
         <section className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-100">
