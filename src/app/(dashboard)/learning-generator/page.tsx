@@ -5,12 +5,11 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { learningGeneratorApi, type LearningMaterial, type GenerationJob, type KnowledgeGap, type StudentProgress, type ProgressStats, type ConceptCoverage as ConceptCoverageData, type SubmitProfilePayload } from "@/lib/api/learningGenerator";
 import { knowledgeProfileApi, type CanonicalMasteryProfile } from "@/lib/api/knowledgeProfile";
-import { AlertTriangle, ChevronRight, Loader2, Brain, BookOpen, Sparkles, Zap, GitBranch } from "lucide-react";
+import { AlertTriangle, ChevronRight, Loader2, Brain, Sparkles, Zap, GitBranch } from "lucide-react";
 import { ActiveJobsList } from "@/components/learning-generator/JobCard";
 import ProgressStatsCards from "@/components/learning-generator/ProgressStats";
 import KnowledgeGapCard from "@/components/learning-generator/KnowledgeGapCard";
 import MaterialCard from "@/components/learning-generator/MaterialCard";
-import SubmitProfileDialog from "@/components/learning-generator/SubmitProfileDialog";
 import { QuickActions, ModuleProgressList, ScoreHistory, StrengthsList, ConceptCoverage } from "@/components/learning-generator/OverviewSidebar";
 
 export default function LearningGeneratorDashboard() {
@@ -25,8 +24,6 @@ export default function LearningGeneratorDashboard() {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [progressStats, setProgressStats] = useState<ProgressStats | null>(null);
   const [materialProgress, setMaterialProgress] = useState<StudentProgress[]>([]);
-  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [masteryGenerating, setMasteryGenerating] = useState(false);
   const [closingJobs, setClosingJobs] = useState<string[]>([]);
   const [conceptCoverage, setConceptCoverage] = useState<ConceptCoverageData | null>(null);
@@ -115,116 +112,6 @@ export default function LearningGeneratorDashboard() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchData();
-  };
-
-  const handleSubmitProfile = async () => {
-    if (!user?.student_id) return;
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const payload = {
-        student_id: user.student_id,
-        analysis_timestamp: new Date().toISOString(),
-        mastery_profile: {
-          overall_mastery_score: 48,
-          knowledge_gaps: [
-            {
-              topic: "Object-Oriented Programming (Polymorphism & Inheritance)",
-              topic_id: "CS102-OOP",
-              gap_type: "FUNDAMENTAL_GAP" as const,
-              misconceptions: [
-                "Confuses method overloading with overriding",
-                "Does not understand dynamic dispatch",
-                "Misuses abstract classes vs interfaces",
-              ],
-              evidence_summary:
-                "GitHub shows a single massive commit (+420 lines) introducing a complete polymorphism implementation (AI probability 91%). Sandbox tasks on OOP had 0% success rate with completion under 60s. Quiz scores on OOP topics are 18%, with specific misconceptions on dynamic dispatch and interface contracts.",
-              prerequisite_topics: ["Classes and Objects", "Methods", "Encapsulation"],
-              related_topics: ["Design Patterns", "Generics"],
-            },
-            {
-              topic: "Linked Lists",
-              topic_id: "CS201-LL",
-              gap_type: "FUNDAMENTAL_GAP" as const,
-              misconceptions: [
-                "Pointer/reference manipulation during insertion/deletion",
-                "Handling edge cases (empty list, single node, head/tail updates)",
-                "Doubly vs singly linked list differences",
-              ],
-              evidence_summary:
-                "GitHub reveals a single commit with complete linked list implementation (AI probability 89%). Sandbox shows 100% success but suspiciously fast (25s). Quiz scores are 22%, with major misconceptions on pointer updates and edge case handling. Student cannot manually trace insert/delete operations.",
-              prerequisite_topics: ["Arrays", "Classes and Objects", "References/Pointers"],
-              related_topics: ["Stacks and Queues", "Trees"],
-            },
-            {
-              topic: "Exception Handling",
-              topic_id: "CS102-EXC",
-              gap_type: "PARTIAL_GAP" as const,
-              misconceptions: [
-                "Checked vs unchecked exceptions",
-                "try-catch-finally flow control",
-                "When to throw vs catch vs suppress",
-              ],
-              evidence_summary:
-                "GitHub shows exception handling appearing fully formed without evolution (medium risk). Sandbox success rate 55% with errors on exception types. Quiz score 48%, with misconceptions on checked/unchecked distinction and finally block behavior.",
-              prerequisite_topics: ["Control Flow", "Methods", "File I/O"],
-              related_topics: ["Logging", "Custom Exceptions"],
-            },
-            {
-              topic: "Generics",
-              topic_id: "CS201-GEN",
-              gap_type: "PARTIAL_GAP" as const,
-              misconceptions: [
-                "Type erasure concept",
-                "Bounded vs unbounded type parameters",
-                "Generic methods vs generic classes",
-              ],
-              evidence_summary:
-                "GitHub commits show generic code appearing complete without prior attempts (medium risk). Sandbox tasks 60% success with type mismatch errors. Quiz score 52%, struggling with bounded type parameters and wildcard usage.",
-              prerequisite_topics: ["Object-Oriented Programming", "Inheritance"],
-              related_topics: ["Collections Framework", "Polymorphism"],
-            },
-          ],
-          strengths: [
-            "Understands basic syntax and can write simple methods",
-            "Can implement basic loops and conditionals",
-            "Familiar with primitive data types and arrays",
-          ],
-        },
-        recommendations: {
-          priority_order: [
-            "Object-Oriented Programming (Polymorphism & Inheritance)",
-            "Linked Lists",
-            "Exception Handling",
-            "Generics",
-          ],
-          general_advice:
-            "Focus on fundamental gaps first (OOP and Linked Lists) as they are prerequisites for many advanced topics. Use interactive tutorials and peer tutoring. For Exception Handling and Generics, targeted quizzes and practice exercises should suffice.",
-          for_instructor:
-            "Student may be using AI for difficult topics. Verify understanding with proctored tasks. Encourage incremental commits and descriptive commit messages.",
-        },
-        data_sources: {
-          github: "available",
-          sandbox: "available",
-          quizzes: "available",
-          quiz_results: new Date().toISOString().split("T")[0],
-        },
-      };
-
-      const res = await learningGeneratorApi.submitProfile(payload);
-
-      if (res.success && res.data) {
-        addJobToActive(res.data);
-        setShowSubmitDialog(false);
-      } else {
-        setError(res.message || res.error || "Failed to submit profile");
-      }
-    } catch {
-      setError("Network error. Check LMG service.");
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   const addJobToActive = (job: { job_id: string; student_id: string; gaps_queued: number }) => {
@@ -410,12 +297,13 @@ export default function LearningGeneratorDashboard() {
                 <Brain className="w-8 h-8 text-teal-400" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">All Clear!</h3>
-              <p className="text-sm text-white/40 mb-6 max-w-sm mx-auto">No knowledge gaps detected yet. Submit a learning profile to start your personalized journey.</p>
+              <p className="text-sm text-white/40 mb-6 max-w-sm mx-auto">No knowledge gaps detected in your saved profile yet. Generate materials from your real Knowledge Assist gaps to start your personalized journey.</p>
               <button
-                onClick={() => setShowSubmitDialog(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(13,148,136,0.4)]"
+                onClick={handleGenerateFromMastery}
+                disabled={masteryGenerating}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(13,148,136,0.4)] disabled:cursor-wait disabled:opacity-60"
               >
-                <Zap className="w-4 h-4" /> Submit Profile
+                {masteryGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Generate from Mastery
               </button>
             </div>
           )}
@@ -446,7 +334,6 @@ export default function LearningGeneratorDashboard() {
             </div>
           )}
           <QuickActions
-            onGenerateClick={() => setShowSubmitDialog(true)}
             onMasteryGenerateClick={handleGenerateFromMastery}
             masteryGenerating={masteryGenerating}
           />
@@ -456,13 +343,6 @@ export default function LearningGeneratorDashboard() {
           <StrengthsList strengths={profile?.strengths || []} />
         </div>
       </div>
-
-      <SubmitProfileDialog
-        isOpen={showSubmitDialog}
-        isSubmitting={submitting}
-        onSubmit={handleSubmitProfile}
-        onClose={() => setShowSubmitDialog(false)}
-      />
     </div>
   );
 }
