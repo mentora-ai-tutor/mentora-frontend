@@ -20,21 +20,21 @@ export default function InsightPanel({
   if (!insightActiveTab) return null;
 
   return (
-    <div className="mt-6 bg-[#334155]/20 border border-white/5 rounded-2xl overflow-hidden animate-slide-up">
+    <div className="mt-6 bg-[var(--lmg-bg-surface)] border border-[var(--lmg-border)] rounded-2xl overflow-hidden animate-slide-up shadow-sm">
       {/* Insight Type Header */}
       <div className={`px-6 py-3 border-b ${insightActiveTab === "simpler" ? "bg-teal-500/10 border-teal-500/20" : "bg-amber-500/10 border-amber-500/20"}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={`w-6 h-6 rounded-full flex items-center justify-center ${insightActiveTab === "simpler" ? "bg-teal-500/20" : "bg-amber-500/20"}`}>
-              {insightActiveTab === "simpler" ? <Sparkles className="w-3.5 h-3.5 text-teal-400" /> : <Lightbulb className="w-3.5 h-3.5 text-amber-400" />}
+              {insightActiveTab === "simpler" ? <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" /> : <Lightbulb className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />}
             </div>
-            <p className={`text-xs font-bold uppercase tracking-wider ${insightActiveTab === "simpler" ? "text-teal-400" : "text-amber-400"}`}>
+            <p className={`text-xs font-bold uppercase tracking-wider ${insightActiveTab === "simpler" ? "text-teal-600 dark:text-teal-400" : "text-amber-600 dark:text-amber-400"}`}>
               {insightActiveTab === "simpler" ? "Simplified Explanation" : "Real-life Analogy"}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-white/30 hover:text-white/50 transition-colors"
+            className="text-[var(--lmg-text-muted)] hover:text-[var(--lmg-text-primary)] transition-colors"
           >
             <XCircle className="w-4 h-4" />
           </button>

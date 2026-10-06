@@ -189,7 +189,7 @@ export default function WorkspaceSandbox() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-[#0F172A] text-white overflow-hidden font-sans">
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-[var(--lmg-bg-page)] text-[var(--lmg-text-primary)] overflow-hidden font-sans transition-colors duration-200">
       <WorkspaceTopBar
         showStdin={session.showStdin}
         reviewMode={session.reviewMode}

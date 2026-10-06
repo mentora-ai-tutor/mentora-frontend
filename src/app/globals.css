@@ -73,17 +73,43 @@
   --sidebar-accent-foreground:    oklch(0.18 0.03 230);
   --sidebar-border:               oklch(0.88 0.01 200);
   --sidebar-ring:                 oklch(0.56 0.14 182);
-  /* generation job card palette */
-  --job-card-bg:       #1a2332;
-  --job-card-ring:     rgba(13, 148, 136, 0.3);
-  --job-primary:       #2dd4bf;
-  --job-primary-dim:   rgba(13, 148, 136, 0.15);
-  --job-success:       #4ade80;
-  --job-success-dim:   rgba(74, 222, 128, 0.15);
-  --job-failed:        #f87171;
-  --job-failed-dim:    rgba(248, 113, 113, 0.15);
-  --job-text:          #f1f5f9;
-  --job-muted:         rgba(255, 255, 255, 0.4);
+  /* generation job card palette - light */
+  --job-card-bg:       #ffffff;
+  --job-card-ring:     rgba(13, 148, 136, 0.25);
+  --job-primary:       #0d9488;
+  --job-primary-dim:   rgba(13, 148, 136, 0.08);
+  --job-success:       #16a34a;
+  --job-success-dim:   rgba(22, 163, 74, 0.08);
+  --job-failed:        #dc2626;
+  --job-failed-dim:    rgba(220, 38, 38, 0.08);
+  --job-text:          #0f172a;
+  --job-muted:         #64748b;
+
+  /* ── Learning Material Generator - Light Theme ── */
+  --lmg-bg-page:               #f8fafc;
+  --lmg-bg-surface:            #ffffff;
+  --lmg-bg-surface-elevated:   #f1f5f9;
+  --lmg-bg-surface-hover:      #f8fafc;
+  --lmg-bg-subtle:             #f1f5f9;
+  --lmg-border:                #e2e8f0;
+  --lmg-border-subtle:         #f1f5f9;
+  --lmg-border-strong:         #cbd5e1;
+  --lmg-text-primary:          #0f172a;
+  --lmg-text-secondary:        #475569;
+  --lmg-text-muted:            #64748b;
+  --lmg-code-bg:               #0f172a;
+  --lmg-code-header:           #1e293b;
+  --lmg-code-text:             #2dd4bf;
+  --lmg-terminal-bg:           #0b1021;
+  --lmg-glass-bg:              rgba(255, 255, 255, 0.9);
+  --lmg-glass-border:          rgba(226, 232, 240, 0.8);
+  --lmg-input-bg:              #ffffff;
+  --lmg-input-border:          #cbd5e1;
+  --lmg-hero-bg:               linear-gradient(135deg, #f0fdfa 0%, #ffffff 50%, #fffbeb 100%);
+  --lmg-hero-border:           rgba(13, 148, 136, 0.2);
+  --lmg-pill-bg:               #f1f5f9;
+  --lmg-pill-text:             #334155;
+  --lmg-pill-border:           #e2e8f0;
 }
 
 .dark {
@@ -118,6 +144,44 @@
   --sidebar-accent-foreground: oklch(0.95 0.005 200);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.62 0.14 182);
+
+  /* generation job card palette - dark */
+  --job-card-bg:       #1a2332;
+  --job-card-ring:     rgba(13, 148, 136, 0.3);
+  --job-primary:       #2dd4bf;
+  --job-primary-dim:   rgba(13, 148, 136, 0.15);
+  --job-success:       #4ade80;
+  --job-success-dim:   rgba(74, 222, 128, 0.15);
+  --job-failed:        #f87171;
+  --job-failed-dim:    rgba(248, 113, 113, 0.15);
+  --job-text:          #f1f5f9;
+  --job-muted:         rgba(255, 255, 255, 0.4);
+
+  /* ── Learning Material Generator - Dark Theme ── */
+  --lmg-bg-page:               #0f172a;
+  --lmg-bg-surface:            #1e293b;
+  --lmg-bg-surface-elevated:   #1a2332;
+  --lmg-bg-surface-hover:      #334155;
+  --lmg-bg-subtle:             rgba(51, 65, 85, 0.3);
+  --lmg-border:                rgba(255, 255, 255, 0.1);
+  --lmg-border-subtle:         rgba(255, 255, 255, 0.05);
+  --lmg-border-strong:         rgba(255, 255, 255, 0.2);
+  --lmg-text-primary:          #ffffff;
+  --lmg-text-secondary:        #cbd5e1;
+  --lmg-text-muted:            #94a3b8;
+  --lmg-code-bg:               #0b1021;
+  --lmg-code-header:           #0f172a;
+  --lmg-code-text:             #2dd4bf;
+  --lmg-terminal-bg:           #0b1021;
+  --lmg-glass-bg:              rgba(30, 41, 59, 0.85);
+  --lmg-glass-border:          rgba(255, 255, 255, 0.1);
+  --lmg-input-bg:              rgba(255, 255, 255, 0.05);
+  --lmg-input-border:          rgba(255, 255, 255, 0.1);
+  --lmg-hero-bg:               linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+  --lmg-hero-border:           rgba(255, 255, 255, 0.1);
+  --lmg-pill-bg:               rgba(255, 255, 255, 0.05);
+  --lmg-pill-text:             rgba(255, 255, 255, 0.7);
+  --lmg-pill-border:           rgba(255, 255, 255, 0.08);
 }
 
 @theme inline {
@@ -194,6 +258,30 @@
   --color-job-failed-dim:  var(--job-failed-dim);
   --color-job-text:        var(--job-text);
   --color-job-muted:       var(--job-muted);
+
+  /* learning material generator variables */
+  --color-lmg-bg-page:             var(--lmg-bg-page);
+  --color-lmg-bg-surface:          var(--lmg-bg-surface);
+  --color-lmg-bg-surface-elevated: var(--lmg-bg-surface-elevated);
+  --color-lmg-bg-surface-hover:    var(--lmg-bg-surface-hover);
+  --color-lmg-bg-subtle:           var(--lmg-bg-subtle);
+  --color-lmg-border:              var(--lmg-border);
+  --color-lmg-border-subtle:       var(--lmg-border-subtle);
+  --color-lmg-border-strong:       var(--lmg-border-strong);
+  --color-lmg-text-primary:        var(--lmg-text-primary);
+  --color-lmg-text-secondary:      var(--lmg-text-secondary);
+  --color-lmg-text-muted:          var(--lmg-text-muted);
+  --color-lmg-code-bg:             var(--lmg-code-bg);
+  --color-lmg-code-header:         var(--lmg-code-header);
+  --color-lmg-code-text:           var(--lmg-code-text);
+  --color-lmg-terminal-bg:         var(--lmg-terminal-bg);
+  --color-lmg-glass-bg:            var(--lmg-glass-bg);
+  --color-lmg-glass-border:        var(--lmg-glass-border);
+  --color-lmg-input-bg:            var(--lmg-input-bg);
+  --color-lmg-input-border:        var(--lmg-input-border);
+  --color-lmg-pill-bg:             var(--lmg-pill-bg);
+  --color-lmg-pill-text:           var(--lmg-pill-text);
+  --color-lmg-pill-border:         var(--lmg-pill-border);
 }
 
 @layer base {

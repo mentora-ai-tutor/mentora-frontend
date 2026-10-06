@@ -29,7 +29,7 @@ export const formatInsightText = (text: string) => {
         {isList && (
           <span className="text-teal-500 font-bold shrink-0 text-xs mt-0.5">{typeof bullet === 'string' ? bullet.replace(/\s$/, '') : bullet}</span>
         )}
-        <span className="text-sm text-white/80 leading-relaxed">{parts}</span>
+        <span className="text-sm text-[var(--lmg-text-primary)] leading-relaxed">{parts}</span>
       </div>
     );
   });

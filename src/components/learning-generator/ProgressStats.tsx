@@ -51,8 +51,8 @@ export default function ProgressStatsCards({ stats, progress, materials }: Progr
   ];
 
   return (
-    <div className="bg-[#1e293b]/90 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
-      <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-white/5">
+    <div className="bg-[var(--lmg-bg-surface)] backdrop-blur-xl border border-[var(--lmg-border)] shadow-xs dark:shadow-md transition-colors rounded-2xl overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--lmg-border)]">
         {tiles.map((t) => (
           <div key={t.label} className="flex items-center gap-3 px-4 py-4">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${t.iconColor}`}>
@@ -60,19 +60,19 @@ export default function ProgressStatsCards({ stats, progress, materials }: Progr
             </div>
             <div className="min-w-0">
               <p className={`text-2xl font-black leading-none ${t.color}`}>{t.value}</p>
-              <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1 truncate">{t.label}</p>
+              <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mt-1 truncate">{t.label}</p>
             </div>
           </div>
         ))}
       </div>
-      <div className="border-t border-white/5 px-4 py-3">
+      <div className="border-t border-[var(--lmg-border)] px-4 py-3">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-white/60 font-medium flex items-center gap-1.5">
-            <BarChart3 className="w-3.5 h-3.5 text-teal-400" /> Learning Progress
+          <span className="text-xs text-[var(--lmg-text-secondary)] font-medium flex items-center gap-1.5">
+            <BarChart3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" /> Learning Progress
           </span>
-          <span className="text-xs text-white font-bold">{completedSteps} / {totalSteps} steps</span>
+          <span className="text-xs text-[var(--lmg-text-primary)] font-bold">{completedSteps} / {totalSteps} steps</span>
         </div>
-        <div className="h-2 bg-[#0F172A] rounded-full overflow-hidden mb-3">
+        <div className="h-2 bg-[var(--lmg-bg-card-subtle)] rounded-full overflow-hidden mb-3">
           <div
             className="h-full bg-linear-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-700"
             style={{ width: `${progressPercentage}%` }}
@@ -80,16 +80,16 @@ export default function ProgressStatsCards({ stats, progress, materials }: Progr
         </div>
         <div className="flex gap-8">
           <div>
-            <p className="text-sm font-black text-green-400">{completedMaterials}</p>
-            <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Completed</p>
+            <p className="text-sm font-black text-green-600 dark:text-green-400">{completedMaterials}</p>
+            <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mt-0.5">Completed</p>
           </div>
           <div>
-            <p className="text-sm font-black text-amber-400">{inProgressMaterials}</p>
-            <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">In Progress</p>
+            <p className="text-sm font-black text-amber-600 dark:text-amber-400">{inProgressMaterials}</p>
+            <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mt-0.5">In Progress</p>
           </div>
           <div>
-            <p className="text-sm font-black text-white/60">{notStartedMaterials}</p>
-            <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Not Started</p>
+            <p className="text-sm font-black text-[var(--lmg-text-secondary)]">{notStartedMaterials}</p>
+            <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mt-0.5">Not Started</p>
           </div>
         </div>
       </div>

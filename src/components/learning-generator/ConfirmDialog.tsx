@@ -50,16 +50,16 @@ export default function ConfirmDialog({
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={isDeleting ? undefined : onCancel}
       />
-      <div className="relative w-full max-w-md rounded-2xl border border-red-500/20 bg-[#1e293b] p-6 shadow-2xl animate-slide-up">
+      <div className="relative w-full max-w-md rounded-2xl border border-red-500/20 bg-[var(--lmg-bg-surface-elevated)] p-6 shadow-2xl animate-slide-up transition-colors duration-200">
         <div className="flex items-start gap-4">
           <div className="w-11 h-11 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-5 h-5 text-red-400" />
+            <AlertTriangle className="w-5 h-5 text-red-500 dark:text-red-400" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-black text-white">{title}</h3>
-            <p className="mt-1.5 text-sm leading-6 text-white/60">{message}</p>
+            <h3 className="text-lg font-black text-[var(--lmg-text-primary)]">{title}</h3>
+            <p className="mt-1.5 text-sm leading-6 text-[var(--lmg-text-muted)]">{message}</p>
             {error && (
-              <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-300">
+              <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-600 dark:text-red-300">
                 {error}
               </div>
             )}
@@ -68,7 +68,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={isDeleting}
-            className="text-white/40 hover:text-white/70 transition-colors"
+            className="text-[var(--lmg-text-muted)] hover:text-[var(--lmg-text-primary)] transition-colors"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -79,7 +79,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={isDeleting}
-            className="px-4 py-2.5 rounded-xl border border-white/10 text-white/70 text-sm font-bold hover:bg-white/5 transition-colors"
+            className="px-4 py-2.5 rounded-xl border border-[var(--lmg-border)] text-[var(--lmg-text-secondary)] text-sm font-bold hover:bg-[var(--lmg-bg-surface-hover)] transition-colors"
           >
             {cancelLabel}
           </button>

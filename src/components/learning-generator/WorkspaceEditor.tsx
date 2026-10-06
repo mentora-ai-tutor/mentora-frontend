@@ -63,10 +63,10 @@ export default function WorkspaceEditor({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 border-r border-white/5 relative">
-      <div className="flex items-center justify-between px-4 py-1 bg-[#0F172A] border-b border-white/5 shrink-0">
-        <span className="text-[10px] font-mono text-white/40">Main.java</span>
-        <span className="text-[9px] text-white/15">Ctrl+Enter to run</span>
+    <div className="flex-1 flex flex-col min-w-0 border-r border-[var(--lmg-border)] relative bg-[var(--lmg-code-bg)] transition-colors duration-200">
+      <div className="flex items-center justify-between px-4 py-1 bg-[var(--lmg-code-header)] border-b border-[var(--lmg-border)] shrink-0">
+        <span className="text-[10px] font-mono text-[var(--lmg-text-muted)]">Main.java</span>
+        <span className="text-[9px] text-[var(--lmg-text-muted)]/70">Ctrl+Enter to run</span>
       </div>
       <div className="flex-1 relative">
         {renderAnnotations()}
@@ -77,33 +77,33 @@ export default function WorkspaceEditor({
           onMouseUp={onTextSelection}
           spellCheck={false}
           placeholder="// Write your Java code here..."
-          className="absolute inset-0 w-full h-full p-4 bg-transparent text-white/90 font-mono text-sm leading-relaxed resize-none outline-none focus:ring-0 custom-scrollbar whitespace-pre placeholder:text-white/20"
+          className="absolute inset-0 w-full h-full p-4 bg-transparent text-[var(--lmg-code-text)] font-mono text-sm leading-relaxed resize-none outline-none focus:ring-0 custom-scrollbar whitespace-pre placeholder:text-[var(--lmg-text-muted)]/50"
           style={{ tabSize: 4 }}
         />
       </div>
 
       {showExplanation && highlightedCode && (
         <div
-          className="absolute z-50 w-80 bg-[#1e293b] border border-teal-500/30 rounded-xl shadow-2xl animate-slide-up"
+          className="absolute z-50 w-80 bg-[var(--lmg-bg-surface-elevated)] border border-teal-500/30 rounded-xl shadow-2xl animate-slide-up"
           style={{ top: explanationPosition.top, left: Math.max(0, explanationPosition.left - 80) }}
         >
           <div className="flex items-center justify-between px-3 py-2 border-b border-teal-500/20 bg-teal-500/5 rounded-t-xl">
             <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-              <span className="text-[10px] font-bold text-teal-400 uppercase">AI Explainer</span>
+              <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase">AI Explainer</span>
             </div>
-            <button onClick={onCloseExplanation} className="text-white/30 hover:text-white"><X className="w-3 h-3" /></button>
+            <button onClick={onCloseExplanation} className="text-[var(--lmg-text-muted)] hover:text-[var(--lmg-text-primary)]"><X className="w-3 h-3" /></button>
           </div>
           <div className="p-3">
-            <pre className="text-[10px] text-white/40 bg-black/30 p-2 rounded-lg font-mono mb-2 overflow-x-auto whitespace-pre-wrap">{highlightedCode}</pre>
+            <pre className="text-[10px] text-[var(--lmg-text-muted)] bg-[var(--lmg-code-bg)] p-2 rounded-lg font-mono mb-2 overflow-x-auto whitespace-pre-wrap border border-[var(--lmg-border)]">{highlightedCode}</pre>
             {isExplaining ? (
-              <div className="flex items-center gap-2 text-xs text-teal-400/60">
+              <div className="flex items-center gap-2 text-xs text-teal-600 dark:text-teal-400/60">
                 <Loader2 className="w-3 h-3 animate-spin" /> Explaining...
               </div>
             ) : aiExplanation ? (
-              <p className="text-xs text-white/70 leading-relaxed whitespace-pre-wrap">{aiExplanation}</p>
+              <p className="text-xs text-[var(--lmg-text-secondary)] leading-relaxed whitespace-pre-wrap">{aiExplanation}</p>
             ) : (
-              <button onClick={onExplainSelected} className="w-full py-1.5 bg-teal-600/20 border border-teal-500/30 text-teal-400 text-xs font-bold rounded-lg hover:bg-teal-600/30 flex items-center justify-center gap-1">
+              <button onClick={onExplainSelected} className="w-full py-1.5 bg-teal-600/20 border border-teal-500/30 text-teal-700 dark:text-teal-400 text-xs font-bold rounded-lg hover:bg-teal-600/30 flex items-center justify-center gap-1">
                 <Wand2 className="w-3 h-3" /> Explain This
               </button>
             )}

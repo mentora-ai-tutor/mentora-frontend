@@ -110,17 +110,17 @@ export default function MaterialsPage() {
   return (
     <div className="space-y-6 animate-slide-up">
       <div>
-        <Link href="/learning-generator" className="inline-flex items-center gap-2 text-teal-400 hover:text-teal-300 text-sm font-bold mb-4 transition-colors">
+        <Link href="/learning-generator" className="inline-flex items-center gap-2 text-teal-600 dark:text-teal-400 hover:text-teal-500 text-sm font-bold mb-4 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back to Overview
         </Link>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-teal-400" />
+              <BookOpen className="w-6 h-6 text-teal-600 dark:text-teal-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white">Learning Materials</h1>
-              <p className="text-sm text-white/50">All AI-generated personalized learning content.</p>
+              <h1 className="text-2xl font-black text-[var(--lmg-text-primary)]">Learning Materials</h1>
+              <p className="text-sm text-[var(--lmg-text-muted)]">All AI-generated personalized learning content.</p>
             </div>
           </div>
           {materials.length > 0 && (
@@ -128,7 +128,7 @@ export default function MaterialsPage() {
               type="button"
               onClick={startDeleteAll}
               disabled={deleting}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-500/20 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm font-bold hover:bg-red-500/20 transition-colors disabled:opacity-60"
             >
               <Trash2 className="w-4 h-4" />
               Delete All
@@ -138,27 +138,27 @@ export default function MaterialsPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 bg-[#334155]/20 border border-white/5 rounded-2xl">
-          <p className="text-3xl font-black text-white">{materials.length}</p>
-          <p className="text-xs text-white/40 mt-1">Total Materials</p>
+        <div className="p-5 bg-[var(--lmg-bg-surface)] border border-[var(--lmg-border)] rounded-2xl shadow-sm">
+          <p className="text-3xl font-black text-[var(--lmg-text-primary)]">{materials.length}</p>
+          <p className="text-xs text-[var(--lmg-text-muted)] mt-1">Total Materials</p>
         </div>
         <div className="p-5 bg-red-500/5 border border-red-500/10 rounded-2xl">
-          <p className="text-3xl font-black text-red-400">
+          <p className="text-3xl font-black text-red-600 dark:text-red-400">
             {materials.filter((m) => m.structured_material.gap_type === "FUNDAMENTAL_GAP").length}
           </p>
-          <p className="text-xs text-red-400/60 mt-1">Fundamental</p>
+          <p className="text-xs text-red-600/70 dark:text-red-400/60 mt-1">Fundamental</p>
         </div>
         <div className="p-5 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
-          <p className="text-3xl font-black text-amber-400">
+          <p className="text-3xl font-black text-amber-600 dark:text-amber-400">
             {materials.filter((m) => m.structured_material.gap_type === "PARTIAL_GAP").length}
           </p>
-          <p className="text-xs text-amber-400/60 mt-1">Partial</p>
+          <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-1">Partial</p>
         </div>
         <div className="p-5 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-          <p className="text-3xl font-black text-blue-400">
+          <p className="text-3xl font-black text-blue-600 dark:text-blue-400">
             {materials.filter((m) => m.structured_material.gap_type === "SURFACE_GAP").length}
           </p>
-          <p className="text-xs text-blue-400/60 mt-1">Surface</p>
+          <p className="text-xs text-blue-600/70 dark:text-blue-400/60 mt-1">Surface</p>
         </div>
       </div>
 
@@ -177,12 +177,12 @@ export default function MaterialsPage() {
           ))}
         </div>
       ) : (
-        <div className="p-12 bg-[#334155]/10 border border-white/5 rounded-2xl text-center">
-          <BookOpen className="w-12 h-12 text-white/20 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-white/60 mb-2">
+        <div className="p-12 bg-[var(--lmg-bg-surface)] border border-[var(--lmg-border)] rounded-2xl text-center shadow-sm">
+          <BookOpen className="w-12 h-12 text-[var(--lmg-text-muted)]/30 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[var(--lmg-text-primary)] mb-2">
             {materials.length === 0 ? "No materials yet" : "No materials match your filters"}
           </h3>
-          <p className="text-sm text-white/40">
+          <p className="text-sm text-[var(--lmg-text-muted)]">
             {materials.length === 0
               ? "Submit a learning profile to generate personalized materials."
               : "Try adjusting your search or filter criteria."}

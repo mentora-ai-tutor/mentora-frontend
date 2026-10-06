@@ -376,8 +376,8 @@ export default function MaterialWorkspace() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="w-10 h-10 text-teal-400 animate-spin mx-auto mb-4" />
-          <p className="text-white/50 text-sm">Loading material...</p>
+          <Loader2 className="w-10 h-10 text-teal-500 animate-spin mx-auto mb-4" />
+          <p className="text-[var(--lmg-text-muted)] text-sm">Loading material...</p>
         </div>
       </div>
     );
@@ -387,8 +387,8 @@ export default function MaterialWorkspace() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center max-w-md">
-          <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">{error || "Material not found"}</h2>
+          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-[var(--lmg-text-primary)] mb-2">{error || "Material not found"}</h2>
           <a
             href="/learning-generator"
             className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-500 transition-colors"
@@ -401,7 +401,7 @@ export default function MaterialWorkspace() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-[#0F172A] text-white overflow-hidden font-sans">
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-[var(--lmg-bg-page)] text-[var(--lmg-text-primary)] overflow-hidden font-sans transition-colors duration-200">
       <div className="flex flex-1 min-h-0">
         <LearningPathSidebar
           material={material}
@@ -412,10 +412,10 @@ export default function MaterialWorkspace() {
           saveProgress={saveProgress}
         />
 
-        <div className="flex-1 flex flex-col min-w-0 bg-[#0F172A] relative min-h-0">
+        <div className="flex-1 flex flex-col min-w-0 bg-[var(--lmg-bg-page)] relative min-h-0">
           {sm?.generation_source === "implicit_prerequisite" && (
-            <div className="px-6 py-2.5 bg-blue-500/10 border-b border-blue-500/20 flex items-start gap-2 text-xs text-blue-200/90 shrink-0">
-              <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <div className="px-6 py-2.5 bg-blue-500/10 border-b border-blue-500/20 flex items-start gap-2 text-xs text-blue-700 dark:text-blue-200/90 shrink-0">
+              <Info className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
               <p>
                 Auto-added from your prerequisite gap{sm.personalisation?.concept_context?.name ? ` on ${sm.personalisation.concept_context.name}` : ""} —{" "}
                 {sm.personalisation?.prerequisite_reason || "this concept is required before you can master the topics you're missing."}
