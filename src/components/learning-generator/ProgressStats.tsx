@@ -44,10 +44,10 @@ export default function ProgressStatsCards({ stats, progress, materials }: Progr
   const avgQuizScore = quizScores.length > 0 ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length) : null;
 
   const tiles = [
-    { label: "Overall Progress", value: `${progressPercentage}%`, color: "text-teal-400", icon: TrendingUp, iconColor: "text-teal-400 bg-teal-500/10" },
-    { label: "Modules Completed", value: String(completedMaterials), color: "text-green-400", icon: CheckCircle2, iconColor: "text-green-400 bg-green-500/10" },
-    { label: "In Progress", value: String(inProgressMaterials), color: "text-amber-400", icon: BookOpen, iconColor: "text-amber-400 bg-amber-500/10" },
-    { label: "Avg Quiz Score", value: avgQuizScore === null ? "—" : String(avgQuizScore), color: "text-purple-400", icon: Award, iconColor: "text-purple-400 bg-purple-500/10" },
+    { label: "Overall Progress", value: `${progressPercentage}%`, color: "text-teal-700 dark:text-teal-400", icon: TrendingUp, iconColor: "text-teal-700 dark:text-teal-400 bg-teal-500/10" },
+    { label: "Modules Completed", value: String(completedMaterials), color: "text-green-700 dark:text-green-400", icon: CheckCircle2, iconColor: "text-green-700 dark:text-green-400 bg-green-500/10" },
+    { label: "In Progress", value: String(inProgressMaterials), color: "text-amber-700 dark:text-amber-400", icon: BookOpen, iconColor: "text-amber-700 dark:text-amber-400 bg-amber-500/10" },
+    { label: "Avg Quiz Score", value: avgQuizScore === null ? "—" : String(avgQuizScore), color: "text-purple-700 dark:text-purple-400", icon: Award, iconColor: "text-purple-700 dark:text-purple-400 bg-purple-500/10" },
   ];
 
   return (
@@ -60,19 +60,19 @@ export default function ProgressStatsCards({ stats, progress, materials }: Progr
             </div>
             <div className="min-w-0">
               <p className={`text-2xl font-black leading-none ${t.color}`}>{t.value}</p>
-              <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mt-1 truncate">{t.label}</p>
+              <p className="text-[10px] text-slate-500 dark:text-white/60 font-semibold uppercase tracking-wider mt-1 truncate">{t.label}</p>
             </div>
           </div>
         ))}
       </div>
       <div className="border-t border-[var(--lmg-border)] px-4 py-3">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-[var(--lmg-text-secondary)] font-medium flex items-center gap-1.5">
+          <span className="text-xs text-[var(--lmg-text-secondary)] font-semibold flex items-center gap-1.5">
             <BarChart3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" /> Learning Progress
           </span>
           <span className="text-xs text-[var(--lmg-text-primary)] font-bold">{completedSteps} / {totalSteps} steps</span>
         </div>
-        <div className="h-2 bg-[var(--lmg-bg-card-subtle)] rounded-full overflow-hidden mb-3">
+        <div className="h-2 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden mb-3">
           <div
             className="h-full bg-linear-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-700"
             style={{ width: `${progressPercentage}%` }}
@@ -80,16 +80,16 @@ export default function ProgressStatsCards({ stats, progress, materials }: Progr
         </div>
         <div className="flex gap-8">
           <div>
-            <p className="text-sm font-black text-green-600 dark:text-green-400">{completedMaterials}</p>
-            <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mt-0.5">Completed</p>
+            <p className="text-sm font-black text-green-700 dark:text-green-400">{completedMaterials}</p>
+            <p className="text-[10px] text-slate-500 dark:text-white/60 font-semibold uppercase tracking-wider mt-0.5">Completed</p>
           </div>
           <div>
-            <p className="text-sm font-black text-amber-600 dark:text-amber-400">{inProgressMaterials}</p>
-            <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mt-0.5">In Progress</p>
+            <p className="text-sm font-black text-amber-700 dark:text-amber-400">{inProgressMaterials}</p>
+            <p className="text-[10px] text-slate-500 dark:text-white/60 font-semibold uppercase tracking-wider mt-0.5">In Progress</p>
           </div>
           <div>
-            <p className="text-sm font-black text-[var(--lmg-text-secondary)]">{notStartedMaterials}</p>
-            <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mt-0.5">Not Started</p>
+            <p className="text-sm font-black text-slate-700 dark:text-white/80">{notStartedMaterials}</p>
+            <p className="text-[10px] text-slate-500 dark:text-white/60 font-semibold uppercase tracking-wider mt-0.5">Not Started</p>
           </div>
         </div>
       </div>

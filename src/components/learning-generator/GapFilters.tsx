@@ -4,9 +4,9 @@ import { Filter } from "lucide-react";
 import type { KnowledgeGap } from "@/lib/api/learningGenerator";
 
 const gapColorMap: Record<string, { bg: string; border: string; text: string; badge: string; dot: string }> = {
-  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-600 dark:text-red-400", badge: "bg-red-500/20 text-red-700 dark:text-red-300", dot: "bg-red-500" },
-  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/30", text: "text-amber-600 dark:text-amber-400", badge: "bg-amber-500/20 text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
-  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-600 dark:text-blue-400", badge: "bg-blue-500/20 text-blue-700 dark:text-blue-300", dot: "bg-blue-500" },
+  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-700 dark:text-red-400 font-bold", badge: "bg-red-500/20 text-red-800 dark:text-red-300", dot: "bg-red-500" },
+  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/30", text: "text-amber-800 dark:text-amber-400 font-bold", badge: "bg-amber-500/20 text-amber-800 dark:text-amber-300", dot: "bg-amber-500" },
+  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-700 dark:text-blue-400 font-bold", badge: "bg-blue-500/20 text-blue-800 dark:text-blue-300", dot: "bg-blue-500" },
   default: { bg: "bg-[var(--lmg-bg-subtle)]", border: "border-[var(--lmg-border)]", text: "text-[var(--lmg-text-muted)]", badge: "bg-[var(--lmg-bg-subtle)] text-[var(--lmg-text-muted)]", dot: "bg-slate-400" },
 };
 

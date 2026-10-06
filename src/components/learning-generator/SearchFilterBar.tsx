@@ -11,9 +11,9 @@ interface SearchFilterBarProps {
 }
 
 const gapColorMap: Record<string, { bg: string; border: string; text: string }> = {
-  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-600 dark:text-red-400" },
-  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/30", text: "text-amber-600 dark:text-amber-400" },
-  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-600 dark:text-blue-400" },
+  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-700 dark:text-red-400 font-bold" },
+  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/30", text: "text-amber-800 dark:text-amber-400 font-bold" },
+  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-700 dark:text-blue-400 font-bold" },
   default: { bg: "bg-[var(--lmg-bg-subtle)]", border: "border-[var(--lmg-border)]", text: "text-[var(--lmg-text-muted)]" },
 };
 

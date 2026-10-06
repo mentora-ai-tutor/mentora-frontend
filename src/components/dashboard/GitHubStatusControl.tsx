@@ -93,22 +93,22 @@ export default function GitHubStatusControl({ sidebarOpen }: GitHubStatusControl
             onClick={closeMenu}
           />
           <div
-            className={`absolute z-40 rounded-xl border border-white/10 bg-[#111827] p-2 shadow-2xl ${
+            className={`absolute z-40 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111827] p-2 shadow-2xl ${
               sidebarOpen
                 ? "bottom-full left-0 right-0 mb-2"
                 : "bottom-0 left-full ml-2 w-64"
             }`}
           >
-            <div className="px-3 py-2 border-b border-white/10">
-              <p className="text-xs font-semibold text-white">GitHub account</p>
-              <p className="truncate text-[10px] uppercase tracking-widest text-teal-300">
+            <div className="px-3 py-2 border-b border-slate-200 dark:border-white/10">
+              <p className="text-xs font-semibold text-slate-900 dark:text-white">GitHub account</p>
+              <p className="truncate text-[10px] uppercase tracking-widest text-teal-700 dark:text-teal-300 font-bold">
                 {githubLogin ? `@${githubLogin}` : "Connected"}
               </p>
             </div>
             <button
               type="button"
               onClick={openChangePrompt}
-              className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/80 transition-colors hover:bg-teal-500/10 hover:text-teal-200"
+              className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 dark:text-white/80 transition-colors hover:bg-teal-50 dark:hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-200"
             >
               Change account
             </button>
@@ -116,7 +116,7 @@ export default function GitHubStatusControl({ sidebarOpen }: GitHubStatusControl
               type="button"
               onClick={handleRefreshStatus}
               disabled={checking}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/60 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-wait disabled:opacity-60"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-600 dark:text-white/60 transition-colors hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white disabled:cursor-wait disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
               Check status
@@ -125,7 +125,7 @@ export default function GitHubStatusControl({ sidebarOpen }: GitHubStatusControl
               type="button"
               onClick={handleDisconnect}
               disabled={disconnecting}
-              className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-300/80 transition-colors hover:bg-red-500/10 hover:text-red-200 disabled:cursor-wait disabled:opacity-60"
+              className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 dark:text-red-300/80 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-200 disabled:cursor-wait disabled:opacity-60"
             >
               {disconnecting ? "Disconnecting..." : "Disconnect account"}
             </button>
@@ -138,8 +138,8 @@ export default function GitHubStatusControl({ sidebarOpen }: GitHubStatusControl
         onClick={handleStatusClick}
         className={`relative flex w-full items-center gap-3 rounded-xl border px-3 py-3 transition-all group ${
           githubLinked
-            ? "border-teal-500/20 bg-teal-500/10 text-teal-200 hover:bg-teal-500/15"
-            : "border-amber-500/20 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15"
+            ? "border-teal-500/30 bg-teal-50/80 dark:bg-teal-500/10 text-teal-900 dark:text-teal-200 hover:bg-teal-100/60 dark:hover:bg-teal-500/15"
+            : "border-amber-500/30 bg-amber-50/80 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200 hover:bg-amber-100/60 dark:hover:bg-amber-500/15"
         }`}
         title={
           githubLinked
@@ -152,12 +152,12 @@ export default function GitHubStatusControl({ sidebarOpen }: GitHubStatusControl
             : "GitHub not connected. Connect GitHub."
         }
       >
-        <GitHubIcon className="h-5 w-5 shrink-0" />
+        <GitHubIcon className="h-5 w-5 shrink-0 text-slate-700 dark:text-white" />
         <span className={`min-w-0 flex-1 text-left ${!sidebarOpen && "lg:hidden"}`}>
-          <span className="block text-sm font-semibold leading-tight">
+          <span className="block text-sm font-bold leading-tight text-slate-900 dark:text-white">
             {githubLinked ? "GitHub connected" : "Connect GitHub"}
           </span>
-          <span className="block truncate pt-0.5 text-[10px] uppercase tracking-widest text-white/45">
+          <span className="block truncate pt-0.5 text-[10px] uppercase tracking-widest text-slate-500 dark:text-white/60 font-semibold">
             {githubLinked
               ? githubLogin
                 ? `@${githubLogin}`
@@ -166,9 +166,9 @@ export default function GitHubStatusControl({ sidebarOpen }: GitHubStatusControl
           </span>
         </span>
         {githubLinked ? (
-          <CheckCircle2 className={`h-4 w-4 text-teal-300 ${!sidebarOpen && "lg:hidden"}`} />
+          <CheckCircle2 className={`h-4 w-4 text-teal-600 dark:text-teal-300 ${!sidebarOpen && "lg:hidden"}`} />
         ) : (
-          <AlertCircle className={`h-4 w-4 text-amber-300 ${!sidebarOpen && "lg:hidden"}`} />
+          <AlertCircle className={`h-4 w-4 text-amber-600 dark:text-amber-300 ${!sidebarOpen && "lg:hidden"}`} />
         )}
         <span
           className={`absolute right-2 top-2 h-2 w-2 rounded-full ${sidebarOpen ? "hidden" : "block"} ${

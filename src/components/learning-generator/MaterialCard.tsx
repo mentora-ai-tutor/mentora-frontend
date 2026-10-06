@@ -10,16 +10,16 @@ interface MaterialCardProps {
 }
 
 const gapColorMap: Record<string, { bg: string; border: string; text: string }> = {
-  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/20", text: "text-red-600 dark:text-red-400" },
-  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-600 dark:text-amber-400" },
-  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-600 dark:text-blue-400" },
+  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/20", text: "text-red-700 dark:text-red-400 font-bold" },
+  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-800 dark:text-amber-400 font-bold" },
+  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-700 dark:text-blue-400 font-bold" },
   default: { bg: "bg-[var(--lmg-bg-subtle)]", border: "border-[var(--lmg-border)]", text: "text-[var(--lmg-text-muted)]" },
 };
 
 const difficultyColorMap: Record<string, string> = {
-  beginner: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
-  intermediate: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  advanced: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+  beginner: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 font-bold",
+  intermediate: "bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/20 font-bold",
+  advanced: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 font-bold",
   default: "bg-[var(--lmg-bg-subtle)] text-[var(--lmg-text-muted)] border-[var(--lmg-border)]",
 };
 
@@ -32,11 +32,11 @@ export default function MaterialCard({ material, onDelete }: MaterialCardProps) 
     <div className="group p-5 bg-[var(--lmg-bg-surface)] border border-[var(--lmg-border)] rounded-2xl hover:border-teal-500/40 shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${diffColor}`}>
+          <span className={`whitespace-nowrap px-2 py-0.5 rounded text-[10px] uppercase tracking-wider border ${diffColor}`}>
             {sm.difficulty_level}
           </span>
           {sm.generation_source === "implicit_prerequisite" && (
-            <span className="whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+            <span className="whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
               Prerequisite
             </span>
           )}

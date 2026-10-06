@@ -12,10 +12,10 @@ interface KnowledgeGapCardProps {
 }
 
 const gapColorMap: Record<string, { badge: string }> = {
-  FUNDAMENTAL_GAP: { badge: "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400" },
-  PARTIAL_GAP: { badge: "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400" },
-  SURFACE_GAP: { badge: "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400" },
-  default: { badge: "bg-[var(--lmg-bg-subtle)] border-[var(--lmg-border)] text-[var(--lmg-text-muted)]" },
+  FUNDAMENTAL_GAP: { badge: "bg-red-50 dark:bg-red-500/10 border-red-300 dark:border-red-500/30 text-red-700 dark:text-red-400 font-bold" },
+  PARTIAL_GAP: { badge: "bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 font-bold" },
+  SURFACE_GAP: { badge: "bg-blue-50 dark:bg-blue-500/10 border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-400 font-bold" },
+  default: { badge: "bg-slate-100 dark:bg-[var(--lmg-bg-subtle)] border-slate-300 dark:border-[var(--lmg-border)] text-slate-700 dark:text-[var(--lmg-text-muted)] font-bold" },
 };
 
 export default function KnowledgeGapCard({ gap, index, material, progress }: KnowledgeGapCardProps) {
@@ -31,31 +31,31 @@ export default function KnowledgeGapCard({ gap, index, material, progress }: Kno
           <div className="flex items-start gap-3">
             <div>
               <h3 className="font-bold text-[var(--lmg-text-primary)] group-hover:text-teal-600 dark:group-hover:text-teal-300 transition-colors text-base">{gap.topic}</h3>
-              <p className="text-[11px] text-[var(--lmg-text-muted)] mt-0.5 font-mono">{gap.topic_id}</p>
+              <p className="text-[11px] text-slate-500 dark:text-white/40 mt-0.5 font-mono font-medium">{gap.topic_id}</p>
             </div>
           </div>
-          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${colors.badge} shrink-0`}>
+          <span className={`px-2.5 py-1 rounded-lg text-[10px] uppercase tracking-wider border ${colors.badge} shrink-0`}>
             {gap.gap_type.replace("_", " ")}
           </span>
         </div>
 
         {gap.evidence_summary && (
-          <p className="text-sm text-[var(--lmg-text-secondary)] mb-3 line-clamp-2 leading-relaxed">{gap.evidence_summary}</p>
+          <p className="text-sm text-slate-700 dark:text-white/70 mb-3 line-clamp-2 leading-relaxed">{gap.evidence_summary}</p>
         )}
 
         {gap.misconceptions && gap.misconceptions.length > 0 && (
           <div className="mb-4">
-            <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1 font-semibold">
+            <p className="text-[10px] text-slate-600 dark:text-white/60 uppercase tracking-wider mb-2 flex items-center gap-1 font-semibold">
               <Brain className="w-3 h-3 text-teal-600 dark:text-teal-400" /> Misconceptions
             </p>
             <div className="flex flex-wrap gap-1.5">
               {gap.misconceptions.slice(0, 3).map((m, mi) => (
-                <span key={mi} className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 rounded-lg text-[10px] font-medium">
+                <span key={mi} className="px-2 py-1 bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-lg text-[10px] font-semibold">
                   {m.length > 40 ? m.substring(0, 40) + "..." : m}
                 </span>
               ))}
               {gap.misconceptions.length > 3 && (
-                <span className="px-2 py-1 bg-[var(--lmg-bg-subtle)] border border-[var(--lmg-border)] rounded-lg text-[10px] text-[var(--lmg-text-muted)]">+{gap.misconceptions.length - 3} more</span>
+                <span className="px-2 py-1 bg-slate-100 dark:bg-[var(--lmg-bg-subtle)] border border-slate-200 dark:border-[var(--lmg-border)] rounded-lg text-[10px] text-slate-600 dark:text-[var(--lmg-text-muted)] font-medium">+{gap.misconceptions.length - 3} more</span>
               )}
             </div>
           </div>
@@ -63,11 +63,11 @@ export default function KnowledgeGapCard({ gap, index, material, progress }: Kno
 
         {material && progress && (
           <div className="mb-4">
-            <div className="flex justify-between text-xs text-[var(--lmg-text-muted)] mb-1.5">
+            <div className="flex justify-between text-xs text-slate-600 dark:text-white/60 mb-1.5 font-medium">
               <span>{progress.completed_steps.length} / {progress.total_steps} steps</span>
-              <span className="text-teal-600 dark:text-teal-400 font-bold">{Math.round((progress.completed_steps.length / progress.total_steps) * 100)}%</span>
+              <span className="text-teal-700 dark:text-teal-400 font-bold">{Math.round((progress.completed_steps.length / progress.total_steps) * 100)}%</span>
             </div>
-            <div className="w-full h-1.5 bg-[var(--lmg-bg-card-subtle)] rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-linear-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-700"
                 style={{ width: `${(progress.completed_steps.length / progress.total_steps) * 100}%` }}

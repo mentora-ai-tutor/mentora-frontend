@@ -49,10 +49,10 @@ export default function WorkspaceEditor({
                 }`}>
                   {i + 1}
                 </div>
-                <div className="absolute left-6 top-0 w-64 p-3 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-auto">
-                  <p className="text-xs font-bold text-white mb-1">{ann.category}</p>
-                  <p className="text-xs text-white/70 mb-2">{ann.message}</p>
-                  <p className="text-[10px] text-teal-400">{ann.suggestion}</p>
+                <div className="absolute left-6 top-0 w-64 p-3 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-auto">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white mb-1">{ann.category}</p>
+                  <p className="text-xs text-slate-600 dark:text-white/70 mb-2">{ann.message}</p>
+                  <p className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold">{ann.suggestion}</p>
                 </div>
               </div>
             </div>
