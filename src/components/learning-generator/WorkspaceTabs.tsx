@@ -40,17 +40,19 @@ export default function WorkspaceTabs({
   ];
 
   return (
-    <div className="w-[40%] flex flex-col bg-[#0F172A]">
-      <div className="flex border-b border-white/5 shrink-0">
+    <div className="w-[40%] flex flex-col bg-slate-50 dark:bg-[#0f172a] border-l border-slate-200 dark:border-white/10 transition-colors duration-200">
+      <div className="flex bg-white dark:bg-[#111827] border-b border-slate-200 dark:border-white/10 shrink-0">
         {tabs.map(({ id, icon: Icon, label, hasIndicator }) => (
           <button
             key={id}
             onClick={() => onTabChange(id)}
-            className={`flex-1 px-2 py-2 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 border-b-2 transition-colors ${
-              activeTab === id ? "border-teal-500 text-teal-400" : "border-transparent text-white/30 hover:text-white/50"
+            className={`flex-1 px-2 py-2.5 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+              activeTab === id
+                ? "border-teal-600 text-teal-700 dark:border-teal-400 dark:text-teal-400 bg-teal-50/50 dark:bg-teal-500/10"
+                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
-            <Icon className="w-3 h-3" /> {label}
+            <Icon className="w-3.5 h-3.5" /> {label}
             {hasIndicator && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
           </button>
         ))}
@@ -60,42 +62,42 @@ export default function WorkspaceTabs({
         {activeTab === "output" && (
           <div className="space-y-2">
             {isExecuting && !output && !executionError && (
-              <div className="flex items-center gap-2 text-white/40 text-xs"><Loader2 className="w-3 h-3 animate-spin" /> Compiling...</div>
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-xs"><Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" /> Compiling...</div>
             )}
             {!isExecuting && !output && !executionError && (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Terminal className="w-6 h-6 text-white/10 mb-2" />
-                <p className="text-xs text-white/30">Hit Run to see output.</p>
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Terminal className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
+                <p className="text-xs text-slate-500 dark:text-slate-400">Hit Run to see output.</p>
               </div>
             )}
             {output && (
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <CheckCircle2 className="w-3 h-3 text-green-400" />
-                  <span className="text-[10px] text-green-400 font-bold">Exit 0</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                  <span className="text-[10px] text-green-700 dark:text-green-400 font-bold">Exit 0</span>
                 </div>
                 {structuredOutput ? (
-                  <div className="bg-black/30 border border-white/5 rounded-lg p-3">
+                  <div className="bg-white dark:bg-[#0b1021] border border-slate-200 dark:border-white/10 rounded-xl p-3 shadow-xs">
                     <div className="flex items-center gap-1.5 mb-2">
-                      <Layers className="w-3 h-3 text-amber-400" />
-                      <span className="text-[10px] text-amber-400 font-bold">Structured View</span>
+                      <Layers className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                      <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold">Structured View</span>
                     </div>
-                    <pre className="text-xs font-mono text-amber-200/80 whitespace-pre-wrap leading-relaxed">
+                    <pre className="text-xs font-mono text-amber-800 dark:text-amber-200/90 whitespace-pre-wrap leading-relaxed">
                       {JSON.stringify(structuredOutput, null, 2)}
                     </pre>
                   </div>
                 ) : (
-                  <pre className="text-xs font-mono text-white/70 bg-black/30 p-3 rounded-lg border border-white/5 whitespace-pre-wrap leading-relaxed">{output}</pre>
+                  <pre className="text-xs font-mono text-slate-900 dark:text-teal-300 bg-white dark:bg-[#0b1021] p-3 rounded-xl border border-slate-200 dark:border-white/10 whitespace-pre-wrap leading-relaxed shadow-xs">{output}</pre>
                 )}
               </div>
             )}
             {executionError && (
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <XCircle className="w-3 h-3 text-red-400" />
-                  <span className="text-[10px] font-bold text-red-400">{isCompilationError ? "Compile Error" : "Runtime Error"}</span>
+                  <XCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                  <span className="text-[10px] font-bold text-red-600 dark:text-red-400">{isCompilationError ? "Compile Error" : "Runtime Error"}</span>
                 </div>
-                <pre className="text-xs font-mono text-red-200/80 bg-red-950/40 p-3 rounded-lg border border-red-500/20 whitespace-pre-wrap leading-relaxed">{executionError}</pre>
+                <pre className="text-xs font-mono text-red-700 dark:text-red-200 bg-red-50 dark:bg-red-950/40 p-3 rounded-xl border border-red-200 dark:border-red-500/20 whitespace-pre-wrap leading-relaxed">{executionError}</pre>
               </div>
             )}
           </div>
@@ -104,17 +106,17 @@ export default function WorkspaceTabs({
         {activeTab === "feedback" && (
           <div className="space-y-2">
             {isAiLoading && (
-              <div className="flex items-center gap-2 text-xs text-teal-400/60"><Loader2 className="w-3 h-3 animate-spin" /> AI thinking...</div>
+              <div className="flex items-center gap-2 text-xs text-teal-700 dark:text-teal-400/80"><Loader2 className="w-3.5 h-3.5 animate-spin" /> AI thinking...</div>
             )}
             {!isAiLoading && !aiFeedback && (
-              <p className="text-xs text-white/30 text-center py-8">Run code to get AI feedback.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-8">Run code to get AI feedback.</p>
             )}
             {aiFeedback && (
-              <div className="flex gap-2">
-                <Brain className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+              <div className="flex gap-2.5 p-3.5 bg-white dark:bg-[#1e293b] rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
+                <Brain className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[10px] text-teal-400/60 font-bold uppercase mb-1">Mentora AI</p>
-                  <p className="text-xs text-teal-50 leading-relaxed whitespace-pre-wrap">{aiFeedback}</p>
+                  <p className="text-[10px] text-teal-700 dark:text-teal-400 font-bold uppercase mb-1.5">Mentora AI</p>
+                  <p className="text-xs text-slate-800 dark:text-teal-50 leading-relaxed whitespace-pre-wrap">{aiFeedback}</p>
                 </div>
               </div>
             )}
@@ -122,15 +124,15 @@ export default function WorkspaceTabs({
         )}
 
         {activeTab === "review" && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {isReviewing && (
-              <div className="flex items-center gap-2 text-xs text-purple-400/60"><Loader2 className="w-3 h-3 animate-spin" /> Analyzing code...</div>
+              <div className="flex items-center gap-2 text-xs text-purple-700 dark:text-purple-400/80"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing code...</div>
             )}
             {!isReviewing && !reviewData && (
-              <div className="text-center py-6">
-                <Eye className="w-6 h-6 text-white/10 mx-auto mb-2" />
-                <p className="text-xs text-white/30 mb-3">Click Review in the toolbar to analyze your code.</p>
-                <button onClick={onStartReview} className="px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 text-purple-400 text-xs font-bold rounded-lg hover:bg-purple-500/30">
+              <div className="text-center py-8">
+                <Eye className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Click Review in the toolbar to analyze your code.</p>
+                <button onClick={onStartReview} className="px-3.5 py-1.5 bg-purple-500/20 border border-purple-500/30 text-purple-700 dark:text-purple-400 text-xs font-bold rounded-lg hover:bg-purple-500/30 shadow-xs">
                   Start Review
                 </button>
               </div>
@@ -139,37 +141,37 @@ export default function WorkspaceTabs({
               <div className="space-y-3">
                 {reviewData.is_error ? (
                   <div className="text-center py-6">
-                    <XCircle className="w-6 h-6 text-red-400/30 mx-auto mb-2" />
-                    <p className="text-xs text-red-300/60 mb-3">{reviewData.summary}</p>
-                    <button onClick={onRetryReview} className="px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 text-purple-400 text-xs font-bold rounded-lg hover:bg-purple-500/30 flex items-center gap-1.5 mx-auto">
+                    <XCircle className="w-6 h-6 text-red-500/60 mx-auto mb-2" />
+                    <p className="text-xs text-red-600 dark:text-red-400 mb-3">{reviewData.summary}</p>
+                    <button onClick={onRetryReview} className="px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 text-purple-700 dark:text-purple-400 text-xs font-bold rounded-lg hover:bg-purple-500/30 flex items-center gap-1.5 mx-auto">
                       <Loader2 className="w-3 h-3" /> Retry Review
                     </button>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-purple-400 font-bold uppercase">Score: {reviewData.overall_score}/10</span>
-                      <div className="w-20 h-1.5 bg-[#334155] rounded-full overflow-hidden">
+                      <span className="text-[10px] text-purple-700 dark:text-purple-400 font-bold uppercase">Score: {reviewData.overall_score}/10</span>
+                      <div className="w-20 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                         <div className="h-full bg-purple-500 rounded-full" style={{ width: `${reviewData.overall_score * 10}%` }} />
                       </div>
                     </div>
-                    <p className="text-xs text-white/60">{reviewData.summary}</p>
+                    <p className="text-xs text-slate-700 dark:text-slate-300">{reviewData.summary}</p>
                     {reviewData.annotations.map((ann, i) => (
-                      <div key={i} className={`p-2 rounded-lg border ${
-                        ann.severity === "high" ? "bg-red-500/10 border-red-500/20" : ann.severity === "medium" ? "bg-amber-500/10 border-amber-500/20" : "bg-blue-500/10 border-blue-500/20"
+                      <div key={i} className={`p-2.5 rounded-xl border shadow-xs ${
+                        ann.severity === "high" ? "bg-red-50/80 dark:bg-red-500/10 border-red-200 dark:border-red-500/20" : ann.severity === "medium" ? "bg-amber-50/80 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20" : "bg-blue-50/80 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
                       }`}>
                         <div className="flex items-center gap-1.5 mb-1">
-                          <span className="text-[9px] font-bold text-white/40">L{ann.line_start}{ann.line_end !== ann.line_start ? `-L${ann.line_end}` : ""}</span>
-                          <span className={`text-[9px] font-bold px-1 rounded ${
-                            ann.severity === "high" ? "bg-red-500/30 text-red-300" : ann.severity === "medium" ? "bg-amber-500/30 text-amber-300" : "bg-blue-500/30 text-blue-300"
+                          <span className="text-[9px] font-bold text-slate-500 dark:text-white/60">L{ann.line_start}{ann.line_end !== ann.line_start ? `-L${ann.line_end}` : ""}</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                            ann.severity === "high" ? "bg-red-100 text-red-800 dark:bg-red-500/30 dark:text-red-300" : ann.severity === "medium" ? "bg-amber-100 text-amber-800 dark:bg-amber-500/30 dark:text-amber-300" : "bg-blue-100 text-blue-800 dark:bg-blue-500/30 dark:text-blue-300"
                           }`}>{ann.severity}</span>
-                          <span className="text-[9px] text-white/30">{ann.category}</span>
+                          <span className="text-[9px] text-slate-500 dark:text-white/50">{ann.category}</span>
                         </div>
-                        <p className="text-xs text-white/70">{ann.message}</p>
-                        <p className="text-[10px] text-teal-400/70 mt-1">{ann.suggestion}</p>
+                        <p className="text-xs text-slate-800 dark:text-slate-200">{ann.message}</p>
+                        <p className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold mt-1">{ann.suggestion}</p>
                       </div>
                     ))}
-                    {reviewData.annotations.length === 0 && <p className="text-xs text-white/30 text-center py-4">No issues found. Great code!</p>}
+                    {reviewData.annotations.length === 0 && <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">No issues found. Great code!</p>}
                   </>
                 )}
               </div>
@@ -182,48 +184,48 @@ export default function WorkspaceTabs({
             {executionError ? (
               <>
                 {!isFixing && !fixSuggestion && (
-                  <button onClick={onFixError} className="w-full py-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold rounded-lg hover:bg-red-500/20 flex items-center justify-center gap-1.5">
+                  <button onClick={onFixError} className="w-full py-2 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-500/20 flex items-center justify-center gap-1.5 shadow-xs">
                     <Wand2 className="w-3.5 h-3.5" /> AI Fix This Error
                   </button>
                 )}
                 {isFixing && (
-                  <div className="flex items-center gap-2 text-xs text-red-400/60"><Loader2 className="w-3 h-3 animate-spin" /> Analyzing error...</div>
+                  <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400/80"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing error...</div>
                 )}
                 {fixSuggestion && (
                   <div className="space-y-2">
-                    <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-                      <p className="text-[10px] text-green-400 font-bold mb-1">Suggested Fix</p>
-                      <p className="text-xs text-white/70">{fixSuggestion.suggested_fix}</p>
+                    <div className="p-2.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl shadow-xs">
+                      <p className="text-[10px] text-green-700 dark:text-green-400 font-bold mb-1">Suggested Fix</p>
+                      <p className="text-xs text-slate-800 dark:text-slate-200">{fixSuggestion.suggested_fix}</p>
                     </div>
                     <div className="relative">
-                      <div className="bg-black/30 p-3 rounded-lg border border-teal-500/20 max-h-48 overflow-y-auto">
+                      <div className="bg-white dark:bg-[#0b1021] p-3 rounded-xl border border-teal-500/30 max-h-48 overflow-y-auto shadow-xs">
                         {fixSuggestion.fixed_code.split("\n").map((line, i) => {
                           const isFix = line.includes("// FIX:");
                           const [codePart, comment] = isFix ? line.split("// FIX:") : [line, null];
                           return (
-                            <div key={i} className={`flex ${isFix ? "bg-amber-500/10 -mx-3 px-3 py-0.5 border-l-2 border-amber-500" : ""}`}>
-                              <span className="text-[9px] text-white/15 w-6 text-right mr-3 shrink-0 select-none">{i + 1}</span>
-                              <code className="text-xs font-mono text-teal-200/80 whitespace-pre-wrap leading-relaxed">
+                            <div key={i} className={`flex ${isFix ? "bg-amber-50 dark:bg-amber-500/10 -mx-3 px-3 py-0.5 border-l-2 border-amber-500" : ""}`}>
+                              <span className="text-[9px] text-slate-400 dark:text-white/30 w-6 text-right mr-3 shrink-0 select-none">{i + 1}</span>
+                              <code className="text-xs font-mono text-slate-900 dark:text-teal-200 whitespace-pre-wrap leading-relaxed">
                                 {codePart}
-                                {comment && <span className="text-amber-400/90">// FIX:{comment}</span>}
+                                {comment && <span className="text-amber-700 dark:text-amber-400 font-bold">// FIX:{comment}</span>}
                               </code>
                             </div>
                           );
                         })}
                       </div>
-                      <button onClick={onApplyFix} className="absolute top-2 right-2 px-3 py-1.5 bg-teal-600 text-white text-[10px] font-bold rounded-lg hover:bg-teal-500 flex items-center gap-1.5 shadow-lg">
+                      <button onClick={onApplyFix} className="absolute top-2 right-2 px-3 py-1.5 bg-teal-600 text-white text-[10px] font-bold rounded-lg hover:bg-teal-500 flex items-center gap-1.5 shadow-md">
                         <Check className="w-3 h-3" /> Apply Fix
                       </button>
                     </div>
-                    <div className="p-2 bg-[#334155]/20 border border-white/5 rounded-lg">
-                      <p className="text-[10px] text-white/40 font-bold uppercase mb-1">How it works</p>
-                      <p className="text-xs text-white/60 leading-relaxed">{fixSuggestion.explanation}</p>
+                    <div className="p-3 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-white/10 rounded-xl shadow-xs">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">How it works</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">{fixSuggestion.explanation}</p>
                     </div>
                   </div>
                 )}
               </>
             ) : (
-              <p className="text-xs text-white/30 text-center py-8">No errors to fix.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-8">No errors to fix.</p>
             )}
           </div>
         )}

@@ -24,18 +24,18 @@ export default function LearningPathSidebar({
   const sm = material.structured_material;
 
   return (
-    <div className="w-72 shrink-0 bg-[#0F172A] border-r border-white/5 flex-col z-10 hidden xl:flex">
+    <div className="w-72 shrink-0 bg-[var(--lmg-bg-surface)] border-r border-[var(--lmg-border)] flex-col z-10 hidden xl:flex transition-colors">
       <div className="p-6 pb-2">
-        <Link href="/learning-generator" className="inline-flex items-center gap-2 text-teal-400 hover:text-teal-300 text-sm font-bold mb-8 transition-colors">
+        <Link href="/learning-generator" className="inline-flex items-center gap-2 text-teal-600 dark:text-teal-400 hover:text-teal-500 text-sm font-bold mb-8 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back to Plan
         </Link>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-bold uppercase tracking-wider mb-3">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-teal-500/10 border border-teal-500/20 text-teal-700 dark:text-teal-400 text-[10px] font-bold uppercase tracking-wider mb-3">
           {sm.difficulty_level} Module
         </div>
-        <h2 className="text-xl font-black mb-1 text-white">{sm.topic}</h2>
-        <p className="text-white/40 text-xs mb-2">{steps.length} steps • {completedSteps.length} completed</p>
+        <h2 className="text-xl font-black mb-1 text-[var(--lmg-text-primary)]">{sm.topic}</h2>
+        <p className="text-[var(--lmg-text-muted)] text-xs mb-2">{steps.length} steps • {completedSteps.length} completed</p>
 
-        <div className="w-full h-1.5 bg-[#334155]/50 rounded-full overflow-hidden mb-8">
+        <div className="w-full h-1.5 bg-[var(--lmg-bg-card-subtle)] rounded-full overflow-hidden mb-8">
           <div
             className="h-full bg-teal-500 rounded-full transition-all duration-500"
             style={{ width: `${steps.length > 0 ? (completedSteps.length / steps.length) * 100 : 0}%` }}
@@ -58,22 +58,22 @@ export default function LearningPathSidebar({
                 onStepSelect(idx);
                 saveProgress(idx);
               }}
-              className={`w-full flex items-center gap-3 p-3 text-left rounded-xl transition-all ${
+              className={`w-full flex items-center gap-3 p-3 text-left rounded-xl transition-all cursor-pointer ${
                 isActive
-                  ? "bg-[#334155]/40 border border-teal-500/30 shadow-[0_0_15px_rgba(13,148,136,0.1)]"
+                  ? "bg-teal-500/10 border border-teal-500/30 shadow-xs"
                   : isLocked
                     ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-white/5 border border-transparent"
+                    : "hover:bg-[var(--lmg-bg-surface-hover)] border border-transparent"
               }`}
             >
-              <div className={`shrink-0 flex items-center justify-center ${isActive ? 'text-teal-400' : isCompleted ? 'text-teal-500' : 'text-white/20'}`}>
+              <div className={`shrink-0 flex items-center justify-center ${isActive ? 'text-teal-600 dark:text-teal-400' : isCompleted ? 'text-teal-600 dark:text-teal-500' : 'text-[var(--lmg-text-muted)]'}`}>
                 {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : isLocked ? <Lock className="w-4 h-4" /> : <Circle className="w-5 h-5" />}
               </div>
               <div>
-                <p className={`text-sm font-bold ${isActive ? 'text-teal-300' : isLocked ? 'text-white/40' : 'text-white/80'}`}>
+                <p className={`text-sm font-bold ${isActive ? 'text-teal-700 dark:text-teal-300' : isLocked ? 'text-[var(--lmg-text-muted)]' : 'text-[var(--lmg-text-primary)]'}`}>
                   {idx + 1}. {step.title}
                 </p>
-                <p className="text-[10px] text-white/30 uppercase tracking-wider">{step.type}</p>
+                <p className="text-[10px] text-[var(--lmg-text-muted)] uppercase tracking-wider">{step.type}</p>
               </div>
             </button>
           );

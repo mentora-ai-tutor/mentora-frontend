@@ -4,10 +4,10 @@ import { Filter } from "lucide-react";
 import type { KnowledgeGap } from "@/lib/api/learningGenerator";
 
 const gapColorMap: Record<string, { bg: string; border: string; text: string; badge: string; dot: string }> = {
-  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/20", text: "text-red-400", badge: "bg-red-500/20 text-red-300", dot: "bg-red-500" },
-  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-400", badge: "bg-amber-500/20 text-amber-300", dot: "bg-amber-500" },
-  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-400", badge: "bg-blue-500/20 text-blue-300", dot: "bg-blue-500" },
-  default: { bg: "bg-white/5", border: "border-white/10", text: "text-white/50", badge: "bg-white/10 text-white/60", dot: "bg-white/40" },
+  FUNDAMENTAL_GAP: { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-700 dark:text-red-400 font-bold", badge: "bg-red-500/20 text-red-800 dark:text-red-300", dot: "bg-red-500" },
+  PARTIAL_GAP: { bg: "bg-amber-500/10", border: "border-amber-500/30", text: "text-amber-800 dark:text-amber-400 font-bold", badge: "bg-amber-500/20 text-amber-800 dark:text-amber-300", dot: "bg-amber-500" },
+  SURFACE_GAP: { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-700 dark:text-blue-400 font-bold", badge: "bg-blue-500/20 text-blue-800 dark:text-blue-300", dot: "bg-blue-500" },
+  default: { bg: "bg-[var(--lmg-bg-subtle)]", border: "border-[var(--lmg-border)]", text: "text-[var(--lmg-text-muted)]", badge: "bg-[var(--lmg-bg-subtle)] text-[var(--lmg-text-muted)]", dot: "bg-slate-400" },
 };
 
 interface GapFiltersProps {
@@ -21,7 +21,7 @@ export default function GapFilters({ filter, onFilterChange, gapCounts }: GapFil
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <Filter className="w-4 h-4 text-white/30" />
+      <Filter className="w-4 h-4 text-[var(--lmg-text-muted)]" />
       {types.map((type) => {
         const isActive = filter === type;
         const colors = type !== "ALL" ? gapColorMap[type] : null;
@@ -29,12 +29,12 @@ export default function GapFilters({ filter, onFilterChange, gapCounts }: GapFil
           <button
             key={type}
             onClick={() => onFilterChange(type)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               isActive
                 ? type === "ALL"
-                  ? "bg-teal-500/20 text-teal-400 border border-teal-500/30"
-                  : `${colors!.bg} ${colors!.text} border ${colors!.border}`
-                : "bg-[#334155]/20 text-white/40 border border-white/5 hover:text-white/60"
+                  ? "bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30 shadow-xs"
+                  : `${colors!.bg} ${colors!.text} border ${colors!.border} shadow-xs`
+                : "bg-[var(--lmg-bg-surface)] text-[var(--lmg-text-muted)] border border-[var(--lmg-border)] hover:text-[var(--lmg-text-primary)] hover:border-[var(--lmg-border-strong)]"
             }`}
           >
             {type === "ALL" ? "All" : type.replace("_", " ")}

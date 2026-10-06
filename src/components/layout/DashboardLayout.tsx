@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-white flex overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0F172A] text-slate-900 dark:text-white flex overflow-hidden transition-colors duration-200">
 
       <Sidebar
         sidebarOpen={sidebarOpen}
@@ -59,7 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           profileOpen={profileOpen}
         />
 
-        <main className="flex-1 overflow-y-auto scrollbar-hide relative bg-[#0F172A] flex flex-col">
+        <main className="flex-1 overflow-y-auto scrollbar-hide relative bg-slate-50 dark:bg-[#0F172A] flex flex-col transition-colors duration-200">
           <div className="absolute top-0 right-0 w-125 h-125 bg-teal-600/5 rounded-full blur-[120px] pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-100 h-100 bg-amber-600/5 rounded-full blur-[100px] pointer-events-none" />
 

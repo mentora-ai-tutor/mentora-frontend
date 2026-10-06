@@ -18,11 +18,11 @@ export default function BottomNav({
   onNext,
 }: BottomNavProps) {
   return (
-    <div className="h-20 bg-[#0F172A] border-t border-white/5 flex items-center justify-between px-6 lg:px-10 shrink-0 z-20">
+    <div className="h-20 bg-[var(--lmg-bg-surface)] border-t border-[var(--lmg-border)] flex items-center justify-between px-6 lg:px-10 shrink-0 z-20 transition-colors duration-200">
       <button
         onClick={onPrevious}
         disabled={activeStep === 0}
-        className="px-5 py-2.5 text-white/50 font-semibold hover:text-white disabled:opacity-30 transition-colors"
+        className="px-5 py-2.5 text-[var(--lmg-text-muted)] font-semibold hover:text-[var(--lmg-text-primary)] disabled:opacity-30 transition-colors"
       >
         Previous
       </button>

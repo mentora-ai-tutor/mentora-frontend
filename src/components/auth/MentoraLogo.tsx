@@ -27,7 +27,7 @@ export default function MentoraLogo({ size = "md" }: { size?: "sm" | "md" | "lg"
       </div>
 
       <span
-        className={`${s.text} font-black tracking-widest bg-linear-to-r from-white via-teal-200 to-teal-400 bg-size-[200%_auto] bg-clip-text text-transparent animate-text-shimmer group-hover:from-teal-300 group-hover:via-teal-100 group-hover:to-emerald-300 transition-all duration-500`}
+        className={`${s.text} font-black tracking-widest bg-linear-to-r from-slate-900 via-teal-700 to-teal-600 dark:from-white dark:via-teal-200 dark:to-teal-400 bg-size-[200%_auto] bg-clip-text text-transparent animate-text-shimmer group-hover:from-teal-800 dark:group-hover:from-teal-300 group-hover:via-teal-600 dark:group-hover:via-teal-100 group-hover:to-teal-500 dark:group-hover:to-emerald-300 transition-all duration-500`}
       >
         MENTORA
       </span>

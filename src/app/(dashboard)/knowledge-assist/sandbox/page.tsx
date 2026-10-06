@@ -388,25 +388,25 @@ export default function KnowledgeAssistSandboxPage() {
         />
       )}
 
-      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+      <section className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b]/55 p-4 shadow-xs">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-700 dark:text-cyan-300">
               Sandbox Practice
             </p>
-            <h1 className="mt-1 text-2xl font-black text-white md:text-3xl">
+            <h1 className="mt-1 text-2xl font-black text-slate-900 dark:text-white md:text-3xl">
               Coding questions without GitHub
             </h1>
-            <p className="mt-2 max-w-3xl text-sm text-white/55">
+            <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-white/55">
               Solve Java prompts, run your code, compare the output, and retry until the answer is correct.
             </p>
           </div>
 
           <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">
+            <p className="text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-cyan-300">
               Attempts
             </p>
-            <p className="mt-1 text-2xl font-black text-white">{attempts}</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">{attempts}</p>
           </div>
         </div>
       </section>
@@ -414,30 +414,30 @@ export default function KnowledgeAssistSandboxPage() {
       {/* Adaptive Java MCQs moved to /knowledge-assist/assessment (Java Skill Check). */}
 
       {error && (
-        <section className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-100">
+        <section className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-100">
           <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-300" />
             <span>{error}</span>
           </div>
         </section>
       )}
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+        <aside className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b]/55 p-4 shadow-xs">
           {/* LLM toggle */}
           <div className="mb-3">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-white/40">
               Question model
             </p>
-            <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-white/10 bg-white/5 p-1">
+            <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-1">
               <button
                 type="button"
                 onClick={() => setSelectedLlm("gemini")}
                 disabled={loadingChallenges}
                 className={`flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed ${
                   selectedLlm === "gemini"
-                    ? "bg-gradient-to-r from-teal-500 to-teal-400 text-[#061016]"
-                    : "text-white/55 hover:text-white"
+                    ? "bg-gradient-to-r from-teal-500 to-teal-400 text-white dark:text-[#061016] shadow-xs"
+                    : "text-slate-600 dark:text-white/55 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <Sparkles className="h-3.5 w-3.5" />
@@ -450,8 +450,8 @@ export default function KnowledgeAssistSandboxPage() {
                 title={ollamaAvailable ? "Use local Ollama (llama3)" : "Ollama not reachable — start it locally first"}
                 className={`flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                   selectedLlm === "ollama"
-                    ? "bg-gradient-to-r from-teal-500 to-teal-400 text-[#061016]"
-                    : "text-white/55 hover:text-white"
+                    ? "bg-gradient-to-r from-teal-500 to-teal-400 text-white dark:text-[#061016] shadow-xs"
+                    : "text-slate-600 dark:text-white/55 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <Cpu className="h-3.5 w-3.5" />
@@ -459,15 +459,15 @@ export default function KnowledgeAssistSandboxPage() {
               </button>
             </div>
             {!ollamaAvailable && (
-              <p className="mt-1 text-[10px] text-amber-300/70">
+              <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300/70">
                 Local model offline · start Ollama to enable
               </p>
             )}
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
-              <Code2 className="h-4 w-4 text-cyan-300" />
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+              <Code2 className="h-4 w-4 text-teal-600 dark:text-cyan-300" />
               Questions
             </h2>
             <button
@@ -475,7 +475,7 @@ export default function KnowledgeAssistSandboxPage() {
               onClick={loadNewQuestions}
               disabled={loadingChallenges}
               title="Load new AI-generated questions"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-white/70 transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white disabled:cursor-wait disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loadingChallenges ? "animate-spin" : ""}`} />
               New
@@ -483,21 +483,21 @@ export default function KnowledgeAssistSandboxPage() {
           </div>
 
           {loadingChallenges ? (
-            <p className="mt-2 text-[11px] text-white/40">Generating fresh questions…</p>
+            <p className="mt-2 text-[11px] text-slate-500 dark:text-white/40">Generating fresh questions…</p>
           ) : challengeSource === "generated" ? (
-            <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-teal-300/80">
+            <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-teal-700 dark:text-teal-300/80 font-medium">
               {selectedLlm === "ollama" ? <Cpu className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
               {selectedLlm === "ollama" ? "Local model · llama3" : "AI-generated · refreshes during review"}
             </p>
           ) : challengeSource === "seed" || challengeSource === "mixed" ? (
-            <p className="mt-2 text-[11px] text-amber-300/70">Practice set (AI offline)</p>
+            <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300/70">Practice set (AI offline)</p>
           ) : null}
 
           {pendingChallenges && (
             <button
               type="button"
               onClick={loadNewQuestions}
-              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-cyan-100 transition-colors hover:bg-cyan-400/15"
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-teal-500/30 bg-teal-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-teal-800 dark:text-cyan-100 transition-colors hover:bg-teal-500/15"
             >
               <RefreshCw className="h-3 w-3" />
               New AI questions ready — load
@@ -514,14 +514,14 @@ export default function KnowledgeAssistSandboxPage() {
                   onClick={() => selectChallenge(index)}
                   className={`w-full rounded-xl border p-3 text-left transition-all ${
                     active
-                      ? "border-teal-500/40 bg-teal-500/10 text-teal-100"
-                      : "border-white/10 bg-[#0F172A] text-white/65 hover:border-white/20 hover:bg-white/[0.04]"
+                      ? "border-teal-500/40 bg-teal-500/10 text-teal-900 dark:text-teal-100 shadow-xs"
+                      : "border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A] text-slate-700 dark:text-white/65 hover:border-slate-300 dark:hover:border-white/20 hover:bg-slate-100 dark:hover:bg-white/[0.04]"
                   }`}
                 >
-                  <span className="block text-sm font-semibold text-white">
+                  <span className="block text-sm font-semibold text-slate-900 dark:text-white">
                     {item.title}
                   </span>
-                  <span className="mt-1 block text-xs uppercase tracking-wider text-white/40">
+                  <span className="mt-1 block text-xs uppercase tracking-wider text-slate-500 dark:text-white/40">
                     {item.difficulty}
                   </span>
                 </button>
@@ -531,56 +531,56 @@ export default function KnowledgeAssistSandboxPage() {
         </aside>
 
         <div className="space-y-4">
-          <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+          <article className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b]/55 p-4 shadow-xs">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/45">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/45">
                   Current question
                 </p>
-                <h2 className="mt-1 text-xl font-bold text-white">
+                <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
                   {challenge.title}
                 </h2>
-                <p className="mt-2 max-w-3xl text-sm text-white/65">
+                <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-white/65">
                   {challenge.prompt}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-[#0F172A] px-4 py-3 text-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+              <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A] px-4 py-3 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/40">
                   Expected output
                 </p>
-                <pre className="mt-1 whitespace-pre-wrap font-mono text-cyan-200">
+                <pre className="mt-1 whitespace-pre-wrap font-mono text-teal-700 dark:text-cyan-200 font-bold">
                   {challenge.expectedOutput}
                 </pre>
               </div>
             </div>
 
             {challenge.stdin && (
-              <div className="mt-3 rounded-xl border border-white/10 bg-[#0F172A] px-4 py-3 text-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+              <div className="mt-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A] px-4 py-3 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/40">
                   Input
                 </p>
-                <pre className="mt-1 whitespace-pre-wrap font-mono text-white/75">
+                <pre className="mt-1 whitespace-pre-wrap font-mono text-slate-800 dark:text-white/75">
                   {challenge.stdin}
                 </pre>
               </div>
             )}
           </article>
 
-          <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
-                <Terminal className="h-4 w-4 text-cyan-300" />
+          <article className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b]/55 overflow-hidden shadow-xs">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-transparent">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+                <Terminal className="h-4 w-4 text-teal-600 dark:text-cyan-300" />
                 Main.java
               </h2>
               <div className="flex items-center gap-2">
-                <span className="hidden rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-cyan-200 sm:inline-flex">
+                <span className="hidden rounded-lg border border-teal-500/20 bg-teal-500/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-cyan-200 sm:inline-flex">
                   Typing only
                 </span>
                 <button
                   type="button"
                   onClick={resetCode}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-white/70 transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
                 >
                   <RotateCcw className="h-4 w-4" />
                   Reset
@@ -589,9 +589,9 @@ export default function KnowledgeAssistSandboxPage() {
                   type="button"
                   onClick={runCode}
                   disabled={running || !code.trim()}
-                  className="inline-flex items-center gap-2 rounded-lg border border-teal-400/30 bg-teal-400 px-4 py-2 text-sm font-bold text-[#08111f] transition-colors hover:bg-teal-300 disabled:cursor-wait disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-lg border border-teal-500/30 bg-teal-600 hover:bg-teal-500 px-4 py-2 text-sm font-bold text-white transition-colors disabled:cursor-wait disabled:opacity-60 shadow-xs"
                 >
-                  <Play className="h-4 w-4" />
+                  <Play className="h-4 w-4 fill-current" />
                   {running ? "Running..." : "Run code"}
                 </button>
               </div>
@@ -612,20 +612,20 @@ export default function KnowledgeAssistSandboxPage() {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
-              className="min-h-[360px] w-full resize-y border-0 bg-[#050A16] p-4 font-mono text-sm leading-6 text-cyan-50 outline-none placeholder:text-white/30"
+              className="min-h-[360px] w-full resize-y border-0 bg-slate-50/50 dark:bg-[#050A16] p-4 font-mono text-sm leading-6 text-slate-900 dark:text-cyan-50 outline-none placeholder:text-slate-400 dark:placeholder:text-white/30"
             />
           </article>
 
-          <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+          <article className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b]/55 p-4 shadow-xs">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <h2 className="text-lg font-semibold text-white">Result</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Result</h2>
 
               {runStatus && (
                 <span
                   className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
                     runStatus === "passed"
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                      : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+                      : "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
                   }`}
                 >
                   {runStatus === "passed" ? (
@@ -643,27 +643,27 @@ export default function KnowledgeAssistSandboxPage() {
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-              <div className="rounded-xl border border-white/10 bg-[#0F172A] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+              <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/40">
                   Output
                 </p>
-                <pre className="mt-2 min-h-24 whitespace-pre-wrap font-mono text-sm text-white/75">
+                <pre className="mt-2 min-h-24 whitespace-pre-wrap font-mono text-sm text-slate-800 dark:text-white/75">
                   {result?.output ?? "Run your code to see output."}
                 </pre>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-[#0F172A] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+              <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-white/40">
                   Error
                 </p>
-                <pre className="mt-2 min-h-24 whitespace-pre-wrap font-mono text-sm text-red-200">
+                <pre className="mt-2 min-h-24 whitespace-pre-wrap font-mono text-sm text-red-600 dark:text-red-200">
                   {result?.error ?? "No error yet."}
                 </pre>
               </div>
             </div>
 
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-white/55">
+              <p className="text-sm text-slate-600 dark:text-white/55">
                 {runStatus === "passed"
                   ? "Move to another question or keep experimenting with your solution."
                   : "Edit the code and retry until the output matches the expected answer."}
@@ -673,7 +673,7 @@ export default function KnowledgeAssistSandboxPage() {
                 <button
                   type="button"
                   onClick={retry}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                  className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-white/70 transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
                 >
                   Try again
                 </button>
@@ -682,7 +682,7 @@ export default function KnowledgeAssistSandboxPage() {
                   onClick={() =>
                     selectChallenge((challengeIndex + 1) % challenges.length)
                   }
-                  className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-400/15 hover:text-white"
+                  className="rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-sm font-semibold text-teal-800 dark:text-cyan-100 transition-colors hover:bg-teal-500/20"
                 >
                   Next question
                 </button>
@@ -710,12 +710,12 @@ function ReviewProgressBanner({
 
   return (
     <section
-      className={`sticky top-3 z-30 rounded-2xl border p-4 backdrop-blur-xl ${
+      className={`sticky top-3 z-30 rounded-2xl border p-4 backdrop-blur-xl shadow-xs ${
         running
-          ? "border-cyan-400/30 bg-cyan-950/85 shadow-[0_0_26px_rgba(34,211,238,0.16)]"
+          ? "border-cyan-500/30 bg-cyan-50/85 dark:bg-cyan-950/85 shadow-[0_0_26px_rgba(34,211,238,0.12)]"
           : completed
-            ? "border-emerald-400/30 bg-emerald-950/85 shadow-[0_0_22px_rgba(52,211,153,0.12)]"
-            : "border-amber-400/30 bg-amber-950/85 shadow-[0_0_22px_rgba(251,191,36,0.12)]"
+            ? "border-emerald-500/30 bg-emerald-50/85 dark:bg-emerald-950/85 shadow-[0_0_22px_rgba(52,211,153,0.12)]"
+            : "border-amber-500/30 bg-amber-50/85 dark:bg-amber-950/85 shadow-[0_0_22px_rgba(251,191,36,0.12)]"
       }`}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -723,10 +723,10 @@ function ReviewProgressBanner({
           <span
             className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
               running
-                ? "border-cyan-300/35 bg-cyan-300/10 text-cyan-200"
+                ? "border-cyan-500/35 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200"
                 : completed
-                  ? "border-emerald-300/35 bg-emerald-300/10 text-emerald-200"
-                  : "border-amber-300/35 bg-amber-300/10 text-amber-200"
+                  ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                  : "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-200"
             }`}
           >
             {running ? (
@@ -738,17 +738,17 @@ function ReviewProgressBanner({
             )}
           </span>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-700 dark:text-white/60">
               Repository Forensics
             </p>
-            <h2 className="mt-1 text-xl font-black text-white">
+            <h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white">
               {running
                 ? "GitHub review running in Forensics"
                 : completed
                   ? "Review completed"
                   : "Review finished with issues"}
             </h2>
-            <p className="mt-1 text-sm text-white/60">
+            <p className="mt-1 text-sm text-slate-600 dark:text-white/60">
               Keep practicing Java while Mentora reviews your repositories.
             </p>
           </div>
@@ -762,7 +762,7 @@ function ReviewProgressBanner({
           </div>
           <Link
             href={forensicsHref}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-white/15"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 dark:border-white/10 dark:bg-white/10 px-4 py-3 text-sm font-bold text-cyan-800 dark:text-white transition-colors hover:bg-cyan-500/20 dark:hover:bg-white/15"
           >
             View Forensics results
             <ArrowRight className="h-4 w-4" />
@@ -775,9 +775,9 @@ function ReviewProgressBanner({
 
 function ReviewCount({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-20 rounded-xl border border-white/10 bg-[#0F172A]/70 px-3 py-2">
-      <p className="text-lg font-black text-white">{value}</p>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+    <div className="min-w-20 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0F172A]/70 px-3 py-2 shadow-xs">
+      <p className="text-lg font-black text-slate-900 dark:text-white">{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-white/40">
         {label}
       </p>
     </div>

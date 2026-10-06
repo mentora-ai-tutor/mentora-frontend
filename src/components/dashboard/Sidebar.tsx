@@ -91,17 +91,17 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
 
   return (
     <aside
-      className={`fixed lg:static inset-y-0 left-0 z-40 bg-[#0B1121] border-r border-white/5 transition-all duration-300 ease-in-out flex flex-col ${
+      className={`fixed lg:static inset-y-0 left-0 z-40 bg-white dark:bg-[#0B1121] border-r border-slate-200 dark:border-white/5 transition-all duration-300 ease-in-out flex flex-col ${
         sidebarOpen ? "w-64 translate-x-0" : "w-0 -translate-x-full lg:w-20 lg:translate-x-0"
       }`}
     >
-      <div className="h-16 flex items-center justify-between px-2 border-b border-white/5 shrink-0">
+      <div className="h-16 flex items-center justify-between px-2 border-b border-slate-200 dark:border-white/5 shrink-0">
         <div className={`overflow-hidden transition-all ${!sidebarOpen && "lg:hidden"}`}>
           <MentoraLogo size="sm" />
         </div>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all shrink-0 ${!sidebarOpen && "lg:mx-auto"}`}
+          className={`p-2 rounded-lg text-slate-400 dark:text-white/40 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-all shrink-0 ${!sidebarOpen && "lg:mx-auto"}`}
           title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           <div className="relative w-5 h-5">
@@ -113,7 +113,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
             />
           </div>
         </button>
-        <button onClick={onMobileClose} className="lg:hidden text-white/50 hover:text-white">
+        <button onClick={onMobileClose} className="lg:hidden text-slate-400 dark:text-white/50 hover:text-slate-700 dark:hover:text-white">
           <X className="w-5 h-5" />
         </button>
       </div>
@@ -156,8 +156,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
                     ${reviewGuided
                       ? "scale-[1.03] border-cyan-300/35 bg-cyan-400/15 text-cyan-100 shadow-[0_0_26px_rgba(34,211,238,0.28)]"
                       : active
-                      ? "border-teal-500/20 bg-teal-500/10 text-teal-400 shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
-                      : "border-transparent text-white/60 hover:bg-[#334155]/30 hover:text-teal-200"
+                      ? "border-teal-500/20 bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 shadow-sm dark:shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
+                      : "border-transparent text-slate-600 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-[#334155]/30 hover:text-teal-700 dark:hover:text-teal-200"
                     }
                   `}
                   title={!sidebarOpen ? (reviewGuided ? "Review running - open Sandbox" : item.name) : undefined}
@@ -196,8 +196,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
                           ${sandboxGuided
                             ? "bg-cyan-400/15 text-cyan-100 ring-1 ring-cyan-300/30 shadow-[0_0_18px_rgba(34,211,238,0.22)]"
                             : isSubActive(subItem.href)
-                            ? "bg-teal-500/10 text-teal-300"
-                            : "text-white/50 hover:text-teal-200 hover:bg-[#334155]/30"
+                            ? "bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-300 font-medium"
+                            : "text-slate-500 dark:text-white/50 hover:text-teal-700 dark:hover:text-teal-200 hover:bg-slate-100 dark:hover:bg-[#334155]/30"
                           }
                         `}
                       >
@@ -216,8 +216,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
               href={item.href!}
               className={`relative flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 group
                 ${active
-                  ? "bg-teal-500/10 text-teal-400 shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
-                  : "text-white/60 hover:bg-[#334155]/30 hover:text-teal-200"
+                  ? "bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 shadow-sm dark:shadow-[inset_0_0_20px_rgba(13,148,136,0.1)]"
+                  : "text-slate-600 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-[#334155]/30 hover:text-teal-700 dark:hover:text-teal-200"
                 }
               `}
               title={!sidebarOpen ? item.name : undefined}
@@ -234,15 +234,15 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/5 space-y-1.5 shrink-0">
+      <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-1.5 shrink-0">
         <GitHubStatusControl sidebarOpen={sidebarOpen} />
-        <Link href="/settings" className={`flex items-center gap-3 px-3 py-3 rounded-xl text-white/50 hover:bg-[#334155]/30 hover:text-white transition-all group`}>
+        <Link href="/settings" className={`flex items-center gap-3 px-3 py-3 rounded-xl text-slate-500 dark:text-white/50 hover:bg-slate-100 dark:hover:bg-[#334155]/30 hover:text-slate-900 dark:hover:text-white transition-all group`}>
           <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
           <span className={`font-medium text-sm whitespace-nowrap ${!sidebarOpen && "lg:hidden"}`}>Settings</span>
         </Link>
         <button
           onClick={async () => { await logout(); router.push("/login"); }}
-          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-white/50 hover:bg-red-500/10 hover:text-red-400 transition-all group`}
+          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-500 dark:text-white/50 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-all group`}
         >
           <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className={`font-medium text-sm whitespace-nowrap ${!sidebarOpen && "lg:hidden"}`}>Logout</span>
