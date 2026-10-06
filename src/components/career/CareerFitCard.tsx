@@ -49,40 +49,40 @@ export default function CareerFitCard({ studentId }: { studentId: string }) {
   };
 
   return (
-    <section className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-[#1e1b4b]/60 to-[#1e293b]/55 p-5">
+    <section className="rounded-2xl border border-violet-500/30 dark:border-violet-400/20 bg-gradient-to-br from-violet-50/70 via-slate-50 to-indigo-50/60 dark:from-[#1e1b4b]/60 dark:to-[#1e293b]/55 p-5 shadow-xs">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <div className="inline-flex rounded-xl border border-violet-400/25 bg-violet-400/10 p-2 text-violet-200">
+          <div className="inline-flex rounded-xl border border-violet-500/30 dark:border-violet-400/25 bg-violet-500/10 p-2 text-violet-700 dark:text-violet-200">
             <Compass className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-300">
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
               Career Fit
             </p>
-            <h2 className="text-xl font-black text-white">Where your skills point</h2>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">Where your skills point</h2>
           </div>
         </div>
-        <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-semibold text-white/45">
+        <span className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 px-2 py-1 text-[11px] font-semibold text-slate-600 dark:text-white/45">
           {prediction?.model_version ? `model ${prediction.model_version}` : "hand-made model"}
         </span>
       </div>
 
       {loading && (
-        <div className="mt-5 flex items-center gap-3 text-white/65">
-          <CircleDashed className="h-5 w-5 animate-spin text-violet-300" />
+        <div className="mt-5 flex items-center gap-3 text-slate-600 dark:text-white/65">
+          <CircleDashed className="h-5 w-5 animate-spin text-violet-600 dark:text-violet-300" />
           Predicting your best-fit role...
         </div>
       )}
 
       {!loading && error && (
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-100">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-100">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
           <span>{error}</span>
         </div>
       )}
 
       {!loading && prediction && !prediction.best_fit_role && (
-        <p className="mt-4 rounded-xl border border-white/10 bg-[#0F172A] p-4 text-sm text-white/60">
+        <p className="mt-4 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0F172A] p-4 text-sm text-slate-600 dark:text-white/60">
           {prediction.note || "Not enough signal yet — complete a quiz or analysis first."}
         </p>
       )}
@@ -90,23 +90,23 @@ export default function CareerFitCard({ studentId }: { studentId: string }) {
       {!loading && prediction && prediction.best_fit_role && (
         <div className="mt-4 space-y-4">
           {/* headline + best fit */}
-          <div className="rounded-xl border border-violet-400/20 bg-[#0F172A] p-4">
+          <div className="rounded-xl border border-violet-500/25 dark:border-violet-400/20 bg-white dark:bg-[#0F172A] p-4 shadow-xs">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
-                <Briefcase className="h-6 w-6 text-violet-300" />
+                <Briefcase className="h-6 w-6 text-violet-600 dark:text-violet-300" />
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-white/40">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
                     Best-fit role
                   </p>
-                  <p className="text-lg font-black text-white">{prediction.best_fit_role}</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{prediction.best_fit_role}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-lg border border-violet-400/25 bg-violet-400/10 px-3 py-1.5 text-sm font-black text-violet-100">
+                <span className="rounded-lg border border-violet-500/30 dark:border-violet-400/25 bg-violet-500/10 px-3 py-1.5 text-sm font-black text-violet-800 dark:text-violet-100">
                   {pct(prediction.ranked_roles[0]?.fit_score)} fit
                 </span>
                 {prediction.readiness_level && (
-                  <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-sm font-bold text-emerald-200">
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 dark:border-emerald-400/25 bg-emerald-500/10 px-3 py-1.5 text-sm font-bold text-emerald-700 dark:text-emerald-200">
                     <Award className="h-3.5 w-3.5" />
                     {prediction.readiness_level}
                   </span>
@@ -114,27 +114,27 @@ export default function CareerFitCard({ studentId }: { studentId: string }) {
               </div>
             </div>
             {prediction.narrative?.headline && (
-              <p className="mt-3 text-sm leading-6 text-white/70">{prediction.narrative.headline}</p>
+              <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-white/70">{prediction.narrative.headline}</p>
             )}
             {!prediction.evidence_sufficient && prediction.note && (
-              <p className="mt-2 text-xs text-amber-200/80">{prediction.note}</p>
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-200/80">{prediction.note}</p>
             )}
           </div>
 
           {/* ranked roles */}
-          <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Top role matches</p>
+          <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0F172A] p-4 shadow-xs">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">Top role matches</p>
             <div className="mt-3 space-y-2">
               {prediction.ranked_roles.map((r, i) => (
                 <div key={r.role} className="flex items-center gap-3">
-                  <span className="w-44 shrink-0 truncate text-sm text-white/75">{r.role}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <span className="w-44 shrink-0 truncate text-sm text-slate-800 dark:text-white/75">{r.role}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                     <div
-                      className={`h-full rounded-full ${i === 0 ? "bg-violet-400" : "bg-violet-400/40"}`}
+                      className={`h-full rounded-full ${i === 0 ? "bg-violet-600 dark:bg-violet-400" : "bg-violet-400/60 dark:bg-violet-400/40"}`}
                       style={{ width: pct(r.fit_score) }}
                     />
                   </div>
-                  <span className="w-12 shrink-0 text-right text-xs font-bold text-white/60">
+                  <span className="w-12 shrink-0 text-right text-xs font-bold text-slate-600 dark:text-white/60">
                     {pct(r.fit_score)}
                   </span>
                 </div>
@@ -144,8 +144,8 @@ export default function CareerFitCard({ studentId }: { studentId: string }) {
 
           {/* why + gaps */}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="rounded-xl border border-emerald-400/20 bg-[#0F172A] p-4">
-              <p className="flex items-center gap-2 text-sm font-bold text-emerald-200">
+            <div className="rounded-xl border border-emerald-500/25 dark:border-emerald-400/20 bg-white dark:bg-[#0F172A] p-4 shadow-xs">
+              <p className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-200">
                 <Sparkles className="h-4 w-4" /> Why you fit
               </p>
               {prediction.matched_competencies.length > 0 && (
@@ -153,33 +153,33 @@ export default function CareerFitCard({ studentId }: { studentId: string }) {
                   {prediction.matched_competencies.map((c) => (
                     <span
                       key={c}
-                      className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-100"
+                      className="rounded-md border border-emerald-500/30 dark:border-emerald-400/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-100"
                     >
                       {c}
                     </span>
                   ))}
                 </div>
               )}
-              <ul className="mt-3 space-y-1.5 text-xs leading-5 text-white/65">
+              <ul className="mt-3 space-y-1.5 text-xs leading-5 text-slate-700 dark:text-white/65">
                 {(prediction.narrative?.why_fit || []).map((w, i) => (
                   <li key={i}>• {w}</li>
                 ))}
               </ul>
             </div>
 
-            <div className="rounded-xl border border-amber-400/20 bg-[#0F172A] p-4">
-              <p className="flex items-center gap-2 text-sm font-bold text-amber-200">
+            <div className="rounded-xl border border-amber-500/25 dark:border-amber-400/20 bg-white dark:bg-[#0F172A] p-4 shadow-xs">
+              <p className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-200">
                 <TrendingUp className="h-4 w-4" /> Close these gaps
               </p>
               <div className="mt-2 space-y-2">
                 {prediction.missing_competencies.length ? (
                   prediction.missing_competencies.map((g) => <GapBar key={g.axis} gap={g} />)
                 ) : (
-                  <p className="text-xs text-white/55">No significant gaps for this role — nice.</p>
+                  <p className="text-xs text-slate-500 dark:text-white/55">No significant gaps for this role — nice.</p>
                 )}
               </div>
               {(prediction.narrative?.gap_plan || []).length > 0 && (
-                <ul className="mt-3 space-y-1.5 border-t border-white/10 pt-3 text-xs leading-5 text-white/65">
+                <ul className="mt-3 space-y-1.5 border-t border-slate-200 dark:border-white/10 pt-3 text-xs leading-5 text-slate-700 dark:text-white/65">
                   {prediction.narrative!.gap_plan.map((p, i) => (
                     <li key={i}>→ {p}</li>
                   ))}
@@ -191,35 +191,35 @@ export default function CareerFitCard({ studentId }: { studentId: string }) {
           {/* aspiration */}
           <form
             onSubmit={submitGoal}
-            className="rounded-xl border border-white/10 bg-[#0F172A] p-4"
+            className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0F172A] p-4 shadow-xs"
           >
-            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40">
-              <Target className="h-4 w-4 text-cyan-300" /> Have a goal role?
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">
+              <Target className="h-4 w-4 text-cyan-600 dark:text-cyan-300" /> Have a goal role?
             </p>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <input
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 placeholder="e.g. Backend Engineer"
-                className="h-9 flex-1 rounded-lg border border-white/10 bg-[#050816] px-3 text-sm text-white outline-none focus:border-cyan-400/45"
+                className="h-9 flex-1 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#050816] px-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/40 outline-none focus:border-cyan-500"
               />
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-4 text-sm font-bold text-cyan-100 transition hover:bg-cyan-400/15"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-4 text-sm font-bold text-cyan-800 dark:text-cyan-100 transition hover:bg-cyan-500/20"
               >
                 Check fit
               </button>
             </div>
 
             {prediction.aspiration_alignment && (
-              <div className="mt-3 rounded-lg border border-cyan-400/15 bg-cyan-400/5 p-3">
-                <p className="text-sm text-white/75">
+              <div className="mt-3 rounded-lg border border-cyan-500/20 dark:border-cyan-400/15 bg-cyan-50 dark:bg-cyan-400/5 p-3">
+                <p className="text-sm text-slate-700 dark:text-white/75">
                   Toward{" "}
-                  <span className="font-bold text-cyan-200">
+                  <span className="font-bold text-cyan-800 dark:text-cyan-200">
                     {prediction.aspiration_alignment.stated_role}
                   </span>
                   : you&apos;re at{" "}
-                  <span className="font-bold text-white">
+                  <span className="font-bold text-slate-900 dark:text-white">
                     {pct(prediction.aspiration_alignment.fit_to_stated)}
                   </span>
                   {prediction.aspiration_alignment.est_hours_to_ready > 0 && (
@@ -242,7 +242,7 @@ export default function CareerFitCard({ studentId }: { studentId: string }) {
             )}
           </form>
 
-          <p className="text-[11px] leading-4 text-white/35">
+          <p className="text-[11px] leading-4 text-slate-500 dark:text-white/35">
             A hand-made model decides this from your measured competencies; the explanation is
             AI-written. Suitability + a roadmap — never a hard gate.
           </p>
@@ -255,19 +255,19 @@ export default function CareerFitCard({ studentId }: { studentId: string }) {
 function GapBar({ gap }: { gap: CompetencyGap }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-40 shrink-0 truncate text-xs text-white/70">{gap.axis_name}</span>
-      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+      <span className="w-40 shrink-0 truncate text-xs text-slate-700 dark:text-white/70">{gap.axis_name}</span>
+      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-amber-400/70"
+          className="absolute inset-y-0 left-0 rounded-full bg-amber-500 dark:bg-amber-400/70"
           style={{ width: pct(gap.your_score) }}
         />
         <div
-          className="absolute inset-y-0 w-0.5 bg-white/60"
+          className="absolute inset-y-0 w-0.5 bg-slate-900 dark:bg-white/60"
           style={{ left: pct(gap.required_score) }}
           title="required"
         />
       </div>
-      <span className="w-10 shrink-0 text-right text-[11px] font-bold text-amber-200">
+      <span className="w-10 shrink-0 text-right text-[11px] font-bold text-amber-700 dark:text-amber-200">
         {pct(gap.your_score)}
       </span>
     </div>

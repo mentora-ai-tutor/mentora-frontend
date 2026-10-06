@@ -25,27 +25,27 @@ import {
 import { ReviewJob, ReviewRepoResult } from "@/lib/api/review";
 
 const statusTone = {
-  running: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
-  done: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  partial: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-  failed: "border-red-400/30 bg-red-400/10 text-red-200",
-  queued: "border-white/10 bg-white/5 text-white/45",
-  error: "border-red-400/30 bg-red-400/10 text-red-200",
+  running: "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200",
+  done: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200",
+  partial: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-200",
+  failed: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-200",
+  queued: "border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-white/45",
+  error: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-200",
 } as const;
 
 const difficultyTone: Record<string, string> = {
-  easy: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  medium: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
-  hard: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+  easy: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200",
+  medium: "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200",
+  hard: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-200",
 };
 
 const pct01 = (value: number) => `${Math.round((value ?? 0) * 100)}%`;
 const pct100 = (value: number) => `${Math.round(value ?? 0)}%`;
 
 function toneFor(pct: number) {
-  if (pct >= 70) return { text: "text-emerald-300", bar: "from-emerald-500 to-teal-400" };
-  if (pct >= 40) return { text: "text-amber-300", bar: "from-amber-500 to-amber-400" };
-  return { text: "text-rose-300", bar: "from-rose-500 to-rose-400" };
+  if (pct >= 70) return { text: "text-emerald-700 dark:text-emerald-300", bar: "from-emerald-500 to-teal-400" };
+  if (pct >= 40) return { text: "text-amber-700 dark:text-amber-300", bar: "from-amber-500 to-amber-400" };
+  return { text: "text-rose-700 dark:text-rose-300", bar: "from-rose-500 to-rose-400" };
 }
 
 const formatDateTime = (value?: string) => {
@@ -675,7 +675,7 @@ function EmptyProfileState() {
         </Link>
         <Link
           href="/knowledge-assist/forensics"
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-bold text-cyan-100 transition-colors hover:bg-cyan-400/15"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-800 dark:text-cyan-100 transition-colors hover:bg-cyan-500/20"
         >
           Open Forensics
           <ArrowRight className="h-4 w-4" />

@@ -22,22 +22,22 @@ import {
 } from "@/lib/api/quiz";
 
 const sourceStyle: Record<QuizSource, string> = {
-  generated: "border-teal-500/30 bg-teal-500/10 text-teal-200",
-  seed: "border-amber-500/30 bg-amber-500/10 text-amber-200",
-  mixed: "border-cyan-500/30 bg-cyan-500/10 text-cyan-200",
+  generated: "border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-200",
+  seed: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-200",
+  mixed: "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200",
 };
 
 const difficultyText: Record<string, string> = {
-  easy: "text-emerald-200",
-  medium: "text-cyan-200",
-  hard: "text-amber-200",
+  easy: "text-emerald-700 dark:text-emerald-300 font-bold",
+  medium: "text-cyan-700 dark:text-cyan-300 font-bold",
+  hard: "text-amber-700 dark:text-amber-300 font-bold",
 };
 
 function ReadOnlyQuestion({ question }: { question: ClientQuestion }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+    <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A] p-4 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-white/40">
           {question.topic}
           {question.type === "predict_output" ? " · predict the output" : ""}
         </p>
@@ -45,11 +45,11 @@ function ReadOnlyQuestion({ question }: { question: ClientQuestion }) {
           {question.difficulty}
         </span>
       </div>
-      <p className="mt-2 text-sm font-semibold leading-6 text-white">
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-900 dark:text-white">
         {question.question}
       </p>
       {question.code_snippet && (
-        <pre className="mt-3 overflow-x-auto rounded-lg border border-white/10 bg-[#050A16] p-3 font-mono text-xs leading-5 text-cyan-50">
+        <pre className="mt-3 overflow-x-auto rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#050A16] p-3 font-mono text-xs leading-5 text-slate-900 dark:text-cyan-50">
           {question.code_snippet}
         </pre>
       )}
@@ -57,12 +57,12 @@ function ReadOnlyQuestion({ question }: { question: ClientQuestion }) {
         {question.options.map((option) => (
           <div
             key={option.id}
-            className="flex w-full items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left text-sm text-white/70"
+            className="flex w-full items-start gap-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] p-3 text-left text-sm text-slate-700 dark:text-white/70"
           >
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-current text-[11px] font-bold">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-300 dark:border-current text-[11px] font-bold text-slate-800 dark:text-inherit">
               {option.id}
             </span>
-            <span className="min-w-0 flex-1 break-words font-mono">{option.text}</span>
+            <span className="min-w-0 flex-1 break-words font-mono text-slate-800 dark:text-white/80">{option.text}</span>
           </div>
         ))}
       </div>
@@ -72,14 +72,14 @@ function ReadOnlyQuestion({ question }: { question: ClientQuestion }) {
 
 function SetView({ view }: { view: QuestionSetView }) {
   return (
-    <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-[#0F172A]/60 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-white/50">
+    <div className="mt-3 space-y-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-[#0F172A]/60 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-white/50">
         <span>
           {view.total_questions} question{view.total_questions === 1 ? "" : "s"} ·{" "}
           {view.topics.length} topic{view.topics.length === 1 ? "" : "s"} covered
         </span>
         {view.status === "completed" && view.results && (
-          <span className="inline-flex items-center gap-1 text-teal-200">
+          <span className="inline-flex items-center gap-1 font-semibold text-teal-700 dark:text-teal-200">
             <CheckCircle2 className="h-3.5 w-3.5" />
             {view.results.score_percent}% · {view.results.correct}/{view.results.total}
           </span>
@@ -171,12 +171,12 @@ export default function KnowledgeAssistAssessmentPage() {
     <div className="space-y-4 pb-4">
       <section className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-teal-400/30 bg-teal-400/10 text-teal-200">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-200">
             <Brain className="h-6 w-6" />
           </span>
           <div>
-            <h1 className="text-3xl font-black text-white">Java Skill Check</h1>
-            <p className="text-sm text-white/50">
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white">Java Skill Check</h1>
+            <p className="text-sm text-slate-600 dark:text-white/50">
               Comprehensive assessment spanning every concept in the Java syllabus.
             </p>
           </div>
@@ -191,13 +191,13 @@ export default function KnowledgeAssistAssessmentPage() {
       />
 
       {retake && (
-        <section className="rounded-2xl border border-teal-400/20 bg-[#1e293b]/55 p-4">
+        <section className="rounded-2xl border border-teal-500/30 dark:border-teal-400/20 bg-white dark:bg-[#1e293b]/55 p-4 shadow-xs">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-300">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-700 dark:text-teal-300">
                 Retaking saved assessment
               </p>
-              <h3 className="text-lg font-black text-white">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
                 Answer the saved set again
               </h3>
             </div>
@@ -207,14 +207,14 @@ export default function KnowledgeAssistAssessmentPage() {
                 setRetake(null);
                 loadSets();
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-white/70 transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
             >
               <X className="h-3.5 w-3.5" />
               Close retake
             </button>
           </div>
           {retakeError && (
-            <p className="mb-3 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-100">
+            <p className="mb-3 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-100">
               {retakeError}
             </p>
           )}
@@ -229,20 +229,20 @@ export default function KnowledgeAssistAssessmentPage() {
         </section>
       )}
 
-      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+      <section className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b]/55 p-4 shadow-xs">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-xl font-bold text-white">
-            <Database className="h-5 w-5 text-cyan-300" />
+          <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
+            <Database className="h-5 w-5 text-cyan-600 dark:text-cyan-300" />
             Previous assessments
           </h2>
           <div className="flex items-center gap-2">
             {listError && (
-              <p className="max-w-xs truncate text-xs text-red-300">{listError}</p>
+              <p className="max-w-xs truncate text-xs text-red-600 dark:text-red-300">{listError}</p>
             )}
             <button
               type="button"
               onClick={loadSets}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-white/70 transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loadingSets ? "animate-spin" : ""}`} />
               Refresh
@@ -250,15 +250,15 @@ export default function KnowledgeAssistAssessmentPage() {
           </div>
         </div>
 
-        <p className="mt-1 text-sm text-white/45">
+        <p className="mt-1 text-sm text-slate-600 dark:text-white/50">
           Every set you generate is stored in the database — open one to see its
           questions again, retake it, or regenerate a fresh set above.
         </p>
 
         {sets.length === 0 && !loadingSets && (
-          <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 bg-[#0F172A]/50 p-8 text-center">
-            <FileQuestion className="h-7 w-7 text-white/25" />
-            <p className="text-sm text-white/45">
+          <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A]/50 p-8 text-center">
+            <FileQuestion className="h-7 w-7 text-slate-400 dark:text-white/25" />
+            <p className="text-sm text-slate-600 dark:text-white/50">
               No assessments yet. Click “Start skill check” above to generate your
               first set — it will appear here automatically.
             </p>
@@ -271,17 +271,17 @@ export default function KnowledgeAssistAssessmentPage() {
             return (
               <div
                 key={set.session_id}
-                className="rounded-xl border border-white/10 bg-[#0F172A]"
+                className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A] shadow-xs"
               >
                 <div className="flex items-stretch">
                   <button
                     type="button"
                     onClick={() => openSet(set.session_id)}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-white/[0.03]"
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-slate-100/70 dark:hover:bg-white/[0.03]"
                   >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-white">
+                      <p className="font-semibold text-slate-900 dark:text-white">
                         {new Date(set.created_at).toLocaleString()}
                       </p>
                       <span
@@ -290,12 +290,12 @@ export default function KnowledgeAssistAssessmentPage() {
                         {set.source}
                       </span>
                       {set.status === "completed" && (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-200">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-200">
                           <CheckCircle2 className="h-3 w-3" /> completed
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-white/45">
+                    <p className="mt-1 text-xs text-slate-600 dark:text-white/50">
                       {set.total_questions} questions across {set.covered_count} topic
                       {set.covered_count === 1 ? "" : "s"}
                       {set.status === "completed" && set.score_percent !== null
@@ -309,7 +309,7 @@ export default function KnowledgeAssistAssessmentPage() {
                     type="button"
                     onClick={() => startRetake(set.session_id)}
                     disabled={retakingId === set.session_id}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-teal-400/30 bg-teal-400/10 px-3 py-1.5 text-xs font-semibold text-teal-100 transition-colors hover:bg-teal-400/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-semibold text-teal-800 dark:text-teal-100 transition-colors hover:bg-teal-500/20 hover:text-teal-900 dark:hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {retakingId === set.session_id ? (
                       <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -322,7 +322,7 @@ export default function KnowledgeAssistAssessmentPage() {
                     type="button"
                     onClick={() => openSet(set.session_id)}
                     aria-label={isOpen ? "Close questions" : "Show questions"}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white/50 transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
                   >
                     {openingId === set.session_id ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />
@@ -337,7 +337,7 @@ export default function KnowledgeAssistAssessmentPage() {
                 {isOpen && (openView?.session_id === set.session_id ? (
                   <SetView view={openView} />
                 ) : (
-                  <p className="px-4 pb-4 text-xs text-white/40">Loading questions…</p>
+                  <p className="px-4 pb-4 text-xs text-slate-500 dark:text-white/40">Loading questions…</p>
                 ))}
               </div>
             );
@@ -345,7 +345,7 @@ export default function KnowledgeAssistAssessmentPage() {
         </div>
 
         {sets.length > 0 && (
-          <p className="mt-3 flex items-center gap-1.5 text-[11px] text-white/35">
+          <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-white/40">
             <Sparkles className="h-3.5 w-3.5" />
             Answer options are shown as stored. Regenerating creates a brand-new set —
             previous sets stay saved.

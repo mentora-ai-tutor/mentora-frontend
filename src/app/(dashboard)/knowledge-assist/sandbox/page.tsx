@@ -710,12 +710,12 @@ function ReviewProgressBanner({
 
   return (
     <section
-      className={`sticky top-3 z-30 rounded-2xl border p-4 backdrop-blur-xl ${
+      className={`sticky top-3 z-30 rounded-2xl border p-4 backdrop-blur-xl shadow-xs ${
         running
-          ? "border-cyan-400/30 bg-cyan-950/85 shadow-[0_0_26px_rgba(34,211,238,0.16)]"
+          ? "border-cyan-500/30 bg-cyan-50/85 dark:bg-cyan-950/85 shadow-[0_0_26px_rgba(34,211,238,0.12)]"
           : completed
-            ? "border-emerald-400/30 bg-emerald-950/85 shadow-[0_0_22px_rgba(52,211,153,0.12)]"
-            : "border-amber-400/30 bg-amber-950/85 shadow-[0_0_22px_rgba(251,191,36,0.12)]"
+            ? "border-emerald-500/30 bg-emerald-50/85 dark:bg-emerald-950/85 shadow-[0_0_22px_rgba(52,211,153,0.12)]"
+            : "border-amber-500/30 bg-amber-50/85 dark:bg-amber-950/85 shadow-[0_0_22px_rgba(251,191,36,0.12)]"
       }`}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -723,10 +723,10 @@ function ReviewProgressBanner({
           <span
             className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
               running
-                ? "border-cyan-300/35 bg-cyan-300/10 text-cyan-200"
+                ? "border-cyan-500/35 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200"
                 : completed
-                  ? "border-emerald-300/35 bg-emerald-300/10 text-emerald-200"
-                  : "border-amber-300/35 bg-amber-300/10 text-amber-200"
+                  ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                  : "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-200"
             }`}
           >
             {running ? (
@@ -738,17 +738,17 @@ function ReviewProgressBanner({
             )}
           </span>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-700 dark:text-white/60">
               Repository Forensics
             </p>
-            <h2 className="mt-1 text-xl font-black text-white">
+            <h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white">
               {running
                 ? "GitHub review running in Forensics"
                 : completed
                   ? "Review completed"
                   : "Review finished with issues"}
             </h2>
-            <p className="mt-1 text-sm text-white/60">
+            <p className="mt-1 text-sm text-slate-600 dark:text-white/60">
               Keep practicing Java while Mentora reviews your repositories.
             </p>
           </div>
@@ -762,7 +762,7 @@ function ReviewProgressBanner({
           </div>
           <Link
             href={forensicsHref}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-white/15"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 dark:border-white/10 dark:bg-white/10 px-4 py-3 text-sm font-bold text-cyan-800 dark:text-white transition-colors hover:bg-cyan-500/20 dark:hover:bg-white/15"
           >
             View Forensics results
             <ArrowRight className="h-4 w-4" />
@@ -775,9 +775,9 @@ function ReviewProgressBanner({
 
 function ReviewCount({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-20 rounded-xl border border-white/10 bg-[#0F172A]/70 px-3 py-2">
-      <p className="text-lg font-black text-white">{value}</p>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+    <div className="min-w-20 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0F172A]/70 px-3 py-2 shadow-xs">
+      <p className="text-lg font-black text-slate-900 dark:text-white">{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-white/40">
         {label}
       </p>
     </div>
