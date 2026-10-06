@@ -91,25 +91,26 @@
   --lmg-bg-surface-elevated:   #f1f5f9;
   --lmg-bg-surface-hover:      #f8fafc;
   --lmg-bg-subtle:             #f1f5f9;
+  --lmg-bg-card-subtle:        #ffffff;
   --lmg-border:                #e2e8f0;
   --lmg-border-subtle:         #f1f5f9;
   --lmg-border-strong:         #cbd5e1;
   --lmg-text-primary:          #0f172a;
-  --lmg-text-secondary:        #475569;
-  --lmg-text-muted:            #64748b;
+  --lmg-text-secondary:        #334155;
+  --lmg-text-muted:            #475569;
   --lmg-code-bg:               #0f172a;
   --lmg-code-header:           #1e293b;
   --lmg-code-text:             #2dd4bf;
   --lmg-terminal-bg:           #0b1021;
-  --lmg-glass-bg:              rgba(255, 255, 255, 0.9);
-  --lmg-glass-border:          rgba(226, 232, 240, 0.8);
+  --lmg-glass-bg:              rgba(255, 255, 255, 0.95);
+  --lmg-glass-border:          rgba(226, 232, 240, 0.9);
   --lmg-input-bg:              #ffffff;
   --lmg-input-border:          #cbd5e1;
-  --lmg-hero-bg:               linear-gradient(135deg, #f0fdfa 0%, #ffffff 50%, #fffbeb 100%);
-  --lmg-hero-border:           rgba(13, 148, 136, 0.2);
+  --lmg-hero-bg:               linear-gradient(135deg, #f0fdfa 0%, #ffffff 50%, #f8fafc 100%);
+  --lmg-hero-border:           rgba(13, 148, 136, 0.25);
   --lmg-pill-bg:               #f1f5f9;
-  --lmg-pill-text:             #334155;
-  --lmg-pill-border:           #e2e8f0;
+  --lmg-pill-text:             #1e293b;
+  --lmg-pill-border:           #cbd5e1;
 }
 
 .dark {
@@ -163,6 +164,7 @@
   --lmg-bg-surface-elevated:   #1a2332;
   --lmg-bg-surface-hover:      #334155;
   --lmg-bg-subtle:             rgba(51, 65, 85, 0.3);
+  --lmg-bg-card-subtle:        rgba(255, 255, 255, 0.05);
   --lmg-border:                rgba(255, 255, 255, 0.1);
   --lmg-border-subtle:         rgba(255, 255, 255, 0.05);
   --lmg-border-strong:         rgba(255, 255, 255, 0.2);
@@ -265,6 +267,7 @@
   --color-lmg-bg-surface-elevated: var(--lmg-bg-surface-elevated);
   --color-lmg-bg-surface-hover:    var(--lmg-bg-surface-hover);
   --color-lmg-bg-subtle:           var(--lmg-bg-subtle);
+  --color-lmg-bg-card-subtle:      var(--lmg-bg-card-subtle);
   --color-lmg-border:              var(--lmg-border);
   --color-lmg-border-subtle:       var(--lmg-border-subtle);
   --color-lmg-border-strong:       var(--lmg-border-strong);
