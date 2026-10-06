@@ -348,26 +348,26 @@ export default function KnowledgeAssistForensicsPage() {
   return (
     <div className="space-y-4 pb-4">
       {/* ── HEADER ── */}
-      <section className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4">
+      <section className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b]/55 p-4 shadow-xs">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-300 font-bold">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-teal-700 dark:text-cyan-300 font-bold">
               Repository Forensics
             </p>
-            <h1 className="mt-1 text-2xl md:text-3xl font-black text-white">
+            <h1 className="mt-1 text-2xl md:text-3xl font-black text-slate-900 dark:text-white">
               Mentora Code Review Pipeline
             </h1>
-            <p className="mt-2 max-w-3xl text-sm text-white/55">
+            <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-white/55">
               Select up to five linked GitHub repositories. Mentora bundles source files server-side,
               reviews them through the Mentora AI expert review engine, and stores the report for recovery.
             </p>
           </div>
 
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
               GitHub connected
             </p>
-            <p className="mt-1 text-sm text-white">
+            <p className="mt-1 text-sm font-medium text-slate-800 dark:text-white">
               {githubLogin ? `@${githubLogin}` : "Linked account"}
             </p>
           </div>
@@ -382,9 +382,9 @@ export default function KnowledgeAssistForensicsPage() {
       )}
 
       {error && (
-        <section className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-100">
+        <section className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-100">
           <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-300" />
             <span>{error}</span>
           </div>
         </section>
@@ -393,13 +393,13 @@ export default function KnowledgeAssistForensicsPage() {
       {/* ── MAIN GRID ── */}
       <section className="grid grid-cols-1 xl:grid-cols-[390px_minmax(0,1fr)] gap-4">
         {/* ── REPO SELECTION PANEL ── */}
-        <article className="rounded-2xl border border-white/10 bg-[#1e293b]/55 p-4 flex flex-col">
+        <article className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1e293b]/55 p-4 flex flex-col shadow-xs">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
-              <GitBranch className="h-4 w-4 text-cyan-300" />
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+              <GitBranch className="h-4 w-4 text-teal-600 dark:text-cyan-300" />
               Repository Selection
             </h2>
-            <span className="rounded-lg border border-white/10 bg-[#0F172A] px-2 py-1 text-xs text-white/55">
+            <span className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0F172A] px-2 py-1 text-xs text-slate-600 dark:text-white/55">
               {selectedCount} / {MAX_SELECTED_REPOS}
             </span>
           </div>

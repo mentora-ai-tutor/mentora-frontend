@@ -98,10 +98,10 @@
   --lmg-text-primary:          #0f172a;
   --lmg-text-secondary:        #334155;
   --lmg-text-muted:            #475569;
-  --lmg-code-bg:               #0f172a;
-  --lmg-code-header:           #1e293b;
-  --lmg-code-text:             #2dd4bf;
-  --lmg-terminal-bg:           #0b1021;
+  --lmg-code-bg:               #ffffff;
+  --lmg-code-header:           #f8fafc;
+  --lmg-code-text:             #0f172a;
+  --lmg-terminal-bg:           #f8fafc;
   --lmg-glass-bg:              rgba(255, 255, 255, 0.95);
   --lmg-glass-border:          rgba(226, 232, 240, 0.9);
   --lmg-input-bg:              #ffffff;

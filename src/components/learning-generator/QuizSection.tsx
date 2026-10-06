@@ -42,7 +42,7 @@ export default function QuizSection({
               <p className="text-sm font-bold text-teal-600 dark:text-teal-400 mb-2">Question {q.question_number} ({typeof q.type === 'string' ? q.type.replace('_', ' ') : q.type})</p>
               <h3 className="text-lg font-medium text-[var(--lmg-text-primary)] mb-4 whitespace-pre-wrap">{q.question}</h3>
               {q.code_snippet && (
-                <pre className="p-3 bg-[var(--lmg-code-bg)] rounded-xl text-teal-700 dark:text-teal-200 text-sm font-mono mb-4 border border-[var(--lmg-border)]">
+                <pre className="p-3 bg-slate-50 dark:bg-[#0b1021] rounded-xl text-slate-900 dark:text-teal-200 text-sm font-mono mb-4 border border-slate-200 dark:border-white/10 shadow-xs">
                   {q.code_snippet}
                 </pre>
               )}

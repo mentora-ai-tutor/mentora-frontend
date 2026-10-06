@@ -86,7 +86,7 @@ export default function ContentRenderer({
               {sm.syntax_reference && (
                 <>
                   <h3 className="text-teal-600 dark:text-teal-400 font-bold mt-8 mb-4">Syntax Reference</h3>
-                  <pre className="p-4 bg-[var(--lmg-code-bg)] border border-[var(--lmg-border)] rounded-xl text-teal-300 dark:text-teal-200 font-mono text-sm shadow-inner">
+                  <pre className="p-4 bg-slate-50 dark:bg-[#0b1021] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-teal-200 font-mono text-sm shadow-xs">
                     {sm.syntax_reference.basic_syntax}
                   </pre>
                   {sm.syntax_reference.syntax_breakdown && sm.syntax_reference.syntax_breakdown.length > 0 && (
@@ -139,7 +139,7 @@ export default function ContentRenderer({
                  >
                    {copiedCode ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Code2 className="w-3.5 h-3.5 text-[var(--lmg-text-muted)]" />}
                  </button>
-                 <pre className="p-4 bg-[var(--lmg-code-bg)] border border-[var(--lmg-border)] rounded-xl font-mono text-sm text-teal-300 dark:text-teal-200/90 whitespace-pre-wrap wrap-break-word leading-relaxed overflow-x-auto shadow-inner">
+                 <pre className="p-4 bg-slate-50 dark:bg-[#0b1021] border border-slate-200 dark:border-white/10 rounded-xl font-mono text-sm text-slate-900 dark:text-teal-200 whitespace-pre-wrap wrap-break-word leading-relaxed overflow-x-auto shadow-xs">
                    {lesson.examples?.example_1.code}
                  </pre>
               </div>
