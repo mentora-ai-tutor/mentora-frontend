@@ -3,6 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 interface AuthResponse {
   success: boolean;
   message?: string;
+  error?: string;
   data?: {
     user?: User;
     student?: User;
@@ -32,6 +33,11 @@ interface User {
     overall_mastery_score: number;
     total_materials_generated: number;
     total_sessions: number;
+  };
+  github?: {
+    linked: boolean;
+    gh_login?: string;
+    linked_at?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -69,7 +75,7 @@ class AuthApi {
     localStorage.removeItem('user');
   }
 
-  private normalizeOutput(result: any) {
+  private normalizeOutput(result: AuthResponse): AuthResponse {
      if (result.success && result.data) {
         const at = result.data.access_token || result.data.accessToken;
         const rt = result.data.refresh_token || result.data.refreshToken;
@@ -80,6 +86,9 @@ class AuthApi {
            localStorage.setItem('user', JSON.stringify(userObj));
            result.data.user = userObj; // normalize for UI contexts
         }
+     } else if (!result.success && result.error) {
+        // Surfaces the backend error field (e.g. "Email already registered") as message
+        result.message = result.message || result.error;
      }
      return result;
   }

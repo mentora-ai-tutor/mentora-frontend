@@ -106,13 +106,13 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           </div>
 
           {/* Stats row */}
-          <div className="flex gap-8">
+          <div className="flex items-start gap-12 xl:gap-16">
             {[
               { value: "10K+", label: "Students" },
               { value: "98%", label: "Satisfaction" },
               { value: "4 AI", label: "Agents" },
             ].map((s) => (
-              <div key={s.label}>
+              <div key={s.label} className="min-w-[72px]">
                 <p className="text-2xl font-black text-white">{s.value}</p>
                 <p className="text-xs text-white/40">{s.label}</p>
               </div>
