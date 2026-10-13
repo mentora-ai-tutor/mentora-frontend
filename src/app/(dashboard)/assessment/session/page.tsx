@@ -6,9 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  CheckCircle,
-  Clock,
-  Circle,
   Lightbulb,
   Send,
   Copy,
@@ -302,14 +299,6 @@ export default function SessionPage() {
     if (mastery >= 60) return { text: "text-blue-400", bg: "bg-blue-500", ring: "stroke-blue-400" };
     if (mastery >= 40) return { text: "text-amber-400", bg: "bg-amber-500", ring: "stroke-amber-400" };
     return { text: "text-red-400", bg: "bg-red-500", ring: "stroke-red-400" };
-  };
-
-  const getTopicIcon = (status: string) => {
-    switch (status) {
-      case "mastered": return <CheckCircle className="w-4 h-4 text-emerald-400" />;
-      case "current": return <Clock className="w-4 h-4 text-blue-400" />;
-      default: return <Circle className="w-4 h-4 text-slate-500" />;
-    }
   };
 
   const getDifficultyConfig = (difficulty: string) => {
@@ -818,186 +807,124 @@ export default function SessionPage() {
   return (
     <div className="min-h-screen bg-[#0F172A] flex">
       <div className="w-72 bg-[#1e293b]/95 backdrop-blur-xl border-r border-white/5 p-5 overflow-y-auto flex flex-col">
-        {/* Session Info Card */}
-        <div className="mb-6 bg-[#0F172A] rounded-xl border border-white/5 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-1.5 rounded-lg bg-teal-500/10">
-              <Target className="w-4 h-4 text-teal-400" />
-            </div>
-            <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Assessment Session</span>
+        {/* Sidebar header */}
+        <div className="flex items-center gap-2.5 mb-6">
+          <div className="p-2 rounded-lg bg-teal-500/10 border border-teal-500/20">
+            <Target className="w-4 h-4 text-teal-400" />
           </div>
+          <div>
+            <p className="text-sm font-bold text-white leading-none">Assessment Session</p>
+            <p className="text-[10px] text-white/40 mt-1">Overview</p>
+          </div>
+        </div>
 
-          <div className="space-y-3">
+        {/* Session IDs */}
+        <div className="mb-6 rounded-2xl border border-white/10 bg-[#0F172A] p-3.5">
+          <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <Copy className="w-3 h-3" /> Session IDs
+          </p>
+          <div className="space-y-2.5">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Learner</span>
+                <span className="text-[9px] font-semibold text-white/40 uppercase tracking-wider">Learner ID</span>
                 <button
                   onClick={() => navigator.clipboard.writeText(sessionData.learnerId)}
-                  className="p-0.5 hover:bg-white/5 rounded transition-colors"
+                  className="p-1 hover:bg-white/5 rounded transition-colors"
                   title="Copy Learner ID"
                 >
                   <Copy className="w-3 h-3 text-white/30 hover:text-white/60" />
                 </button>
               </div>
-              <p className="text-xs text-white/70 font-mono bg-white/5 rounded px-2 py-1.5 truncate">
+              <p className="text-[12px] leading-snug text-white/80 font-mono bg-white/5 rounded-md px-2.5 py-2 break-all">
                 {sessionData.learnerId}
               </p>
             </div>
-
             <div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Session ID</span>
+                <span className="text-[9px] font-semibold text-white/40 uppercase tracking-wider">Session ID</span>
                 <button
                   onClick={() => navigator.clipboard.writeText(sessionData.sessionId)}
-                  className="p-0.5 hover:bg-white/5 rounded transition-colors"
+                  className="p-1 hover:bg-white/5 rounded transition-colors"
                   title="Copy Session ID"
                 >
                   <Copy className="w-3 h-3 text-white/30 hover:text-white/60" />
                 </button>
               </div>
-              <p className="text-xs text-white/70 font-mono bg-white/5 rounded px-2 py-1.5 truncate">
+              <p className="text-[12px] leading-snug text-white/80 font-mono bg-white/5 rounded-md px-2.5 py-2 break-all">
                 {sessionData.sessionId}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mb-8 text-center">
-          <div className="relative w-24 h-24 mx-auto mb-4">
-            <svg className="w-24 h-24 -rotate-90" viewBox="0 0 36 36">
+        {/* Session Stats */}
+        <div className="mb-6 rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-[#0F172A] p-4">
+          <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <BarChart3 className="w-3.5 h-3.5" /> Session Stats
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-white/[0.03] border border-white/5 p-2.5 text-center">
+              <p className="text-xl font-extrabold text-white leading-none tabular-nums">{sessionData.stats.questionsAsked}</p>
+              <p className="text-[9px] text-white/40 font-medium uppercase tracking-wider mt-1.5">Asked</p>
+            </div>
+            <div className="rounded-xl bg-emerald-500/[0.08] border border-emerald-500/15 p-2.5 text-center">
+              <p className="text-xl font-extrabold text-emerald-400 leading-none tabular-nums">{sessionData.stats.correctAnswers}</p>
+              <p className="text-[9px] text-emerald-400/50 font-medium uppercase tracking-wider mt-1.5">Correct</p>
+            </div>
+            <div className={`rounded-xl p-2.5 text-center border ${
+              sessionData.stats.accuracy >= 70 ? "bg-emerald-500/[0.08] border-emerald-500/15" :
+              sessionData.stats.accuracy >= 40 ? "bg-amber-500/[0.08] border-amber-500/15" :
+              "bg-red-500/[0.08] border-red-500/15"
+            }`}>
+              <p className={`text-xl font-extrabold leading-none tabular-nums ${
+                sessionData.stats.accuracy >= 70 ? "text-emerald-400" :
+                sessionData.stats.accuracy >= 40 ? "text-amber-400" : "text-red-400"
+              }`}>{sessionData.stats.accuracy}%</p>
+              <p className="text-[9px] text-white/40 font-medium uppercase tracking-wider mt-1.5">Accuracy</p>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.03] border border-white/5 p-2.5">
+            <span className="text-[10px] text-white/40 uppercase tracking-wider font-medium">Streak</span>
+            <span className="text-sm font-extrabold text-blue-400 tabular-nums">{sessionData.stats.streak}</span>
+            <span className="text-[10px] text-white/30">🔥 in a row</span>
+          </div>
+        </div>
+
+        {/* Mastery ring */}
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-[#0F172A] p-5">
+          <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-4 text-center flex items-center justify-center gap-2">
+            <span className={`w-1.5 h-1.5 rounded-full ${masteryColors.bg}`} /> Current Topic
+          </h4>
+          <div className="relative w-32 h-32 mx-auto">
+            <svg className="w-32 h-32 -rotate-90" viewBox="0 0 36 36">
               <path
                 d="M18 2.0845a15.9155 15.9155 0 0 1 0 31.831a15.9155 15.9155 0 0 1 0-31.831"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="3"
-                className="text-white/5"
+                strokeWidth="2.75"
+                strokeLinecap="round"
+                className="text-white/15"
               />
               <path
                 d="M18 2.0845a15.9155 15.9155 0 0 1 0 31.831a15.9155 15.9155 0 0 1 0-31.831"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="3"
+                strokeWidth="2.75"
+                strokeLinecap="round"
                 strokeDasharray={`${sessionData.currentTopic.mastery}, 100`}
                 className={masteryColors.ring}
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`text-2xl font-black ${masteryColors.text}`}>{sessionData.currentTopic.mastery}%</span>
-              <span className="text-[10px] text-white/40">Mastery</span>
+              <span className={`text-3xl font-extrabold leading-none tabular-nums ${masteryColors.text}`}>{sessionData.currentTopic.mastery}</span>
+              <span className="text-[9px] text-white/40 font-semibold uppercase tracking-[0.15em] mt-1">% Mastery</span>
             </div>
           </div>
-          <h4 className="text-white font-bold text-sm mb-1">{sessionData.currentTopic.name}</h4>
-          <div className="flex items-center justify-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${masteryColors.bg}`} />
-            <span className="text-xs text-white/50">Target: 85%</span>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider flex items-center gap-2">
-              <BarChart3 className="w-3.5 h-3.5" />
-              Topic Progress
-            </h4>
-          </div>
-          <div className="space-y-1.5">
-            {sessionData.allTopics.map((topic, index) => {
-              const isCurrent = topic.status === "current";
-              const isMastered = topic.status === "mastered";
-              const colors = getMasteryColor(topic.mastery);
-              return (
-                <div
-                  key={index}
-                  className={`rounded-xl transition-all ${
-                    isCurrent
-                      ? "bg-blue-500/8 border border-blue-500/15"
-                      : "border border-transparent"
-                  }`}
-                >
-                  <div className="p-2.5">
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      {getTopicIcon(topic.status)}
-                      <p className={`text-xs font-semibold truncate ${
-                        isCurrent ? "text-white" :
-                        isMastered ? "text-emerald-400" : "text-white/40"
-                      }`}>
-                        {topic.name}
-                      </p>
-                      {isCurrent && (
-                        <span className="ml-auto px-1.5 py-0.5 bg-blue-500/15 text-blue-300 text-[9px] font-bold uppercase tracking-wider rounded">Current</span>
-                      )}
-                      {isMastered && (
-                        <span className="ml-auto px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-[9px] font-bold uppercase tracking-wider rounded">Done</span>
-                      )}
-                      {topic.status === "pending" && (
-                        <span className="ml-auto text-[9px] text-white/30 font-medium">Pending</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 pl-7">
-                      <div className="flex-1 h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            isMastered ? "bg-emerald-500" : isCurrent ? colors.bg : "bg-white/10"
-                          }`}
-                          style={{ width: `${topic.mastery}%` }}
-                        />
-                      </div>
-                      <span className={`text-[10px] font-bold ${
-                        topic.mastery >= 85 ? "text-emerald-400" :
-                        topic.mastery > 0 ? "text-white/50" : "text-white/20"
-                      }`}>
-                        {topic.mastery}%
-                      </span>
-                    </div>
-                    {isCurrent && topic.mastery < 85 && (
-                      <p className="text-[9px] text-white/25 pl-7 mt-1">
-                        {85 - topic.mastery}% to target
-                      </p>
-                    )}
-                    {isCurrent && topic.mastery >= 85 && (
-                      <p className="text-[9px] text-emerald-400/60 pl-7 mt-1 font-medium">
-                        Target reached!
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-auto space-y-4">
-          <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5">
-            <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Session Stats</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center">
-                <p className="text-xl font-black text-white">{sessionData.stats.questionsAsked}</p>
-                <p className="text-[10px] text-white/40 uppercase">Asked</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xl font-black text-emerald-400">{sessionData.stats.correctAnswers}</p>
-                <p className="text-[10px] text-white/40 uppercase">Correct</p>
-              </div>
-              <div className="text-center">
-                <p className={`text-xl font-black ${
-                  sessionData.stats.accuracy >= 70 ? "text-emerald-400" :
-                  sessionData.stats.accuracy >= 40 ? "text-amber-400" : "text-red-400"
-                }`}>{sessionData.stats.accuracy}%</p>
-                <p className="text-[10px] text-white/40 uppercase">Accuracy</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xl font-black text-blue-400">{sessionData.stats.streak}</p>
-                <p className="text-[10px] text-white/40 uppercase">Streak</p>
-              </div>
+          <div className="mt-4 text-center">
+            <h4 className="text-sm font-bold text-white leading-tight">{sessionData.currentTopic.name}</h4>
+            <div className="mt-1.5">
+              <span className={`text-[11px] font-semibold ${masteryColors.text}`}>Target: 85% mastery</span>
             </div>
-          </div>
-
-          <div className="bg-[#0F172A] rounded-xl p-4 border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-white/40" />
-              <span className="text-xs text-white/40 uppercase">Time</span>
-            </div>
-            <span className="text-lg font-mono font-bold text-teal-400">{formatTime(timeElapsed)}</span>
           </div>
         </div>
 
@@ -1018,30 +945,50 @@ export default function SessionPage() {
             <FeedbackPanel data={feedbackData} onNext={handleContinue} />
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-6 flex-wrap">
-                <Badge className={difficultyConfig.color}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${difficultyConfig.dot} mr-1.5`} />
-                  {sessionData.currentQuestion.difficulty}
-                </Badge>
-                <Badge className={typeConfig.color}>
-                  {typeConfig.label}
-                </Badge>
-                <Badge variant="outline" className="border-teal-500/30 text-teal-300">
-                  {sessionData.currentQuestion.topic}
-                </Badge>
-                <span className="text-sm text-white/40 ml-auto">
-                  Question {sessionData.currentQuestion.number}
-                </span>
+           <div className="max-w-4xl mx-auto">
+            <div className="mb-6">
+              {/* Question meta bar */}
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-teal-500/10 border border-teal-500/25 font-bold text-sm text-teal-300 tabular-nums">
+                    {sessionData.currentQuestion.number}
+                  </span>
+                  <span className="text-[13px] font-medium text-white/50">
+                    Question {sessionData.currentQuestion.number}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <Badge className={typeConfig.color}>
+                    {typeConfig.label}
+                  </Badge>
+                  <Badge className={difficultyConfig.color}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${difficultyConfig.dot} mr-1.5`} />
+                    {sessionData.currentQuestion.difficulty}
+                  </Badge>
+                </div>
               </div>
 
-              <Card className="bg-[#1e293b]/90 backdrop-blur-xl border-white/5 shadow-xl">
-                <CardContent className="p-8">
-                  <div className="mb-8">
-                      <h2 className="text-base font-medium text-white leading-relaxed">
-                        {sessionData.currentQuestion.text}
-                      </h2>
+              {/* Topic card */}
+              <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5 mb-5">
+                <Code className="w-4 h-4 text-teal-400/70 shrink-0" />
+                <span className="text-[10px] font-bold text-white/35 uppercase tracking-widest">Topic</span>
+                <span className="text-sm font-semibold text-white/80 truncate">{sessionData.currentQuestion.topic}</span>
+              </div>
+
+              <Card className="bg-[#1e293b]/90 backdrop-blur-xl border-white/[0.07] shadow-xl overflow-hidden">
+                <CardContent className="p-7 lg:p-8">
+                  {/* Question text with accent */}
+                  <div className="mb-7">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="flex items-center gap-2 text-[11px] font-bold text-white/35 uppercase tracking-widest">
+                        <Target className="w-3.5 h-3.5 text-teal-400/70" />
+                        Question
+                      </div>
+                      <div className="h-px flex-1 bg-white/[0.06]" />
+                    </div>
+                    <h2 className="text-[15px] font-medium text-white/90 leading-relaxed">
+                      {sessionData.currentQuestion.text}
+                    </h2>
                   </div>
 
                   {sessionData.currentQuestion.code_snippet && (
@@ -1178,10 +1125,10 @@ export default function SessionPage() {
                   <div className="mb-8">
                     <button
                       onClick={() => setShowHint(prev => prev < sessionData.currentQuestion.hints.length ? prev + 1 : prev)}
-                      className="flex items-center gap-2 text-teal-400 hover:text-teal-300 transition-colors group"
+                      className="inline-flex items-center gap-2.5 text-teal-400 hover:text-teal-300 transition-colors group"
                       disabled={isEvaluating}
                     >
-                      <div className="p-2 rounded-lg bg-teal-500/10 group-hover:bg-teal-500/20 transition-colors">
+                      <div className="p-2 rounded-lg bg-teal-500/10 border border-teal-500/15 group-hover:bg-teal-500/20 transition-colors">
                         <Lightbulb className="w-4 h-4" />
                       </div>
                       <span className="text-sm font-medium">
@@ -1194,20 +1141,20 @@ export default function SessionPage() {
                     {showHint > 0 && (
                       <div className="mt-4 space-y-3">
                         {sessionData.currentQuestion.hints.slice(0, showHint).map((hint, index) => (
-                          <div key={index} className="flex items-start gap-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                          <div key={index} className="flex items-start gap-3 p-4 bg-amber-500/[0.05] border border-amber-500/15 rounded-xl">
                             <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
                               <span className="text-amber-400 text-xs font-bold">{index + 1}</span>
                             </div>
-                            <p className="text-amber-200/90 text-sm">{hint}</p>
+                            <p className="text-amber-100/80 text-sm leading-relaxed">{hint}</p>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-6 border-t border-white/5">
+                  <div className="flex items-center justify-between pt-6 border-t border-white/[0.06]">
                     <div className="flex items-center gap-2 text-xs text-white/30">
-                      <Zap className="w-3.5 h-3.5" />
+                      <Zap className="w-3.5 h-3.5 text-teal-400/60" />
                       <span>AI-powered evaluation</span>
                     </div>
                     <Button
@@ -1217,7 +1164,7 @@ export default function SessionPage() {
                         (sessionData.currentQuestion.type === "mcq" && !selectedAnswer) ||
                         (sessionData.currentQuestion.type !== "mcq" && !codeAnswer.trim())
                       }
-                      className="bg-teal-600 hover:bg-teal-500 text-white px-8 py-3 font-semibold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-teal-500/20"
+                      className="bg-teal-600 hover:bg-teal-500 text-white px-7 py-2.5 font-semibold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-teal-500/20"
                     >
                       {isEvaluating ? (
                         <div className="flex items-center gap-2.5">
