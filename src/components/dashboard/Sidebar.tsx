@@ -46,7 +46,14 @@ const navItems: NavItem[] = [
     ],
   },
   { name: "Assessment", href: "/assessment", icon: Target },
-  { name: "Peer Learning", href: "/peer-learning", icon: Users },
+  {
+    name: "Peer Learning",
+    href: "/peer-learning",
+    icon: Users,
+    subItems: [
+      { name: "Project Workspace", href: "/peer-learning/workspaces" },
+    ],
+  },
   { name: "Progress", href: "/progress", icon: TrendingUp },
 ];
 
@@ -64,7 +71,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
   const { user, logout } = useAuth();
 
   const isActive = (item: NavItem) => {
-    if (item.href) return pathname === item.href;
+    if (item.href && pathname === item.href) return true;
     return item.subItems?.some((subItem) => {
       if (subItem.href === "/learning-generator") return pathname === "/learning-generator";
       return pathname === subItem.href || pathname.startsWith(subItem.href + "/");
@@ -116,12 +123,12 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
                 <button
                   type="button"
                   onClick={() => {
-                    const isInLearningGenerator = pathname.startsWith("/learning-generator");
+                    const target = item.href ?? item.subItems?.[0]?.href ?? "/";
                     if (!sidebarOpen) {
-                      router.push("/learning-generator");
+                      router.push(target);
                       onMobileClose();
-                    } else if (!isInLearningGenerator) {
-                      router.push("/learning-generator");
+                    } else if (!active) {
+                      router.push(target);
                     }
                     setExpandedMenu(isExpanded ? null : item.name);
                   }}

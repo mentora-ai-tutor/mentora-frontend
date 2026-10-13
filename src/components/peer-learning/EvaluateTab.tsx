@@ -2,15 +2,16 @@
 
 import { useState } from 'react';
 import { Code2, CheckCircle2, XCircle, AlertTriangle, Lightbulb, Loader2, Target } from 'lucide-react';
-import { peerLearningApi, type CodeEvaluation, type CodingTask, type CodeEvaluationResponse } from '@/lib/api/peerLearning';
+import { peerLearningApi, type CodeEvaluation, type CodingTask, type CodeEvaluationResponse, type SessionSummary } from '@/lib/api/peerLearning';
 
 interface EvaluateTabProps {
   getCode: () => string;
   codingTask?: CodingTask | null;
   onEvaluateSuccess?: (passed: boolean) => void;
+  onSessionComplete?: (summary: SessionSummary) => void;
 }
 
-export default function EvaluateTab({ getCode, codingTask, onEvaluateSuccess }: EvaluateTabProps) {
+export default function EvaluateTab({ getCode, codingTask, onEvaluateSuccess, onSessionComplete }: EvaluateTabProps) {
   const [evaluating, setEvaluating] = useState(false);
   const [result, setResult] = useState<CodeEvaluation | null>(null);
   const [taskPassed, setTaskPassed] = useState<boolean | null>(null);
@@ -45,7 +46,17 @@ export default function EvaluateTab({ getCode, codingTask, onEvaluateSuccess }: 
         });
         const passed = evalData?.passed ?? (evaluationRaw as Record<string, unknown>).passed === true;
         setTaskPassed(passed);
-        onEvaluateSuccess?.(passed);
+
+        // Backend closes the session and returns its summary when all tasks pass.
+        const isComplete =
+          evalData?.status === 'session_complete' ||
+          evalData?.sequence_complete === true ||
+          (evalData?.next_task_available === false && evalData?.session_status === 'session_complete');
+        if (isComplete && evalData?.session_summary) {
+          onSessionComplete?.(evalData.session_summary);
+        } else {
+          onEvaluateSuccess?.(passed);
+        }
       } else {
         setError(res.message || 'Evaluation failed. Please try again.');
       }
