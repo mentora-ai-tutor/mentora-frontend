@@ -61,7 +61,14 @@ const navItems: NavItem[] = [
       { name: "Report", href: "/assessment/report" },
     ],
   },
-  { name: "Peer Learning", href: "/peer-learning", icon: Users },
+  {
+    name: "Peer Learning",
+    href: "/peer-learning",
+    icon: Users,
+    subItems: [
+      { name: "Project Workspace", href: "/peer-learning/workspaces" },
+    ],
+  },
   { name: "Progress Analytics", href: "/progress", icon: TrendingUp },
 ];
 
@@ -98,7 +105,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
   }, [user?.student_id]);
 
   const isActive = (item: NavItem) => {
-    if (item.href) return pathname === item.href;
+    if (item.href && pathname === item.href) return true;
 
     return item.subItems?.some((subItem) => isSubActive(subItem.href)) ?? false;
   };
@@ -157,7 +164,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, expandedMenu, set
             const reviewGuided = isReviewRunning && item.name === "Knowledge Assist";
             const defaultHref = reviewGuided
               ? sandboxHref(undefined, "sidebar-active-review")
-              : item.subItems[0]?.href;
+              : item.href ?? item.subItems[0]?.href;
             const isInGroup = item.subItems.some((subItem) => isSubActive(subItem.href));
 
             return (
