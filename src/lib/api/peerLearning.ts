@@ -457,6 +457,16 @@ class PeerLearningApi {
     return this.request<{ analysis: StudentAnalysisDocument }>(`/api/student/analysis/${studentId}`);
   }
 
+  async importAnalysis(
+    payload: Record<string, unknown>,
+  ): Promise<ApiResponse<{ status: string; imported_document: StudentAnalysisDocument }>> {
+    return this.request<{ status: string; imported_document: StudentAnalysisDocument }>(
+      '/api/student/import-analysis',
+      'POST',
+      payload,
+    );
+  }
+
   // ── Issue Token ─────────────────────────────────
 
   async issueToken(studentId: string, expiresMinutes = 60): Promise<ApiResponse<IssueTokenResponse>> {

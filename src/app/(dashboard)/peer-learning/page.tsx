@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Users, Sparkles, ListChecks, ArrowRight, Award, FolderKanban } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { peerLearningApi, type StudentAnalysisDocument, type QuizSummaryResponse } from '@/lib/api/peerLearning';
+import { knowledgeProfileApi, type CanonicalMasteryProfile } from '@/lib/api/knowledgeProfile';
 import type { PeerSessionData } from '@/components/peer-learning/PeerMatchSection';
 import StudentProfileCard from '@/components/peer-learning/StudentProfileCard';
 import AgentWorkflow from '@/components/peer-learning/AgentWorkflow';
@@ -41,14 +42,94 @@ export default function PeerLearningHome() {
       return;
     }
 
+    // Map the Knowledge Assist profile to the shape Peer Learning's import endpoint accepts
+    const toImportPayload = (kaa: CanonicalMasteryProfile) => {
+      const mp = kaa.mastery_profile;
+      const patterns = (p?: Record<string, string[]>) => ({
+        github: p?.github ?? [],
+        sandbox: p?.sandbox ?? [],
+        quizzes: p?.quizzes ?? [],
+      });
+      const knowledge_gaps = (mp.knowledge_gaps ?? []).map((g) => {
+        const si = g.suggested_intervention;
+        return {
+          topic: g.topic,
+          topic_id: g.topic_id,
+          gap_type: g.gap_type,
+          confidence: g.confidence,
+          mastery_score: Math.round(g.mastery_score ?? 0),
+          weak_subskills: g.weak_subskills ?? [],
+          known_subskills: g.known_subskills ?? [],
+          misconceptions: g.misconceptions ?? [],
+          observed_error_patterns: patterns(g.observed_error_patterns),
+          evidence_summary: g.evidence_summary,
+          ...(si && si.primary && si.difficulty_level && si.estimated_time_minutes != null
+            ? {
+                suggested_intervention: {
+                  primary: si.primary,
+                  secondary: si.secondary ?? [],
+                  difficulty_level: si.difficulty_level,
+                  estimated_time_minutes: Math.round(si.estimated_time_minutes),
+                  learning_objectives: si.learning_objectives ?? [],
+                },
+              }
+            : {}),
+        };
+      });
+      const strengths = (mp.strengths ?? []).map((st) => ({
+        topic: st.topic,
+        topic_id: st.topic_id,
+        confidence: st.confidence,
+        mastery_score: Math.round(st.mastery_score ?? 0),
+        mastery_level: st.mastery_level,
+        can_teach_others: !!st.can_teach_others,
+      }));
+      return {
+        schema_version: kaa.schema_version,
+        student_id: studentId,
+        analysis_timestamp: kaa.analysis_timestamp,
+        data_sources: {
+          github: kaa.data_sources?.github ?? 'unavailable',
+          sandbox: kaa.data_sources?.sandbox ?? 'unavailable',
+          quizzes: kaa.data_sources?.quizzes ?? 'unavailable',
+        },
+        mastery_profile: {
+          overall_mastery_score: Math.round(mp.overall_mastery_score ?? 0),
+          knowledge_gaps,
+          strengths,
+        },
+        recommendations: {
+          priority_order: kaa.recommendations?.priority_order ?? [],
+          general_advice: kaa.recommendations?.general_advice,
+          for_instructor: kaa.recommendations?.for_instructor,
+        },
+        gap_topic_ids: kaa.gap_topic_ids ?? knowledge_gaps.map((g) => g.topic_id),
+      };
+    };
+
     const fetchAnalysis = async () => {
       try {
+        // Primary: latest Knowledge Assist profile, imported into Peer Learning's own store
+        try {
+          const kaa = await knowledgeProfileApi.getLatestMasteryProfile(studentId);
+          if (kaa?.mastery_profile?.knowledge_gaps?.length) {
+            const imported = await peerLearningApi.importAnalysis(toImportPayload(kaa));
+            if (imported.success && imported.data?.imported_document) {
+              setAnalysis(imported.data.imported_document);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('Knowledge Assist profile unavailable, using stored analysis', err);
+        }
+
+        // Fallback: whatever Peer Learning already has stored
         const res = await peerLearningApi.getStudentAnalysis(studentId);
         if (res.success && res.data?.analysis) {
           setAnalysis(res.data.analysis);
         }
-      } catch {
-        // silently fail
+      } catch (err) {
+        console.error('Failed to load peer learning analysis', err);
       } finally {
         setLoading(false);
       }
