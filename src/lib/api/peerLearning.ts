@@ -221,6 +221,34 @@ export interface TaskEvaluation {
 
 export type SessionStatus = 'no_session' | 'in_progress' | 'session_complete';
 
+export interface TaskProgressEntry {
+  task_number: number;
+  task_type: string;
+  status: string;
+  attempts: number;
+  passed: boolean;
+}
+
+export interface SessionSummaryItem {
+  task_number?: number;
+  passed?: boolean;
+  grade?: string;
+  feedback?: string;
+  sample_approach?: string;
+  submitted_code?: string;
+  syntax_result?: unknown;
+  graded_at?: string;
+}
+
+export interface SessionSummary {
+  total_tasks?: number;
+  task_progress?: TaskProgressEntry[];
+  results?: SessionSummaryItem[];
+  key_points?: string[];
+  question_summaries?: unknown[];
+  [key: string]: unknown;
+}
+
 export interface CodeEvaluationResponse {
   status: string;
   student_id: string;
@@ -233,6 +261,10 @@ export interface CodeEvaluationResponse {
   task_number?: number;
   passed?: boolean;
   next_task_available?: boolean;
+  sequence_complete?: boolean;
+  current_task?: number;
+  message?: string;
+  session_summary?: SessionSummary;
 }
 
 // ── Content Recommendation (POST /api/content/recommend) ─
@@ -423,6 +455,16 @@ class PeerLearningApi {
 
   async getStudentAnalysis(studentId: string): Promise<ApiResponse<{ analysis: StudentAnalysisDocument }>> {
     return this.request<{ analysis: StudentAnalysisDocument }>(`/api/student/analysis/${studentId}`);
+  }
+
+  async importAnalysis(
+    payload: Record<string, unknown>,
+  ): Promise<ApiResponse<{ status: string; imported_document: StudentAnalysisDocument }>> {
+    return this.request<{ status: string; imported_document: StudentAnalysisDocument }>(
+      '/api/student/import-analysis',
+      'POST',
+      payload,
+    );
   }
 
   // ── Issue Token ─────────────────────────────────

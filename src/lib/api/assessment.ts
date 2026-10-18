@@ -78,19 +78,41 @@ class AssessmentApi {
     const token = this.getAccessToken();
     const url = `${AME_API_URL}${path}`;
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      ...(body && { body: JSON.stringify(body) }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        ...(body && { body: JSON.stringify(body) }),
+      });
+    } catch (err: any) {
+      throw new Error(
+        `Cannot reach assessment service at ${url} (${err?.message || 'network error'}). Is the AME backend running on ${AME_API_URL}?`,
+      );
+    }
 
-    const result = await response.json();
+    const text = await response.text();
+
+    let result: any = null;
+    if (text) {
+      try {
+        result = JSON.parse(text);
+      } catch {
+        throw new Error(`Invalid JSON response from ${url} (HTTP ${response.status}): ${text.slice(0, 200)}`);
+      }
+    }
 
     if (!response.ok) {
-      throw new Error(result.message || `API error: ${response.status}`);
+      throw new Error(result?.message || result?.error || `API error: ${response.status}`);
+    }
+
+    if (!result) {
+      throw new Error(
+        `Empty response from ${url} — the assessment workflow likely failed upstream (n8n / AME backend). Check their logs.`,
+      );
     }
 
     return result;

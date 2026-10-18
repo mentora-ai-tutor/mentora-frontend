@@ -159,7 +159,7 @@ export default function SessionPage() {
         }),
         currentQuestion: {
           id: question.question_id || question.id || `q-${Date.now()}`,
-          number: questionNumber,
+          number: (session.total_questions_asked ?? session.questions_asked ?? 0) + 1,
           text: question.question_text || question.text || '',
           type: question.question_type || question.type || 'mcq',
           code_snippet: question.code_snippet,
@@ -411,6 +411,9 @@ export default function SessionPage() {
 
         if (data.next_question || data.session_progress) {
           const sessionState = data.session_progress?.session_state || data;
+          if (data.next_question && !sessionState.current_question) {
+            sessionState.current_question = data.next_question;
+          }
           localStorage.setItem('assessment_session', JSON.stringify(sessionState));
         }
 
@@ -515,7 +518,7 @@ export default function SessionPage() {
         partial_credit: false,
         correctness_score: 0,
         evaluation_summary: 'Error submitting answer. Please try again.',
-        immediate_feedback: 'There was an error processing your answer.',
+        immediate_feedback: err?.message ? String(err.message).slice(0, 300) : 'There was an error processing your answer.',
         concept_explanation: '',
         correct_explanation: '',
         improvement_tip: '',
@@ -600,7 +603,7 @@ export default function SessionPage() {
         ...prev,
         currentQuestion: {
           id: question.question_id || question.id || `q-${Date.now()}`,
-          number: prev.stats.questionsAsked + 2,
+          number: prev.stats.questionsAsked + 1,
           text: question.question_text || question.text || '',
           type: qType,
           code_snippet: question.code_snippet,
@@ -643,7 +646,7 @@ export default function SessionPage() {
               },
               currentQuestion: {
                 id: question.question_id || question.id || `q-${Date.now()}`,
-                number: prev.stats.questionsAsked + 2,
+                number: (session.total_questions_asked ?? prev.stats.questionsAsked) + 1,
                 text: question.question_text || question.text || '',
                 type: qType,
                 code_snippet: question.code_snippet,

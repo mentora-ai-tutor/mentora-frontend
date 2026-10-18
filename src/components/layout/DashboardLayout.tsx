@@ -38,6 +38,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setExpandedMenu("Material Generator");
     } else if (pathname.startsWith("/knowledge-assist")) {
       setExpandedMenu("Knowledge Assist");
+    } else if (pathname.startsWith("/peer-learning")) {
+      setExpandedMenu("Peer Learning");
     }
   }, [pathname]);
 

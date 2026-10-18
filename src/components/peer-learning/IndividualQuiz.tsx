@@ -103,6 +103,7 @@ export default function IndividualQuiz() {
               setSummary(summaryRes.data);
               setTopic(summaryRes.data.topic);
               setPhase('completed');
+              localStorage.setItem(`quizResult:${summaryRes.data.student_id}`, JSON.stringify(summaryRes.data));
             } else {
               setFeedback(item);
               setPhase('completed');
