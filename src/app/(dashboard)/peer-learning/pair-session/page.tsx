@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { peerLearningApi, type CodingTask, type TaskProgressItem, type ChatWsMessage, type ChatSupportResponse, type DiagnosticSessionTaskResponse, type DiagnosticSessionCompleteResponse, type CodeEvaluation, type SummaryResponse, type ContentRecommendation } from '@/lib/api/peerLearning';
+import { peerLearningApi, type CodingTask, type TaskProgressItem, type ChatWsMessage, type ChatSupportResponse, type DiagnosticSessionTaskResponse, type DiagnosticSessionCompleteResponse, type CodeEvaluation, type SummaryResponse, type ContentRecommendation, type SessionSummary } from '@/lib/api/peerLearning';
 import ParticipantDetails from '@/components/peer-learning/ParticipantDetails';
 import CodeEditor from '@/components/peer-learning/CodeEditor';
 import ChatTab from '@/components/peer-learning/ChatTab';
@@ -11,6 +11,7 @@ import EvaluateTab from '@/components/peer-learning/EvaluateTab';
 import SummaryTab from '@/components/peer-learning/SummaryTab';
 import LearnTab from '@/components/peer-learning/LearnTab';
 import EndSessionScreen from '@/components/peer-learning/EndSessionScreen';
+import SessionSummaryView from '@/components/peer-learning/SessionSummaryView';
 import CollaborativeOverlay, { type DrawTool, type RemoteCursor, type WhiteboardElement } from '@/components/peer-learning/CollaborativeOverlay';
 import { MessageSquare, Code2, FileText, Lightbulb, StopCircle, ChevronDown, ChevronRight, Wifi, WifiOff, Loader2, CheckCircle2 } from 'lucide-react';
 
@@ -382,6 +383,28 @@ export default function PairSessionPage() {
     setSessionEnded(true);
   };
 
+  const [collabSessionSummary, setCollabSessionSummary] = useState<SessionSummary | null>(null);
+
+  const handleCollabSessionComplete = useCallback((summary: SessionSummary) => {
+    collabWsRef.current?.close();
+    chatWsRef.current?.close();
+    setConnected(false);
+    setSequenceComplete(true);
+    setCollabSessionSummary(summary);
+  }, []);
+
+  if (collabSessionSummary) {
+    return (
+      <SessionSummaryView
+        topic={topic}
+        peerName={peerNameParam}
+        learnerName={studentName}
+        summary={collabSessionSummary}
+        onVerifyMastery={() => router.push(`/peer-learning/quiz?topic=${encodeURIComponent(topic)}`)}
+      />
+    );
+  }
+
   if (sessionEnded) {
     return (
       <EndSessionScreen
@@ -629,6 +652,7 @@ export default function PairSessionPage() {
                 getCode={() => code}
                 codingTask={codingTask}
                 onEvaluateSuccess={isAiSession ? handleAiTaskAdvance : undefined}
+                onSessionComplete={isAiSession ? undefined : handleCollabSessionComplete}
               />
             )}
             {activeTab === 'summary' && (
