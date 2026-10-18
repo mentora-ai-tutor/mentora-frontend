@@ -11,12 +11,13 @@ import {
   MessageSquare,
   Play,
   Save,
-  Square,
+  Terminal,
   Wifi,
   WifiOff,
 } from 'lucide-react';
 import type { WorkspaceCollabProvider } from '@/lib/workspace/collab';
 import type { CodeRunResult, WorkspaceFile } from '@/lib/api/workspaces';
+import WorkspaceTerminal from './WorkspaceTerminal';
 
 interface WorkspaceEditorProps {
   file: WorkspaceFile | null;
@@ -43,6 +44,7 @@ export default function WorkspaceEditor({
 }: WorkspaceEditorProps) {
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const bindingRef = useRef<MonacoBinding | null>(null);
+  const mountIdRef = useRef(0);
   const ytextRef = useRef<Y.Text | null>(null);
   const lastSavedRef = useRef<string>(file?.content ?? '');
   const awarenessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -58,10 +60,23 @@ export default function WorkspaceEditor({
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<CodeRunResult | null>(null);
 
+  const destroyBinding = () => {
+    const binding = bindingRef.current;
+    bindingRef.current = null;
+    if (!binding) return;
+    try {
+      binding.destroy();
+    } catch {
+      // y-monaco auto-destroys the binding when the Monaco model is disposed
+      // (switching files remounts the Editor via `key`), so a manual destroy
+      // can throw: "[yjs] Tried to remove event handler that doesn't exist."
+    }
+  };
+
   useEffect(() => {
     return () => {
-      bindingRef.current?.destroy();
-      bindingRef.current = null;
+      mountIdRef.current++;
+      destroyBinding();
       if (awarenessTimer.current) clearTimeout(awarenessTimer.current);
     };
   }, []);
@@ -100,14 +115,16 @@ export default function WorkspaceEditor({
       return;
     }
 
-    bindingRef.current?.destroy();
-    bindingRef.current = null;
+    destroyBinding();
+    const mountId = ++mountIdRef.current;
 
     void (async () => {
       const ytext = await currentProvider.prepareFile(currentFile.file_id, currentFile.content ?? '');
+      if (mountId !== mountIdRef.current) return;
       const model = editor.getModel();
       if (!model) return;
       const { MonacoBinding: Binding } = await import('y-monaco');
+      if (mountId !== mountIdRef.current) return;
       ytextRef.current = ytext;
       bindingRef.current = new Binding(ytext, model, new Set([editor]));
       setDirty(ytext.toString() !== lastSavedRef.current);
@@ -203,6 +220,16 @@ export default function WorkspaceEditor({
           </button>
           <button
             type="button"
+            onClick={() => setShowRun((prev) => !prev)}
+            title="Toggle terminal"
+            className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs hover:bg-muted hover:text-foreground ${
+              showRun ? 'text-teal-700 dark:text-teal-300' : 'text-muted-foreground'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" /> Terminal
+          </button>
+          <button
+            type="button"
             onClick={handleRun}
             disabled={running}
             className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
@@ -250,35 +277,18 @@ export default function WorkspaceEditor({
       </div>
 
       {showRun && (
-        <div className="border-t border-border bg-sunken">
-          <div className="flex items-center justify-between px-3 py-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-subtle-foreground">Output</span>
-            <input
-              value={stdin}
-              onChange={(event) => setStdin(event.target.value)}
-              placeholder="stdin (optional)"
-              className="mr-2 w-48 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-teal-500/50"
-            />
-            <button
-              type="button"
-              onClick={() => setShowRun(false)}
-              className="rounded p-1 text-subtle-foreground hover:text-foreground"
-            >
-              <Square className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <pre className="max-h-48 overflow-auto px-3 pb-3 text-xs text-muted-foreground">
-            {running
-              ? 'Running…'
-              : runResult
-                ? [
-                    ...(runResult.compile_errors?.length ? ['--- compile errors ---', ...runResult.compile_errors] : []),
-                    ...(runResult.output ? ['--- stdout ---', runResult.output] : []),
-                    ...(runResult.error ? ['--- stderr ---', runResult.error] : []),
-                    ...(runResult.message ? [runResult.message] : []),
-                  ].join('\n') || 'No output.'
-                : 'Run the file to see its output.'}
-          </pre>
+        <div className="h-44 shrink-0 sm:h-56">
+          <WorkspaceTerminal
+            fileName={file.name}
+            running={running}
+            result={runResult}
+            stdin={stdin}
+            canRun={canWrite}
+            onStdinChange={setStdin}
+            onRun={handleRun}
+            onClear={() => setRunResult(null)}
+            onClose={() => setShowRun(false)}
+          />
         </div>
       )}
     </div>

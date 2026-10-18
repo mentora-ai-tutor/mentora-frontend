@@ -10,6 +10,7 @@ import {
   Bot,
   Calendar,
   ChevronDown,
+  Download,
   History,
   ListChecks,
   MessageSquare,
@@ -101,6 +102,7 @@ export default function WorkspaceRoom({ workspaceId }: WorkspaceRoomProps) {
   const [showVersions, setShowVersions] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>('editor');
   const [notice, setNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
@@ -181,7 +183,16 @@ export default function WorkspaceRoom({ workspaceId }: WorkspaceRoomProps) {
     return Array.from(map.values()).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   }, [chatHistory, liveMessages]);
 
-  const aiMessages = useMemo(() => allMessages.filter((message) => message.message_type === 'ai'), [allMessages]);
+  const aiMessages = useMemo(
+    () => allMessages.filter((message) => message.message_type === 'ai' || message.message_type === 'ai_question'),
+    [allMessages],
+  );
+
+  // The team chat shows teammates only — AI assistant exchanges live in the AI tab.
+  const chatMessages = useMemo(
+    () => allMessages.filter((message) => message.message_type !== 'ai' && message.message_type !== 'ai_question'),
+    [allMessages],
+  );
 
   const memberNames = useMemo(() => {
     const map: Record<string, string> = {};
@@ -302,15 +313,34 @@ export default function WorkspaceRoom({ workspaceId }: WorkspaceRoomProps) {
 
   const handleRun = useCallback(
     async (code: string, stdin: string): Promise<CodeRunResult | null> => {
-      const res = await workspaceApi.runCode(workspaceId, code, stdin);
+      const res = await workspaceApi.runCode(workspaceId, code, stdin, activeFileId);
       if (!res.success) {
         notify('error', res.message || 'Run failed');
         return null;
       }
       return res.data ?? null;
     },
-    [workspaceId, notify],
+    [workspaceId, activeFileId, notify],
   );
+
+  const handleDownload = useCallback(async () => {
+    setExporting(true);
+    const result = await workspaceApi.exportWorkspace(workspaceId);
+    setExporting(false);
+    if (!result.success || !result.blob) {
+      notify('error', result.message || 'Download failed');
+      return;
+    }
+    const url = URL.createObjectURL(result.blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = result.filename || `${workspaceId}.zip`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    notify('success', 'Workspace downloaded');
+  }, [workspaceId, notify]);
 
   // ── Chat & assistant ──────────────────────────
 
@@ -343,6 +373,7 @@ export default function WorkspaceRoom({ workspaceId }: WorkspaceRoomProps) {
         notify('error', res.message || 'Assistant unavailable');
         return;
       }
+      if (res.data.question) appendLocalMessage(res.data.question);
       appendLocalMessage({
         message_id: res.data.message_id,
         workspace_id: workspaceId,
@@ -351,7 +382,7 @@ export default function WorkspaceRoom({ workspaceId }: WorkspaceRoomProps) {
         role: 'ai',
         message: res.data.reply,
         message_type: 'ai',
-        reply_to: null,
+        reply_to: res.data.question?.message_id ?? null,
         timestamp: new Date().toISOString(),
       });
       await refreshActivity();
@@ -696,8 +727,8 @@ export default function WorkspaceRoom({ workspaceId }: WorkspaceRoomProps) {
     switch (tab) {
       case 'chat':
         return (
-          <WorkspaceChatPanel
-            messages={allMessages}
+              <WorkspaceChatPanel
+                messages={chatMessages}
             currentStudentId={currentStudentId}
             canWrite={canWrite && !archived}
             onSend={handleSendChat}
@@ -888,6 +919,17 @@ export default function WorkspaceRoom({ workspaceId }: WorkspaceRoomProps) {
             </button>
             {menuOpen && (
               <div className="absolute right-0 z-40 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-sunken py-1 shadow-xl">
+                <button
+                  type="button"
+                  disabled={exporting}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void handleDownload();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  <Download className="h-3.5 w-3.5" /> {exporting ? 'Preparing…' : 'Download ZIP'}
+                </button>
                 {canManage && !archived && (
                   <button
                     type="button"

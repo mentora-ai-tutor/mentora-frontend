@@ -18,6 +18,12 @@ const SUGGESTIONS = [
   'Suggest improvements',
 ];
 
+function formatTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function WorkspaceAssistantPanel({
   aiMessages,
   activeFileName,
@@ -69,15 +75,32 @@ export default function WorkspaceAssistantPanel({
             </div>
           </div>
         ) : (
-          aiMessages.map((message) => (
-            <div key={message.message_id} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5">
-              <div className="mb-1 flex items-center gap-1.5">
-                <Sparkles className="h-3 w-3 text-amber-700 dark:text-amber-400" />
-                <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300">AI Study Assistant</span>
+          aiMessages.map((message) =>
+            message.message_type === 'ai_question' ? (
+              <div key={message.message_id} className="flex justify-end">
+                <div className="max-w-[85%]">
+                  <div className="mb-1 flex items-center justify-end gap-1.5">
+                    <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300">
+                      {message.sender_name || 'You'}
+                    </span>
+                    <span className="text-[10px] text-subtle-foreground">{formatTime(message.timestamp)}</span>
+                  </div>
+                  <p className="whitespace-pre-wrap break-words rounded-xl bg-teal-600/80 px-3 py-2 text-xs leading-relaxed text-white">
+                    {message.message}
+                  </p>
+                </div>
               </div>
-              <p className="whitespace-pre-wrap text-xs leading-relaxed text-amber-100/90">{message.message}</p>
-            </div>
-          ))
+            ) : (
+              <div key={message.message_id} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5">
+                <div className="mb-1 flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-amber-700 dark:text-amber-400" />
+                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300">AI Study Assistant</span>
+                  <span className="text-[10px] text-subtle-foreground">{formatTime(message.timestamp)}</span>
+                </div>
+                <p className="whitespace-pre-wrap text-xs leading-relaxed text-amber-100/90">{message.message}</p>
+              </div>
+            ),
+          )
         )}
         {asking && (
           <div className="flex items-center gap-2 text-[11px] text-subtle-foreground">

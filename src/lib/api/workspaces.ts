@@ -82,7 +82,7 @@ export interface ChatMessage {
   sender_name: string;
   role: WorkspaceRole | 'ai' | null;
   message: string;
-  message_type: 'text' | 'code' | 'system' | 'ai';
+  message_type: 'text' | 'code' | 'system' | 'ai' | 'ai_question';
   reply_to: string | null;
   timestamp: string;
 }
@@ -194,6 +194,13 @@ export interface CodeRunResult {
   exit_code: number | null;
   message?: string;
   error?: string;
+  command?: string;
+  compile_command?: string;
+  run_command?: string;
+  main_class?: string | null;
+  scope?: 'file' | 'project';
+  files_compiled?: number;
+  duration_ms?: number;
 }
 
 export interface AssistantReply {
@@ -201,6 +208,7 @@ export interface AssistantReply {
   reply: string;
   ai_status: string;
   message_id: string;
+  question?: ChatMessage;
 }
 
 export interface PresenceParticipant {
@@ -327,6 +335,36 @@ class WorkspaceApi {
         data: result as T,
         status: typeof result.status === 'string' ? result.status : undefined,
         message: detail || message || (response.ok ? undefined : `Request failed (${response.status})`),
+      };
+    } catch {
+      return { success: false, message: 'Network error' };
+    }
+  }
+
+  private async requestBlob(
+    path: string,
+  ): Promise<{ success: boolean; blob?: Blob; filename?: string; message?: string }> {
+    try {
+      const response = await fetch(`${PEER_LEARNING_API_URL}${path}`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) {
+        let message = `Request failed (${response.status})`;
+        try {
+          const body = (await response.json()) as { detail?: unknown; message?: unknown };
+          message = typeof body.detail === 'string' ? body.detail : message;
+        } catch {
+          // non-JSON error body
+        }
+        return { success: false, message };
+      }
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      return {
+        success: true,
+        blob: await response.blob(),
+        filename: match ? match[1].trim() : undefined,
       };
     } catch {
       return { success: false, message: 'Network error' };
@@ -768,8 +806,21 @@ class WorkspaceApi {
     workspaceId: string,
     code: string,
     stdin = '',
+    fileId: string | null = null,
   ): Promise<ApiResponse<CodeRunResult>> {
-    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/run`, 'POST', { code, stdin });
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/run`, 'POST', {
+      code,
+      stdin,
+      file_id: fileId,
+    });
+  }
+
+  // ── Export ────────────────────────────────────
+
+  async exportWorkspace(
+    workspaceId: string,
+  ): Promise<{ success: boolean; blob?: Blob; filename?: string; message?: string }> {
+    return this.requestBlob(`/api/workspaces/${encodeURIComponent(workspaceId)}/export`);
   }
 
   // ── Real-time (WebSocket) ─────────────────────
