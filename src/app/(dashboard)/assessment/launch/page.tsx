@@ -24,9 +24,12 @@ import {
   Sparkles
 } from "lucide-react";
 import { assessmentApi } from "@/lib/api/assessment";
+import { knowledgeProfileApi } from "@/lib/api/knowledgeProfile";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LaunchScreen() {
   const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Record<number, boolean>>({});
@@ -34,41 +37,62 @@ export default function LaunchScreen() {
   const [noProfile, setNoProfile] = useState(false);
 
   useEffect(() => {
+    if (isAuthLoading) return;
+    if (!user?.student_id) {
+      setNoProfile(true);
+      setIsProfileLoading(false);
+      return;
+    }
     let mounted = true;
+
+    const buildProfile = (learnerId: string, mp: any, recs?: any) => {
+      const hasObserved = (key: string) =>
+        mp.knowledge_gaps.some((gap: any) => Array.isArray(gap?.observed_error_patterns?.[key]) && gap.observed_error_patterns[key].length > 0);
+      return {
+        learner_id: learnerId,
+        data_sources: {
+          github: hasObserved('github') ? 'available' : null,
+          sandbox: hasObserved('sandbox') ? 'available' : null,
+          quizzes: hasObserved('quizzes') ? 'available' : null,
+        },
+        mastery_profile: mp,
+        recommendations: {
+          priority_order: recs?.priority_order ?? mp.knowledge_gaps.map((gap: any) => gap.topic),
+          general_advice:
+            recs?.general_advice ??
+            (mp.overall_mastery_score >= 70
+              ? "You're in a strong position — sharpen the identified gaps to reach full mastery."
+              : (mp.overall_mastery_score ?? 0) >= 45
+                ? "You have a partial grasp — close the prioritized gaps below to build a solid foundation."
+                : "Foundational gaps detected — the assessment will scaffold concepts step by step."),
+        },
+      };
+    };
+
+    const hasGaps = (mp: any) => mp && Array.isArray(mp.knowledge_gaps) && mp.knowledge_gaps.length > 0;
+
     const loadProfile = async () => {
       try {
+        // Primary source: latest Knowledge Assist mastery profile (same as Learning Generator)
+        try {
+          const kaa = await knowledgeProfileApi.getLatestMasteryProfile(user.student_id as string);
+          if (hasGaps(kaa?.mastery_profile)) {
+            if (mounted) setProfile(buildProfile(kaa.student_id, kaa.mastery_profile, kaa.recommendations));
+            return;
+          }
+        } catch (error) {
+          console.error('Knowledge Assist profile unavailable, falling back to past sessions:', error);
+        }
+
+        // Fallback: most recent assessment session that stored a profile
         const res = await assessmentApi.getSessions();
         const sessions = Array.isArray(res?.data) ? res.data : [];
-        const latest = sessions.find(
-          (s: any) => s && s.mastery_profile && Array.isArray(s.mastery_profile.knowledge_gaps) && s.mastery_profile.knowledge_gaps.length > 0
-        );
+        const latest = sessions.find((s: any) => s && hasGaps(s.mastery_profile));
         if (!latest) {
           if (mounted) setNoProfile(true);
           return;
         }
-        const mp = latest.mastery_profile;
-        const hasObserved = (key: string) =>
-          mp.knowledge_gaps.some((gap: any) => Array.isArray(gap?.observed_error_patterns?.[key]) && gap.observed_error_patterns[key].length > 0);
-        if (mounted) {
-          setProfile({
-            learner_id: latest.learner_id,
-            data_sources: {
-              github: hasObserved('github') ? 'available' : null,
-              sandbox: hasObserved('sandbox') ? 'available' : null,
-              quizzes: hasObserved('quizzes') ? 'available' : null,
-            },
-            mastery_profile: mp,
-            recommendations: {
-              priority_order: mp.knowledge_gaps.map((gap: any) => gap.topic),
-              general_advice:
-                mp.overall_mastery_score >= 70
-                  ? "You're in a strong position — sharpen the identified gaps to reach full mastery."
-                  : (mp.overall_mastery_score ?? 0) >= 45
-                    ? "You have a partial grasp — close the prioritized gaps below to build a solid foundation."
-                    : "Foundational gaps detected — the assessment will scaffold concepts step by step.",
-            },
-          });
-        }
+        if (mounted) setProfile(buildProfile(latest.learner_id, latest.mastery_profile));
       } catch (error) {
         console.error('Failed to load knowledge profile:', error);
         if (mounted) setNoProfile(true);
@@ -78,7 +102,7 @@ export default function LaunchScreen() {
     };
     loadProfile();
     return () => { mounted = false; };
-  }, []);
+  }, [user?.student_id, isAuthLoading]);
 
   const toggleCard = (index: number) => {
     setExpandedCards(prev => ({...prev, [index]: !prev[index]}));
