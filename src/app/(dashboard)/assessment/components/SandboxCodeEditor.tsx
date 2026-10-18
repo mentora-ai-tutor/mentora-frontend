@@ -47,7 +47,7 @@ export default function SandboxCodeEditor({
               { token: "number", foreground: "fbbf24" },
             ],
             colors: {
-              "editor.background": "var(--background)",
+              "editor.background": "#0a1410",
               "editor.lineHighlightBackground": "#1e293b80",
               "editorLineNumber.foreground": "#475569",
               "editorLineNumber.activeForeground": "#94a3b8",
