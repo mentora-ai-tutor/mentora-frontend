@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, X, Target, TrendingUp, Award, Clock, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { CheckCircle, X, Target, TrendingUp, Award, Clock, ChevronDown, ChevronUp, Loader2, Copy, Lightbulb } from "lucide-react";
 import { assessmentApi } from "@/lib/api/assessment";
 
 interface TopicSummary {
@@ -16,6 +16,11 @@ interface TopicSummary {
   status: "mastered" | "needs_work";
 }
 
+interface QAOption {
+  letter: string;
+  text: string;
+}
+
 interface QASummary {
   number: number;
   topic: string;
@@ -24,6 +29,82 @@ interface QASummary {
   learnerAnswer: string;
   correctAnswer: string;
   isCorrect: boolean;
+  type?: string;
+  codeSnippet?: string;
+  explanation?: string;
+  options?: QAOption[];
+}
+
+const parseOptions = (
+  opts: QAOption[] | string[] | Record<string, string> | null | undefined
+): QAOption[] | undefined => {
+  if (!opts) return undefined;
+  if (Array.isArray(opts)) {
+    if (opts.length === 0) return undefined;
+    if (typeof opts[0] === "string") {
+      return (opts as string[]).map((text, i) => ({ letter: String.fromCharCode(65 + i), text }));
+    }
+    return opts as QAOption[];
+  }
+  return Object.entries(opts).map(([letter, text]) => ({ letter, text: text as string }));
+};
+
+const CODE_QUESTION_TYPES = ["code_completion", "code_tracing", "debugging", "coding_challenge"];
+
+const isCodeType = (type?: string) => !!type && CODE_QUESTION_TYPES.includes(type);
+
+const looksLikeCode = (text: string) => {
+  if (!text) return false;
+  if (text.includes("\n")) return true;
+  return /[{};]|class\s+\w+|public\s|static\s|void\s|System\.out/.test(text) && text.length > 20;
+};
+
+const isCodeAnswer = (qa: QASummary, text: string) => isCodeType(qa.type) || looksLikeCode(text || "");
+
+const formatShortAnswer = (qa: QASummary, text: string) => {
+  if (!text || !text.trim()) return "No answer provided";
+  const trimmed = text.trim();
+  if (qa.options?.length && /^[A-Za-z]$/.test(trimmed)) {
+    const opt = qa.options.find(o => o.letter.toUpperCase() === trimmed.toUpperCase());
+    if (opt) return `${opt.letter}. ${opt.text}`;
+  }
+  return text;
+};
+
+function CodeBlock({ label, code, tone }: { label: string; code: string; tone: "correct" | "wrong" | "neutral" }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  const toneClass =
+    tone === "correct"
+      ? "text-emerald-700 dark:text-emerald-400"
+      : tone === "wrong"
+      ? "text-red-700 dark:text-red-300"
+      : "text-foreground/90";
+  return (
+    <div className="rounded-lg border border-border overflow-hidden bg-background">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted border-b border-border">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+          <span className="px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-700 dark:text-teal-400 text-[9px] font-bold uppercase tracking-wider">Java</span>
+        </div>
+        <button
+          onClick={copy}
+          className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-surface-3 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          title="Copy code"
+        >
+          <Copy className="w-3 h-3" />
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className={`p-4 font-mono text-sm whitespace-pre-wrap break-words leading-relaxed max-h-72 overflow-auto ${toneClass}`}>
+        {code}
+      </pre>
+    </div>
+  );
 }
 
 interface SummaryData {
@@ -79,6 +160,10 @@ export default function SummaryPage() {
           learnerAnswer: q.learner_answer || q.submitted_answer || '',
           correctAnswer: q.correct_answer || '',
           isCorrect: q.is_correct ?? false,
+          type: q.question_type || q.type || undefined,
+          codeSnippet: q.code_snippet || undefined,
+          explanation: q.explanation || q.correct_explanation || undefined,
+          options: parseOptions(q.options),
         })),
         sessionId: ss.session_id || 'Unknown',
         learnerId,
@@ -143,6 +228,10 @@ export default function SummaryPage() {
                 learnerAnswer: q.learner_answer || q.submitted_answer || '',
                 correctAnswer: q.correct_answer || '',
                 isCorrect: q.is_correct ?? false,
+                type: q.question_type || q.type || undefined,
+                codeSnippet: q.code_snippet || undefined,
+                explanation: q.explanation || q.correct_explanation || undefined,
+                options: parseOptions(q.options),
               })),
               sessionId: sid,
               learnerId: session.learner_id || res.data.learner_id || 'Unknown',
@@ -185,6 +274,10 @@ export default function SummaryPage() {
             learnerAnswer: q.learner_answer,
             correctAnswer: q.correct_answer,
             isCorrect: q.is_correct,
+            type: q.type || undefined,
+            codeSnippet: q.code_snippet || undefined,
+            explanation: q.explanation || undefined,
+            options: parseOptions(q.options),
           })),
           sessionId: 'local',
           learnerId: JSON.parse(localStorage.getItem('user') || '{}').student_id || 'Unknown',
@@ -439,21 +532,50 @@ export default function SummaryPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-foreground font-medium">{qa.questionText}</p>
+                      <p className="text-sm text-foreground font-medium whitespace-pre-wrap">{qa.questionText}</p>
+                      {qa.codeSnippet && (
+                        <CodeBlock label="Provided Code" code={qa.codeSnippet} tone="neutral" />
+                      )}
                       <div className="grid md:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground">Your answer:</p>
-                          <p className={`font-mono p-2 rounded ${qa.isCorrect ? 'bg-green-500/10 text-green-800 dark:text-green-200' : 'bg-red-500/10 text-red-800 dark:text-red-200'}`}>
-                            {qa.learnerAnswer}
+                          <p className="text-muted-foreground mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
+                            {qa.isCorrect ? (
+                              <CheckCircle className="w-3.5 h-3.5 text-green-700 dark:text-green-400" />
+                            ) : (
+                              <X className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                            )}
+                            Your Answer
                           </p>
+                          {isCodeAnswer(qa, qa.learnerAnswer) && qa.learnerAnswer ? (
+                            <CodeBlock label="Your Answer" code={qa.learnerAnswer} tone={qa.isCorrect ? "correct" : "wrong"} />
+                          ) : (
+                            <p className={`font-mono p-2 rounded whitespace-pre-wrap break-words leading-relaxed ${qa.isCorrect ? 'bg-green-500/10 text-green-800 dark:text-green-200' : 'bg-red-500/10 text-red-800 dark:text-red-200'}`}>
+                              {formatShortAnswer(qa, qa.learnerAnswer)}
+                            </p>
+                          )}
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Correct answer:</p>
-                          <p className="font-mono p-2 rounded bg-surface-3/50 text-foreground/90">
-                            {qa.correctAnswer}
+                          <p className="text-muted-foreground mb-1.5 text-xs font-semibold uppercase tracking-wider">
+                            Correct Answer
                           </p>
+                          {isCodeAnswer(qa, qa.correctAnswer) && qa.correctAnswer ? (
+                            <CodeBlock label="Correct Answer" code={qa.correctAnswer} tone="neutral" />
+                          ) : (
+                            <p className="font-mono p-2 rounded bg-surface-3/50 text-foreground/90 whitespace-pre-wrap break-words leading-relaxed">
+                              {formatShortAnswer(qa, qa.correctAnswer)}
+                            </p>
+                          )}
                         </div>
                       </div>
+                      {qa.explanation && (
+                        <div className="mt-3 flex items-start gap-2 p-3 bg-teal-500/5 border border-teal-500/15 rounded-lg">
+                          <Lightbulb className="w-4 h-4 shrink-0 text-teal-700 dark:text-teal-400 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400 mb-0.5">Explanation</p>
+                            <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{qa.explanation}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

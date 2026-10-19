@@ -804,7 +804,7 @@ export default function ReportPage() {
                       Question {qa.question_number}
                     </Badge>
                   </div>
-                  <p className="text-foreground font-medium text-lg">{qa.question_text}</p>
+                  <p className="text-sm text-foreground font-medium">{qa.question_text}</p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4 mb-4">

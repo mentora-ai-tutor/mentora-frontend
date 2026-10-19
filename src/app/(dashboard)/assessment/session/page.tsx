@@ -7,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle,
-  Clock,
-  Circle,
   Lightbulb,
   Send,
   Copy,
@@ -16,11 +14,9 @@ import {
   Target,
   Code,
   Zap,
-  Trophy,
-  TrendingUp,
-  BarChart3,
   Play,
-  Terminal
+  Terminal,
+  ChevronLeft
 } from "lucide-react";
 import FeedbackPanel from "../components/FeedbackPanel";
 import SandboxCodeEditor from "../components/SandboxCodeEditor";
@@ -291,25 +287,11 @@ export default function SessionPage() {
     }
   }, [sessionData]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const getMasteryColor = (mastery: number) => {
     if (mastery >= 85) return { text: "text-emerald-700 dark:text-emerald-400", bg: "bg-emerald-500", ring: "stroke-emerald-400" };
     if (mastery >= 60) return { text: "text-blue-700 dark:text-blue-400", bg: "bg-blue-500", ring: "stroke-blue-400" };
     if (mastery >= 40) return { text: "text-amber-700 dark:text-amber-400", bg: "bg-amber-500", ring: "stroke-amber-400" };
     return { text: "text-red-700 dark:text-red-400", bg: "bg-red-500", ring: "stroke-red-400" };
-  };
-
-  const getTopicIcon = (status: string) => {
-    switch (status) {
-      case "mastered": return <CheckCircle className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />;
-      case "current": return <Clock className="w-4 h-4 text-blue-700 dark:text-blue-400" />;
-      default: return <Circle className="w-4 h-4 text-subtle-foreground" />;
-    }
   };
 
   const getDifficultyConfig = (difficulty: string) => {
@@ -766,12 +748,14 @@ export default function SessionPage() {
           <Badge
             variant="outline"
             className={
-              runResult.executed_successfully
+              runResult.status === 'sandbox_unavailable'
+                ? "border-amber-500/40 text-amber-700 dark:text-amber-400"
+                : runResult.executed_successfully
                 ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
                 : "border-red-500/30 text-red-700 dark:text-red-400"
             }
           >
-            {runResult.status}
+            {runResult.status === 'sandbox_unavailable' ? 'Sandbox Unavailable' : runResult.status}
           </Badge>
         )}
       </div>
@@ -782,7 +766,16 @@ export default function SessionPage() {
             Compiling &amp; executing your code...
           </p>
         )}
-        {!isRunning && runResult && (
+        {!isRunning && runResult && runResult.status === 'sandbox_unavailable' && (
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/25">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+            <div className="text-xs leading-relaxed text-amber-800 dark:text-amber-200/90 font-sans">
+              <p className="font-semibold mb-1">Code execution service is unavailable — your code was not run.</p>
+              <p>{runResult.reason || 'Could not reach the sandbox (Judge0). Make sure it is running on port 2358, then try again.'}</p>
+            </div>
+          </div>
+        )}
+        {!isRunning && runResult && runResult.status !== 'sandbox_unavailable' && (
           <>
             {runResult.compile_output && (
               <div>
@@ -820,187 +813,88 @@ export default function SessionPage() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <div className="w-72 bg-card/95 backdrop-blur-xl border-r border-border p-5 overflow-y-auto flex flex-col">
-        {/* Session Info Card */}
-        <div className="mb-6 bg-background rounded-xl border border-border p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-1.5 rounded-lg bg-teal-500/10">
-              <Target className="w-4 h-4 text-teal-700 dark:text-teal-400" />
+      <aside className="w-80 shrink-0 bg-card/95 backdrop-blur-xl border-r border-border p-5 overflow-y-auto flex flex-col">
+        {/* Exit */}
+        <button
+          onClick={() => router.push('/assessment')}
+          className="w-full flex items-center gap-2 px-3 py-2.5 mb-5 rounded-xl border border-border bg-background text-sm font-medium text-muted-foreground hover:text-foreground hover:border-teal-500/30 transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Exit session
+        </button>
+
+        {/* Brand */}
+        <div className="flex items-center gap-2.5 mb-6">
+          <div className="p-2 rounded-lg bg-teal-500/10 border border-teal-500/20">
+            <Target className="w-4 h-4 text-teal-700 dark:text-teal-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-foreground leading-tight">Assessment Session</p>
+            <p className="text-[10px] font-semibold text-subtle-foreground uppercase tracking-wider">In progress</p>
+          </div>
+          <span className="ml-auto w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Session active" />
+        </div>
+
+        {/* IDs */}
+        <div className="space-y-3 mb-5">
+          <div className="rounded-xl border border-border bg-background p-3.5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider">Learner</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(sessionData.learnerId)}
+                className="p-1 hover:bg-muted rounded transition-colors"
+                title="Copy Learner ID"
+              >
+                <Copy className="w-3 h-3 text-subtle-foreground hover:text-muted-foreground" />
+              </button>
             </div>
-            <span className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">Assessment Session</span>
+            <p className="text-[11px] font-mono text-foreground/80 leading-relaxed break-all">{sessionData.learnerId}</p>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold text-subtle-foreground uppercase tracking-wider">Learner</span>
-                <button
-                  onClick={() => navigator.clipboard.writeText(sessionData.learnerId)}
-                  className="p-0.5 hover:bg-muted rounded transition-colors"
-                  title="Copy Learner ID"
-                >
-                  <Copy className="w-3 h-3 text-subtle-foreground hover:text-muted-foreground" />
-                </button>
-              </div>
-              <p className="text-xs text-foreground/80 font-mono bg-muted rounded px-2 py-1.5 truncate">
-                {sessionData.learnerId}
-              </p>
+          <div className="rounded-xl border border-border bg-background p-3.5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider">Session</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(sessionData.sessionId)}
+                className="p-1 hover:bg-muted rounded transition-colors"
+                title="Copy Session ID"
+              >
+                <Copy className="w-3 h-3 text-subtle-foreground hover:text-muted-foreground" />
+              </button>
             </div>
+            <p className="text-[11px] font-mono text-foreground/80 leading-relaxed break-all">{sessionData.sessionId}</p>
+          </div>
+        </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold text-subtle-foreground uppercase tracking-wider">Session ID</span>
-                <button
-                  onClick={() => navigator.clipboard.writeText(sessionData.sessionId)}
-                  className="p-0.5 hover:bg-muted rounded transition-colors"
-                  title="Copy Session ID"
-                >
-                  <Copy className="w-3 h-3 text-subtle-foreground hover:text-muted-foreground" />
-                </button>
-              </div>
-              <p className="text-xs text-foreground/80 font-mono bg-muted rounded px-2 py-1.5 truncate">
-                {sessionData.sessionId}
-              </p>
+        {/* Session Stats */}
+        <div className="rounded-xl border border-border bg-background overflow-hidden mb-5">
+          <div className="px-4 py-3 border-b border-border">
+            <h4 className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">Session Stats</h4>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-border">
+            <div className="px-4 py-3 text-center">
+              <p className="text-2xl font-extrabold text-foreground leading-none">{sessionData.stats.questionsAsked}</p>
+              <p className="mt-1.5 text-[10px] font-semibold text-subtle-foreground uppercase tracking-wider">Asked</p>
+            </div>
+            <div className="px-4 py-3 text-center">
+              <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 leading-none">{sessionData.stats.correctAnswers}</p>
+              <p className="mt-1.5 text-[10px] font-semibold text-subtle-foreground uppercase tracking-wider">Correct</p>
             </div>
           </div>
         </div>
 
-        <div className="mb-8 text-center">
-          <div className="relative w-24 h-24 mx-auto mb-4">
-            <svg className="w-24 h-24 -rotate-90" viewBox="0 0 36 36">
-              <path
-                d="M18 2.0845a15.9155 15.9155 0 0 1 0 31.831a15.9155 15.9155 0 0 1 0-31.831"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                className="text-subtle-foreground/70"
-              />
-              <path
-                d="M18 2.0845a15.9155 15.9155 0 0 1 0 31.831a15.9155 15.9155 0 0 1 0-31.831"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeDasharray={`${sessionData.currentTopic.mastery}, 100`}
-                className={masteryColors.ring}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`text-2xl font-extrabold ${masteryColors.text}`}>{sessionData.currentTopic.mastery}%</span>
-              <span className="text-[10px] text-subtle-foreground">Mastery</span>
-            </div>
+        {/* Current Topic */}
+        <div className="rounded-xl border border-border bg-background p-3.5">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider">Current Topic</span>
+            <span className={`text-xs font-extrabold ${masteryColors.text}`}>{sessionData.currentTopic.mastery}%</span>
           </div>
-          <h4 className="text-foreground font-bold text-sm mb-1">{sessionData.currentTopic.name}</h4>
-          <div className="flex items-center justify-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${masteryColors.bg}`} />
-            <span className="text-xs text-muted-foreground">Target: 85%</span>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-2">
-              <BarChart3 className="w-3.5 h-3.5" />
-              Topic Progress
-            </h4>
-          </div>
-          <div className="space-y-1.5">
-            {sessionData.allTopics.map((topic, index) => {
-              const isCurrent = topic.status === "current";
-              const isMastered = topic.status === "mastered";
-              const colors = getMasteryColor(topic.mastery);
-              return (
-                <div
-                  key={index}
-                  className={`rounded-xl transition-all ${
-                    isCurrent
-                      ? "bg-blue-500/8 border border-blue-500/15"
-                      : "border border-transparent"
-                  }`}
-                >
-                  <div className="p-2.5">
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      {getTopicIcon(topic.status)}
-                      <p className={`text-xs font-semibold truncate ${
-                        isCurrent ? "text-foreground" :
-                        isMastered ? "text-emerald-700 dark:text-emerald-400" : "text-subtle-foreground"
-                      }`}>
-                        {topic.name}
-                      </p>
-                      {isCurrent && (
-                        <span className="ml-auto px-1.5 py-0.5 bg-blue-500/15 text-blue-700 dark:text-blue-300 text-[9px] font-bold uppercase tracking-wider rounded">Current</span>
-                      )}
-                      {isMastered && (
-                        <span className="ml-auto px-1.5 py-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[9px] font-bold uppercase tracking-wider rounded">Done</span>
-                      )}
-                      {topic.status === "pending" && (
-                        <span className="ml-auto text-[9px] text-subtle-foreground font-medium">Pending</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 pl-7">
-                      <div className="flex-1 h-1.5 bg-background rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            isMastered ? "bg-emerald-500" : isCurrent ? colors.bg : "bg-surface-3"
-                          }`}
-                          style={{ width: `${topic.mastery}%` }}
-                        />
-                      </div>
-                      <span className={`text-[10px] font-bold ${
-                        topic.mastery >= 85 ? "text-emerald-700 dark:text-emerald-400" :
-                        topic.mastery > 0 ? "text-muted-foreground" : "text-subtle-foreground/70"
-                      }`}>
-                        {topic.mastery}%
-                      </span>
-                    </div>
-                    {isCurrent && topic.mastery < 85 && (
-                      <p className="text-[9px] text-subtle-foreground/70 pl-7 mt-1">
-                        {85 - topic.mastery}% to target
-                      </p>
-                    )}
-                    {isCurrent && topic.mastery >= 85 && (
-                      <p className="text-[9px] text-emerald-700 dark:text-emerald-400/60 pl-7 mt-1 font-medium">
-                        Target reached!
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-auto space-y-4">
-          <div className="bg-background rounded-xl p-4 border border-border">
-            <h4 className="text-xs font-bold text-subtle-foreground uppercase tracking-wider mb-3">Session Stats</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center">
-                <p className="text-xl font-extrabold text-foreground">{sessionData.stats.questionsAsked}</p>
-                <p className="text-[10px] text-subtle-foreground uppercase">Asked</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400">{sessionData.stats.correctAnswers}</p>
-                <p className="text-[10px] text-subtle-foreground uppercase">Correct</p>
-              </div>
-              <div className="text-center">
-                <p className={`text-xl font-extrabold ${
-                  sessionData.stats.accuracy >= 70 ? "text-emerald-700 dark:text-emerald-400" :
-                  sessionData.stats.accuracy >= 40 ? "text-amber-700 dark:text-amber-400" : "text-red-700 dark:text-red-400"
-                }`}>{sessionData.stats.accuracy}%</p>
-                <p className="text-[10px] text-subtle-foreground uppercase">Accuracy</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xl font-extrabold text-blue-700 dark:text-blue-400">{sessionData.stats.streak}</p>
-                <p className="text-[10px] text-subtle-foreground uppercase">Streak</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-background rounded-xl p-4 border border-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-subtle-foreground" />
-              <span className="text-xs text-subtle-foreground uppercase">Time</span>
-            </div>
-            <span className="text-lg font-mono font-bold text-teal-700 dark:text-teal-400">{formatTime(timeElapsed)}</span>
+          <p className="text-sm font-semibold text-foreground mb-2.5">{sessionData.currentTopic.name}</p>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${masteryColors.bg}`}
+              style={{ width: `${Math.min(100, sessionData.currentTopic.mastery)}%` }}
+            />
           </div>
         </div>
 
@@ -1013,9 +907,29 @@ export default function SessionPage() {
             <p className="text-amber-800 dark:text-amber-200/70 text-[11px]">Extra support enabled</p>
           </div>
         )}
-      </div>
+      </aside>
 
-      <div className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-6 lg:p-8 overflow-y-auto min-w-0">
+        <div className="max-w-4xl mx-auto mb-6 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Badge className={difficultyConfig.color}>
+              <div className={`w-1.5 h-1.5 rounded-full ${difficultyConfig.dot} mr-1.5`} />
+              {sessionData.currentQuestion.difficulty}
+            </Badge>
+            <Badge className={typeConfig.color}>
+              {typeConfig.label}
+            </Badge>
+            <Badge variant="outline" className="border-teal-500/30 text-teal-700 dark:text-teal-300">
+              {sessionData.currentQuestion.topic}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-border bg-card/90 backdrop-blur-xl shadow-raised">
+            <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider">Question</span>
+            <span className="px-3 py-1 rounded-lg bg-teal-500/10 border border-teal-500/25 text-sm font-extrabold text-teal-700 dark:text-teal-300">
+              {sessionData.currentQuestion.number}
+            </span>
+          </div>
+        </div>
         {showFeedback && feedbackData ? (
           <div className="max-w-4xl mx-auto">
             <FeedbackPanel data={feedbackData} onNext={handleContinue} />
@@ -1023,26 +937,10 @@ export default function SessionPage() {
         ) : (
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
-              <div className="flex items-center gap-3 mb-6 flex-wrap">
-                <Badge className={difficultyConfig.color}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${difficultyConfig.dot} mr-1.5`} />
-                  {sessionData.currentQuestion.difficulty}
-                </Badge>
-                <Badge className={typeConfig.color}>
-                  {typeConfig.label}
-                </Badge>
-                <Badge variant="outline" className="border-teal-500/30 text-teal-700 dark:text-teal-300">
-                  {sessionData.currentQuestion.topic}
-                </Badge>
-                <span className="text-sm text-subtle-foreground ml-auto">
-                  Question {sessionData.currentQuestion.number}
-                </span>
-              </div>
-
               <Card className="bg-card/90 backdrop-blur-xl border-border shadow-raised">
                 <CardContent className="p-8">
                   <div className="mb-8">
-                      <h2 className="text-base font-medium text-foreground leading-relaxed">
+                      <h2 className="text-lg font-medium text-foreground leading-relaxed">
                         {sessionData.currentQuestion.text}
                       </h2>
                   </div>
@@ -1083,14 +981,17 @@ export default function SessionPage() {
                             disabled={isEvaluating}
                           >
                             <div className="flex items-center gap-4">
-                              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${
+                              <div className={`w-8 h-8 shrink-0 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${
                                 selectedAnswer === option.letter
-                                  ? "border-teal-500 bg-primary text-primary-foreground"
+                                  ? "border-teal-500 bg-teal-500 text-white"
                                   : "border-border-strong text-subtle-foreground"
                               }`}>
                                 {option.letter}
                               </div>
-                              <span className="font-medium">{option.text}</span>
+                              <span className="font-medium flex-1">{option.text}</span>
+                              {selectedAnswer === option.letter && (
+                                <CheckCircle className="w-5 h-5 shrink-0 text-teal-600 dark:text-teal-400" />
+                              )}
                             </div>
                           </button>
                         ))}
@@ -1244,7 +1145,7 @@ export default function SessionPage() {
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
