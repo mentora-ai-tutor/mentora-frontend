@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, Sparkles } from 'lucide-react';
+import { Send } from 'lucide-react';
 import type { ChatMessage } from '@/lib/api/workspaces';
 
 interface WorkspaceChatPanelProps {
@@ -42,32 +42,34 @@ export default function WorkspaceChatPanel({
     <div className="flex h-full flex-col">
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
         {messages.length === 0 && (
-          <p className="py-8 text-center text-xs text-subtle-foreground">No messages yet. Say hello to your team.</p>
+          <p className="py-8 text-center text-xs text-subtle-foreground">
+            No messages yet. Say hello to your team.
+          </p>
         )}
         {messages.map((message) => {
           const isOwn = message.student_id === currentStudentId;
-          const isAi = message.message_type === 'ai' || message.role === 'ai';
           return (
-            <div key={message.message_id} className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+            <div
+              key={message.id}
+              className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}
+            >
               <div className="mb-0.5 flex items-center gap-1.5 px-1">
-                {isAi && <Sparkles className="w-3 h-3 text-amber-700 dark:text-amber-400" />}
-                <span className={`text-[10px] font-bold ${isAi ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}`}>
-                  {message.sender_name}
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: message.color || undefined }}
+                />
+                <span className="text-[10px] font-bold text-muted-foreground">
+                  {message.name || message.student_id}
                 </span>
-                {message.role && message.role !== 'ai' && (
-                  <span className="rounded bg-muted px-1 text-[9px] uppercase tracking-wide text-subtle-foreground">
-                    {message.role}
-                  </span>
-                )}
-                <span className="text-[9px] text-subtle-foreground">{formatTime(message.timestamp)}</span>
+                <span className="text-[9px] text-subtle-foreground">
+                  {formatTime(message.timestamp)}
+                </span>
               </div>
               <div
                 className={`max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3 py-2 text-xs leading-relaxed ${
-                  isAi
-                    ? 'border border-amber-500/20 bg-amber-500/5 text-amber-100'
-                    : isOwn
-                      ? 'bg-teal-600/80 text-white'
-                      : 'bg-card text-foreground/80'
+                  isOwn
+                    ? 'bg-teal-600/80 text-white'
+                    : 'bg-card text-foreground/80'
                 }`}
               >
                 {message.message}

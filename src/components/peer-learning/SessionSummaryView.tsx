@@ -140,7 +140,7 @@ export default function SessionSummaryView({
         className="w-full py-3.5 bg-teal-600 hover:bg-teal-500 text-white text-base font-black rounded-2xl transition-all border border-teal-400/20 shadow-lg shadow-teal-500/10 flex items-center justify-center gap-2"
       >
         <Target className="w-5 h-5" />
-        Verify Mastery
+        Verify Your Mastery
       </button>
     </div>
   );

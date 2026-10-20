@@ -25,63 +25,43 @@ function splitLines(text: string): string[] {
   return trimmed ? trimmed.split('\n') : [];
 }
 
-function buildLines(result: CodeRunResult | null, target: string): TerminalLine[] {
+function buildLines(result: CodeRunResult | null, language: string): TerminalLine[] {
   if (!result) {
     return [{ kind: 'note', text: 'Press Run to compile and execute this file in the sandbox.' }];
   }
 
   const lines: TerminalLine[] = [];
 
-  const compileCommand = result.compile_command || (result.compiled ? result.command : undefined);
-  if (compileCommand) {
-    lines.push({ kind: 'command', text: `$ ${compileCommand}` });
+  for (const line of splitLines(result.compile_output || '')) {
+    lines.push({ kind: 'stderr', text: line });
   }
-
-  for (const error of result.compile_errors ?? []) {
-    lines.push({ kind: 'stderr', text: error });
+  for (const line of splitLines(result.stdout || '')) {
+    lines.push({ kind: 'stdout', text: line });
   }
-
-  if (result.compiled) {
-    const runCommand = result.run_command || (result.execution_enabled ? result.command : undefined);
-    if (runCommand) {
-      lines.push({ kind: 'command', text: `$ ${runCommand}` });
-    }
-    for (const line of splitLines(result.output || '')) {
-      lines.push({ kind: 'stdout', text: line });
-    }
-    for (const line of splitLines(result.error || '')) {
-      lines.push({ kind: 'stderr', text: line });
-    }
-  } else if (!(result.compile_errors ?? []).length && result.error) {
-    for (const line of splitLines(result.error)) {
-      lines.push({ kind: 'stderr', text: line });
-    }
+  for (const line of splitLines(result.stderr || '')) {
+    lines.push({ kind: 'stderr', text: line });
   }
 
   if (result.message) {
     lines.push({ kind: 'note', text: result.message });
   }
 
-  if (result.compiled && result.execution_enabled) {
-    const code = result.exit_code;
+  if (result.status === 'unsupported') {
+    lines.push({ kind: 'fail', text: `Sandbox execution for ${language} is not enabled.` });
+  } else if (result.exit_code === 0) {
     lines.push({
-      kind: code === 0 ? 'ok' : 'fail',
-      text:
-        code === 0
-          ? `Process finished with exit code 0${result.duration_ms ? ` in ${result.duration_ms} ms` : ''}`
-          : `Process finished with exit code ${code ?? 'null'}`,
+      kind: 'ok',
+      text: `Process finished with exit code 0${result.duration_ms ? ` in ${result.duration_ms} ms` : ''}`,
     });
-  } else if (result.compiled && !result.execution_enabled) {
-    lines.push({ kind: 'note', text: `Compilation of ${target} finished — execution is disabled.` });
-  } else {
-    lines.push({ kind: 'fail', text: `Compilation failed${result.exit_code != null ? ` with exit code ${result.exit_code}` : ''}.` });
+  } else if (result.exit_code !== null) {
+    lines.push({ kind: 'fail', text: `Process finished with exit code ${result.exit_code}.` });
   }
 
   return lines;
 }
 
 interface WorkspaceTerminalProps {
-  fileName: string;
+  language: string;
   running: boolean;
   result: CodeRunResult | null;
   stdin: string;
@@ -93,7 +73,7 @@ interface WorkspaceTerminalProps {
 }
 
 export default function WorkspaceTerminal({
-  fileName,
+  language,
   running,
   result,
   stdin,
@@ -104,7 +84,7 @@ export default function WorkspaceTerminal({
   onClose,
 }: WorkspaceTerminalProps) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  const lines = useMemo(() => buildLines(result, fileName), [result, fileName]);
+  const lines = useMemo(() => buildLines(result, language), [result, language]);
 
   useEffect(() => {
     const node = bodyRef.current;
@@ -115,7 +95,7 @@ export default function WorkspaceTerminal({
     <div className="flex h-full min-h-0 flex-col border-t border-border bg-[#0b1120]">
       <div className="flex flex-wrap items-center gap-2 border-b border-white/5 bg-[#0d1526] px-3 py-1.5">
         <span className="text-[10px] font-bold uppercase tracking-wider text-subtle-foreground">Terminal</span>
-        <span className="truncate text-[10px] text-muted-foreground">{fileName}</span>
+        <span className="truncate text-[10px] text-muted-foreground">{language}</span>
 
         <div className="ml-auto flex items-center gap-1.5">
           <input

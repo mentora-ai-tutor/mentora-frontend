@@ -2,37 +2,65 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Sparkles, ListChecks, ArrowRight, Award, FolderKanban } from 'lucide-react';
+import {
+  Users,
+  Sparkles,
+  BookOpen,
+  CircleHelp,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { peerLearningApi, type StudentAnalysisDocument, type QuizSummaryResponse } from '@/lib/api/peerLearning';
+import { peerLearningApi, type StudentAnalysisDocument } from '@/lib/api/peerLearning';
 import { knowledgeProfileApi, type CanonicalMasteryProfile } from '@/lib/api/knowledgeProfile';
 import type { PeerSessionData } from '@/components/peer-learning/PeerMatchSection';
 import StudentProfileCard from '@/components/peer-learning/StudentProfileCard';
-import AgentWorkflow from '@/components/peer-learning/AgentWorkflow';
 import PeerMatchSection from '@/components/peer-learning/PeerMatchSection';
 import AiAssistantSection from '@/components/peer-learning/AiAssistantSection';
+
+const masteryScoresStorageKey = (studentId: string) => `masteryScores:${studentId}`;
+const verifiedTopicsStorageKey = (studentId: string) => `masteryVerifiedTopics:${studentId}`;
 
 export default function PeerLearningHome() {
   const { user } = useAuth();
   const router = useRouter();
   const [analysis, setAnalysis] = useState<StudentAnalysisDocument | null>(null);
   const [loading, setLoading] = useState(true);
-  const [quizResult, setQuizResult] = useState<QuizSummaryResponse | null>(null);
+  const [verificationScores, setVerificationScores] = useState<Record<string, number>>({});
+  const [verifiedTopicIds, setVerifiedTopicIds] = useState<string[]>([]);
 
   const studentId = user?.student_id || user?._id || '';
 
   useEffect(() => {
     if (!studentId) return;
+
     try {
-      const raw = localStorage.getItem(`quizResult:${studentId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed.score_percentage === 'number') {
-          setQuizResult(parsed as QuizSummaryResponse);
+      const storedScores = localStorage.getItem(masteryScoresStorageKey(studentId));
+      if (storedScores) {
+        const parsedScores: unknown = JSON.parse(storedScores);
+        if (parsedScores && typeof parsedScores === 'object' && !Array.isArray(parsedScores)) {
+          setVerificationScores(
+            Object.fromEntries(
+              Object.entries(parsedScores).filter(
+                (entry): entry is [string, number] =>
+                  typeof entry[1] === 'number' && Number.isFinite(entry[1]),
+              ),
+            ),
+          );
         }
       }
-    } catch {
-      // ignore malformed stored value
+    } catch (error) {
+      console.error('Failed to load saved mastery scores', error);
+    }
+
+    try {
+      const rawVerifiedTopics = localStorage.getItem(verifiedTopicsStorageKey(studentId));
+      if (rawVerifiedTopics) {
+        const parsedTopics: unknown = JSON.parse(rawVerifiedTopics);
+        if (Array.isArray(parsedTopics)) {
+          setVerifiedTopicIds(parsedTopics.filter((topicId): topicId is string => typeof topicId === 'string'));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load verified mastery topics', error);
     }
   }, [studentId]);
 
@@ -149,137 +177,168 @@ export default function PeerLearningHome() {
         weakSubskill: data.weakSubskill,
         ai: data.isAiSession ? '1' : '0',
       });
+      if (data.topicId) params.set('topicId', data.topicId);
+      params.set('baselineScore', String(data.baselineScore));
       router.push(`/peer-learning/pair-session?${params.toString()}`);
     },
     [router],
   );
 
-  const currentStage = analysis ? (analysis.mastery_profile.knowledge_gaps.length > 0 ? 1 : 0) : 0;
+  const knowledgeGaps = analysis?.mastery_profile.knowledge_gaps ?? [];
+  const firstUnmasteredGapIndex = knowledgeGaps.findIndex(
+    (gap) =>
+      !verifiedTopicIds.includes(gap.topic_id) &&
+      (verificationScores[gap.topic_id] ?? gap.mastery_score) <= gap.mastery_score,
+  );
+  const activeGapIndex = firstUnmasteredGapIndex === -1 ? null : firstUnmasteredGapIndex;
+  const activeGap = activeGapIndex === null ? null : knowledgeGaps[activeGapIndex];
+  const activeGapAnalysis =
+    analysis && activeGap
+      ? {
+          ...analysis,
+          mastery_profile: {
+            ...analysis.mastery_profile,
+            knowledge_gaps: [activeGap],
+          },
+          knowledge_gaps: [activeGap],
+          gap_topic_ids: [activeGap.topic_id],
+        }
+      : null;
+
+  const completedGaps = activeGapIndex ?? knowledgeGaps.length;
+  const journeyProgress = knowledgeGaps.length
+    ? Math.round((completedGaps / knowledgeGaps.length) * 100)
+    : 100;
 
   return (
-    <div className="space-y-8 animate-slide-up">
+    <div className="relative isolate space-y-6 overflow-hidden rounded-[2rem] bg-[radial-gradient(ellipse_at_76%_2%,rgba(16,185,129,0.12),transparent_42%)] p-1 animate-slide-up">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
-            <Users className="w-5 h-5 text-teal-700 dark:text-teal-400" />
+      <div className="relative">
+        <div className="mb-2 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10">
+            <Users className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-foreground flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-2xl font-extrabold text-foreground md:text-3xl">
               Collaborative Peer Learning
-              <Sparkles className="w-5 h-5 text-amber-700 dark:text-amber-400" />
+              <Sparkles className="h-5 w-5 text-amber-500" />
             </h1>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground mt-2 max-w-2xl leading-relaxed">
-          Our system analyzes your learning profile and finds the most suitable peer who can help with
-          your current knowledge gap. Learn together through collaborative coding and guided discussions.
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          Strengthen one knowledge gap at a time through collaborative peer learning. Complete each gap with verified
+          improvement to unlock the next step in your learning journey.
         </p>
       </div>
 
-      {/* Student Profile */}
-      <StudentProfileCard analysis={analysis} loading={loading} user={user} />
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <StudentProfileCard
+          analysis={analysis}
+          loading={loading}
+          user={user}
+          activeGapIndex={activeGapIndex}
+          verificationScores={verificationScores}
+          verifiedTopicIds={verifiedTopicIds}
+          completedGaps={completedGaps}
+          journeyProgress={journeyProgress}
+          gapActions={
+            activeGapAnalysis && activeGap ? (
+              <div className="grid gap-2">
+                <PeerMatchSection analysis={activeGapAnalysis} onStartSession={handleStartSession} />
+                <AiAssistantSection
+                  analysis={activeGapAnalysis}
+                  user={user}
+                  onStartSession={handleStartSession}
+                />
+              </div>
+            ) : null
+          }
+        />
 
-      {/* Two-column layout: Workflow + Peer Matching */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] gap-6">
-        {/* Agent Workflow */}
-        <div className="rounded-2xl border border-border bg-card/55 p-6">
-          <AgentWorkflow currentStage={currentStage} />
-        </div>
-
-        {/* Right column: Peer Matching + AI Assistant */}
-        <div className="space-y-4">
-          {/* Peer Matching */}
-          {analysis ? (
-            <PeerMatchSection analysis={analysis} onStartSession={handleStartSession} />
-          ) : !loading ? (
-            <PeerMatchSection
-              analysis={{
-                _id: '',
-                schema_version: '',
-                student_id: studentId,
-                analysis_timestamp: '',
-                data_sources: { github: 'unavailable', sandbox: 'unavailable', quizzes: 'unavailable' },
-                mastery_profile: {
-                  overall_mastery_score: 0,
-                  knowledge_gaps: [],
-                  strengths: [],
-                },
-                recommendations: { priority_order: [] },
-                overall_mastery_score: 0,
-                knowledge_gaps: [],
-                strengths: [],
-                gap_topic_ids: [],
-                created_at: '',
-                updated_at: '',
-                saved_at: '',
-              }}
-              onStartSession={handleStartSession}
-            />
-          ) : null}
-
-          {/* AI Assistant Teacher */}
-          <AiAssistantSection analysis={analysis} user={user} onStartSession={handleStartSession} />
-        </div>
-      </div>
-
-      {/* Project Workspaces */}
-      <button
-        type="button"
-        onClick={() => router.push('/peer-learning/workspaces')}
-        className="w-full group flex items-center justify-between gap-4 rounded-2xl border border-teal-500/20 bg-gradient-to-br from-card/80 to-teal-500/[0.04] p-5 text-left transition-all hover:border-teal-500/40 hover:shadow-[0_0_30px_rgba(20,184,166,0.15)]"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
-            <FolderKanban className="w-5 h-5 text-teal-700 dark:text-teal-400" />
+        <aside className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm xl:sticky xl:top-6">
+          <div className="mb-5 flex items-center gap-2.5">
+            <BookOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <h2 className="text-base font-extrabold text-foreground">Your learning flow</h2>
           </div>
-          <div>
-            <h3 className="text-lg font-extrabold text-foreground">Project Workspaces</h3>
-            <p className="text-sm text-muted-foreground">
-              Code together in real time, chat, assign tasks, and get AI help in shared group project rooms.
+
+          <ol className="space-y-0">
+            {[
+              {
+                title: 'Find a suitable peer',
+                description: 'We’ll match you with a peer who is also working on this knowledge gap.',
+              },
+              {
+                title: 'Learn together',
+                description: 'Collaborate through coding and guided discussions.',
+              },
+              {
+                title: 'Verify independently',
+                description: 'Complete a short assessment to confirm your improvement.',
+              },
+              {
+                title: 'Unlock the next gap',
+                description: 'Move to the next knowledge gap in your learning journey.',
+              },
+            ].map((step, index) => {
+              const isCurrent = index === 0 && activeGap !== null;
+              return (
+                <li key={step.title} className="relative flex gap-3 pb-5 last:pb-0">
+                  {index < 3 && (
+                    <span className="absolute left-[13px] top-7 h-[calc(100%-1.25rem)] w-px bg-border" />
+                  )}
+                  <span
+                    className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
+                      isCurrent
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                        : 'border-border bg-background text-muted-foreground'
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <div className="pt-0.5">
+                    <h3 className={`text-sm font-bold ${isCurrent ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground'}`}>
+                      {step.title}
+                    </h3>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.description}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          <div className="mt-5 border-t border-border pt-4">
+            <div className="flex items-center gap-2">
+              <CircleHelp className="h-4 w-4 text-amber-500" />
+              <p className="text-sm font-bold text-foreground">No peer available?</p>
+            </div>
+            <p className="mt-2 pl-6 text-xs leading-relaxed text-muted-foreground">
+              Connect with the AI Assistant Teacher whenever a suitable peer cannot be found.
             </p>
           </div>
-        </div>
-        <ArrowRight className="w-5 h-5 text-teal-700 dark:text-teal-400 group-hover:translate-x-1 transition-transform shrink-0" />
-      </button>
-
-      {/* Individual Verification Quiz */}
-      <div className="rounded-2xl border border-teal-500/20 bg-gradient-to-br from-card/80 to-teal-500/[0.04] p-6 transition-all hover:border-teal-500/40">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
-              <ListChecks className="w-5 h-5 text-teal-700 dark:text-teal-400" />
-            </div>
-            <div>
-              <h3 className="text-lg font-extrabold text-foreground">Verify Your Mastery</h3>
-              <p className="text-sm text-muted-foreground">
-                Take a 7-question code-based quiz targeting your knowledge gap, receive instant feedback, and get your mastery score.
-              </p>
-            </div>
-          </div>
-          {quizResult && (
-            <div className="flex items-center gap-3 rounded-xl bg-background border border-amber-500/20 px-4 py-3">
-              <Award className="w-6 h-6 text-amber-700 dark:text-amber-400" />
-              <div>
-                <p className="text-[10px] text-subtle-foreground uppercase tracking-wider font-bold">Last Mastery Score</p>
-                <p className="text-xl font-black text-amber-700 dark:text-amber-400">{quizResult.score_percentage}%</p>
-              </div>
-              <div className="w-px h-8 bg-border" />
-              <div className="text-right">
-                <p className="text-[10px] text-subtle-foreground uppercase tracking-wider font-bold">Correct</p>
-                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{quizResult.correct_answers}/{quizResult.total_questions}</p>
-              </div>
-            </div>
-          )}
-        </div>
-        <button
-          onClick={() => router.push('/peer-learning/quiz')}
-          className="mt-4 w-full group flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary-hover text-primary-foreground font-bold rounded-xl transition-all"
-        >
-          {quizResult ? 'Retake Verification Quiz' : 'Start Verification Quiz'}
-          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform shrink-0" />
-        </button>
+        </aside>
       </div>
+
+      {analysis && knowledgeGaps.length > 0 && (
+        <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/70 px-5 py-4">
+          <div className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+            <Sparkles className="h-5 w-5" />
+            Strengths
+          </div>
+          {analysis.mastery_profile.strengths.length > 0 ? (
+            analysis.mastery_profile.strengths.map((strength) => (
+              <span
+                key={strength.topic_id}
+                className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300"
+              >
+                {strength.topic} ({strength.mastery_score}%)
+              </span>
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground">Your strengths will appear here as your profile grows.</p>
+          )}
+        </section>
+      )}
+
     </div>
   );
 }
