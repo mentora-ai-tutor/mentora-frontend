@@ -66,7 +66,9 @@ export default function WorkspaceTasksPanel({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-subtle-foreground">{tasks.length} tasks</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-subtle-foreground">
+          {tasks.length} tasks
+        </span>
         {canWrite && (
           <button
             type="button"
@@ -96,7 +98,7 @@ export default function WorkspaceTasksPanel({
               <option value="">Unassigned</option>
               {members.map((member) => (
                 <option key={member.student_id} value={member.student_id}>
-                  {memberNames[member.student_id] || member.student_id}
+                  {member.name || memberNames[member.student_id] || member.student_id}
                 </option>
               ))}
             </select>
@@ -125,29 +127,39 @@ export default function WorkspaceTasksPanel({
           const columnTasks = tasks.filter((task) => task.status === column.status);
           return (
             <div key={column.status}>
-              <div className={`mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider ${column.accent}`}>
+              <div
+                className={`mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider ${column.accent}`}
+              >
                 {column.label}
-                <span className="rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">{columnTasks.length}</span>
+                <span className="rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">
+                  {columnTasks.length}
+                </span>
               </div>
               <div className="space-y-2">
-                {columnTasks.length === 0 && <p className="text-[11px] text-subtle-foreground">Nothing here.</p>}
+                {columnTasks.length === 0 && (
+                  <p className="text-[11px] text-subtle-foreground">Nothing here.</p>
+                )}
                 {columnTasks.map((task) => (
-                  <div key={task.task_id} className="rounded-lg border border-border bg-card/50 p-2.5">
+                  <div key={task.id} className="rounded-lg border border-border bg-card/50 p-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <p className="flex-1 text-xs font-medium text-foreground">{task.title}</p>
                       {canWrite && (
                         <button
                           type="button"
-                          onClick={() => onDelete(task.task_id)}
-                          className="rounded p-0.5 text-subtle-foreground hover:text-rose-700 dark:hover:text-rose-700 dark:hover:text-rose-300"
+                          onClick={() => onDelete(task.id)}
+                          className="rounded p-0.5 text-subtle-foreground hover:text-rose-700 dark:hover:text-rose-300"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
                       )}
                     </div>
-                    {task.description && <p className="mt-1 text-[11px] text-muted-foreground">{task.description}</p>}
+                    {task.description && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">{task.description}</p>
+                    )}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${PRIORITY_STYLES[task.priority]}`}>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${PRIORITY_STYLES[task.priority]}`}
+                      >
                         {task.priority}
                       </span>
                       {task.assignee_student_id && (
@@ -164,7 +176,9 @@ export default function WorkspaceTasksPanel({
                     {canWrite && (
                       <select
                         value={task.status}
-                        onChange={(event) => onUpdate(task.task_id, { status: event.target.value as TaskStatus })}
+                        onChange={(event) =>
+                          onUpdate(task.id, { status: event.target.value as TaskStatus })
+                        }
                         className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground outline-none focus:border-teal-500/50"
                       >
                         {COLUMNS.map((option) => (

@@ -1,56 +1,69 @@
 'use client';
 
 import { useState } from 'react';
-import { Crown, LogOut, Shield, UserMinus, UserPlus } from 'lucide-react';
-import type { Workspace, WorkspaceMember, WorkspaceRole } from '@/lib/api/workspaces';
+import { Crown, LogOut, Search, Shield, UserMinus, UserPlus } from 'lucide-react';
+import type { StudentSearchResult, WorkspaceMember, WorkspaceRole } from '@/lib/api/workspaces';
 
 interface WorkspaceMembersPanelProps {
-  workspace: Workspace;
   members: WorkspaceMember[];
   memberNames: Record<string, string>;
   currentStudentId: string;
   onlineIds: string[];
   canManage: boolean;
-  onAddMember: (studentId: string, role: WorkspaceRole) => void;
-  onRoleChange: (studentId: string, role: WorkspaceRole) => void;
+  onInvite: (studentId: string, role: 'member' | 'viewer') => Promise<boolean>;
+  onRoleChange: (studentId: string, role: 'member' | 'viewer') => void;
   onRemove: (studentId: string) => void;
   onTransfer: (studentId: string) => void;
   onLeave: () => void;
   onOpenInvites: () => void;
+  searchStudents: (query: string) => Promise<StudentSearchResult[]>;
 }
 
 const ROLE_ICONS: Record<WorkspaceRole, typeof Crown> = {
-  owner: Crown,
-  editor: Shield,
+  leader: Crown,
+  member: Shield,
   viewer: UserPlus,
 };
 
 export default function WorkspaceMembersPanel({
-  workspace,
   members,
   memberNames,
   currentStudentId,
   onlineIds,
   canManage,
-  onAddMember,
+  onInvite,
   onRoleChange,
   onRemove,
   onTransfer,
   onLeave,
   onOpenInvites,
+  searchStudents,
 }: WorkspaceMembersPanelProps) {
   const [adding, setAdding] = useState(false);
-  const [newId, setNewId] = useState('');
-  const [newRole, setNewRole] = useState<WorkspaceRole>('editor');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<StudentSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [newRole, setNewRole] = useState<'member' | 'viewer'>('member');
   const onlineSet = new Set(onlineIds);
 
-  const submitAdd = () => {
-    const value = newId.trim();
-    if (!value) return;
-    onAddMember(value, newRole);
-    setNewId('');
-    setNewRole('editor');
-    setAdding(false);
+  const runSearch = async (value: string) => {
+    setQuery(value);
+    if (!value.trim()) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    setResults(await searchStudents(value.trim()));
+    setSearching(false);
+  };
+
+  const submitInvite = async (studentId: string) => {
+    const ok = await onInvite(studentId, newRole);
+    if (ok) {
+      setQuery('');
+      setResults([]);
+      setAdding(false);
+    }
   };
 
   return (
@@ -73,7 +86,7 @@ export default function WorkspaceMembersPanel({
               onClick={() => setAdding((prev) => !prev)}
               className="rounded-md bg-teal-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-teal-500"
             >
-              Add
+              Invite
             </button>
           </div>
         )}
@@ -81,31 +94,48 @@ export default function WorkspaceMembersPanel({
 
       {adding && (
         <div className="space-y-2 border-b border-border bg-background/60 p-3">
-          <input
-            autoFocus
-            value={newId}
-            onChange={(event) => setNewId(event.target.value)}
-            placeholder="Student ID"
-            className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-teal-500/50"
-          />
-          <div className="flex gap-2">
-            <select
-              value={newRole}
-              onChange={(event) => setNewRole(event.target.value as WorkspaceRole)}
-              className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none"
-            >
-              <option value="editor">Editor</option>
-              <option value="viewer">Viewer</option>
-              <option value="owner">Owner</option>
-            </select>
-            <button
-              type="button"
-              onClick={submitAdd}
-              className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-500"
-            >
-              Add
-            </button>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-subtle-foreground" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(event) => void runSearch(event.target.value)}
+              placeholder="Search students by name or email…"
+              className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-2.5 text-xs text-foreground outline-none focus:border-teal-500/50"
+            />
           </div>
+          <select
+            value={newRole}
+            onChange={(event) => setNewRole(event.target.value as 'member' | 'viewer')}
+            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none"
+          >
+            <option value="member">Member</option>
+            <option value="viewer">Viewer</option>
+          </select>
+          {searching && <p className="text-[10px] text-subtle-foreground">Searching…</p>}
+          {results.length > 0 && (
+            <div className="max-h-40 space-y-1 overflow-y-auto">
+              {results.map((student) => (
+                <button
+                  key={student.student_id}
+                  type="button"
+                  onClick={() => void submitInvite(student.student_id)}
+                  className="flex w-full items-center justify-between rounded-md border border-border bg-card/50 px-2.5 py-1.5 text-left hover:border-teal-500/40"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-semibold text-foreground">
+                      {student.name || student.student_id}
+                    </p>
+                    <p className="truncate text-[10px] text-subtle-foreground">{student.email}</p>
+                  </div>
+                  <span className="text-[10px] text-teal-700 dark:text-teal-300">Invite</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {query.trim() && !searching && results.length === 0 && (
+            <p className="text-[10px] text-subtle-foreground">No students found.</p>
+          )}
         </div>
       )}
 
@@ -113,14 +143,18 @@ export default function WorkspaceMembersPanel({
         {members.map((member) => {
           const RoleIcon = ROLE_ICONS[member.role] || Shield;
           const isSelf = member.student_id === currentStudentId;
-          const name = memberNames[member.student_id] || member.student_id;
+          const isOwner = member.role === 'leader';
+          const name = member.name || memberNames[member.student_id] || member.student_id;
           return (
             <div
               key={member.student_id}
               className="flex items-center gap-2.5 rounded-lg border border-border bg-card/40 px-2.5 py-2"
             >
               <div className="relative">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-500/15 text-xs font-bold text-teal-700 dark:text-teal-300">
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
+                  style={{ backgroundColor: member.color || 'rgba(20,184,166,0.15)' }}
+                >
                   {name.slice(0, 2).toUpperCase()}
                 </div>
                 {onlineSet.has(member.student_id) && (
@@ -139,22 +173,25 @@ export default function WorkspaceMembersPanel({
 
               {canManage && !isSelf && (
                 <div className="flex items-center gap-1">
-                  <select
-                    value={member.role}
-                    onChange={(event) => onRoleChange(member.student_id, event.target.value as WorkspaceRole)}
-                    className="rounded border border-border bg-background px-1.5 py-1 text-[10px] text-muted-foreground outline-none"
-                  >
-                    <option value="editor">editor</option>
-                    <option value="viewer">viewer</option>
-                    <option value="owner">owner</option>
-                  </select>
-                  {member.role !== 'owner' && (
+                  {!isOwner && (
+                    <select
+                      value={member.role}
+                      onChange={(event) =>
+                        onRoleChange(member.student_id, event.target.value as 'member' | 'viewer')
+                      }
+                      className="rounded border border-border bg-background px-1.5 py-1 text-[10px] text-muted-foreground outline-none"
+                    >
+                      <option value="member">member</option>
+                      <option value="viewer">viewer</option>
+                    </select>
+                  )}
+                  {!isOwner && (
                     <>
                       <button
                         type="button"
-                        title="Transfer ownership"
+                        title="Transfer leadership"
                         onClick={() => onTransfer(member.student_id)}
-                        className="rounded p-1 text-subtle-foreground hover:bg-amber-500/15 hover:text-amber-700 dark:hover:text-amber-700 dark:hover:text-amber-300"
+                        className="rounded p-1 text-subtle-foreground hover:bg-amber-500/15 hover:text-amber-700 dark:hover:text-amber-300"
                       >
                         <Crown className="w-3.5 h-3.5" />
                       </button>
@@ -162,7 +199,7 @@ export default function WorkspaceMembersPanel({
                         type="button"
                         title="Remove member"
                         onClick={() => onRemove(member.student_id)}
-                        className="rounded p-1 text-subtle-foreground hover:bg-rose-500/15 hover:text-rose-700 dark:hover:text-rose-700 dark:hover:text-rose-300"
+                        className="rounded p-1 text-subtle-foreground hover:bg-rose-500/15 hover:text-rose-700 dark:hover:text-rose-300"
                       >
                         <UserMinus className="w-3.5 h-3.5" />
                       </button>
@@ -179,10 +216,10 @@ export default function WorkspaceMembersPanel({
         <button
           type="button"
           onClick={onLeave}
-          disabled={workspace.owner_student_id === currentStudentId}
+          disabled={members.some((m) => m.student_id === currentStudentId && m.role === 'leader')}
           title={
-            workspace.owner_student_id === currentStudentId
-              ? 'Transfer ownership or archive before leaving'
+            members.some((m) => m.student_id === currentStudentId && m.role === 'leader')
+              ? 'Transfer leadership or archive before leaving'
               : undefined
           }
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-rose-500/20 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-40"

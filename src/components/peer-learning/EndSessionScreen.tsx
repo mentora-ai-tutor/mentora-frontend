@@ -4,6 +4,7 @@ import { CheckCircle2, ArrowLeft, User, Brain, BookOpen } from 'lucide-react';
 import type { CodeEvaluation } from '@/lib/api/peerLearning';
 import type { SummaryResponse } from '@/lib/api/peerLearning';
 import type { ContentRecommendation } from '@/lib/api/peerLearning';
+import type { DiagnosticSessionCompleteResponse } from '@/lib/api/peerLearning';
 
 interface EndSessionScreenProps {
   studentName: string;
@@ -16,6 +17,8 @@ interface EndSessionScreenProps {
   evaluation: CodeEvaluation | null;
   summary: SummaryResponse | null;
   recommendations: ContentRecommendation[];
+  aiSessionSummary?: DiagnosticSessionCompleteResponse['session_summary'] | null;
+  onVerifyMastery?: () => void;
   onReturnHome: () => void;
 }
 
@@ -30,8 +33,16 @@ export default function EndSessionScreen({
   evaluation,
   summary,
   recommendations,
+  aiSessionSummary,
+  onVerifyMastery,
   onReturnHome,
 }: EndSessionScreenProps) {
+  const canVerifyMastery =
+    aiSessionSummary !== null &&
+    aiSessionSummary !== undefined &&
+    aiSessionSummary.total_tasks > 0 &&
+    aiSessionSummary.tasks_passed === aiSessionSummary.total_tasks;
+
   return (
     <div className="max-w-2xl mx-auto py-8 space-y-6 animate-slide-up">
       <div className="text-center space-y-2">
@@ -94,6 +105,34 @@ export default function EndSessionScreen({
           </div>
         )}
 
+        {aiSessionSummary && (
+          <div className="rounded-xl bg-background border border-border p-3">
+            <p className="text-[10px] text-subtle-foreground uppercase mb-2">AI Teacher Session Summary</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[10px] text-subtle-foreground uppercase">Tasks Passed</p>
+                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                  {aiSessionSummary.tasks_passed}/{aiSessionSummary.total_tasks}
+                </p>
+              </div>
+            </div>
+            {aiSessionSummary.results.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {aiSessionSummary.results.map((result, index) => (
+                  <li key={`${result.task_index}-${index}`} className="rounded-lg bg-muted p-2">
+                    <p className="text-[11px] font-semibold text-foreground">
+                      Task {result.task_number ?? (result.task_index ?? index) + 1} · {result.grade || (result.passed ? 'Passed' : 'Completed')}
+                    </p>
+                    {result.feedback && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">{result.feedback}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {recommendations.length > 0 && (
           <div className="rounded-xl bg-background border border-border p-3">
             <p className="text-[10px] text-subtle-foreground uppercase mb-1">Recommended Next Topic</p>
@@ -108,6 +147,15 @@ export default function EndSessionScreen({
           </div>
         )}
       </div>
+
+      {canVerifyMastery && onVerifyMastery && (
+        <button
+          onClick={onVerifyMastery}
+          className="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-colors border border-teal-400/20"
+        >
+          Verify Mastery Score
+        </button>
+      )}
 
       <button
         onClick={onReturnHome}

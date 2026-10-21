@@ -31,17 +31,27 @@ interface TreeNode {
   children: TreeNode[];
 }
 
+function parentPathOf(path: string): string {
+  const idx = path.lastIndexOf('/');
+  return idx === -1 ? '' : path.slice(0, idx);
+}
+
+function entryPath(entry: WorkspaceFile): string {
+  return entry.path || entry.name || '';
+}
+
 function buildTree(files: WorkspaceFile[]): TreeNode[] {
   const byPath = new Map<string, TreeNode>();
-  for (const entry of files) {
-    byPath.set(entry.path, { entry, children: [] });
+  const usable = files.filter((entry) => Boolean(entryPath(entry)));
+  for (const entry of usable) {
+    byPath.set(entryPath(entry), { entry, children: [] });
   }
   const roots: TreeNode[] = [];
-  const sorted = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  const sorted = [...usable].sort((a, b) => entryPath(a).localeCompare(entryPath(b)));
   for (const entry of sorted) {
-    const node = byPath.get(entry.path);
+    const node = byPath.get(entryPath(entry));
     if (!node) continue;
-    const parentPath = entry.parent_path || '';
+    const parentPath = parentPathOf(entryPath(entry));
     if (parentPath && byPath.has(parentPath)) {
       byPath.get(parentPath)!.children.push(node);
     } else {
@@ -101,10 +111,7 @@ export default function WorkspaceFileTree({
   };
 
   const renderCreateRow = (depth: number) => (
-    <div
-      className="flex items-center gap-2 py-1 pr-2"
-      style={{ paddingLeft: `${depth * 14 + 24}px` }}
-    >
+    <div className="flex items-center gap-2 py-1 pr-2" style={{ paddingLeft: `${depth * 14 + 24}px` }}>
       {creating?.type === 'folder' ? (
         <FolderPlus className="w-4 h-4 shrink-0 text-teal-700 dark:text-teal-400" />
       ) : (
@@ -123,7 +130,7 @@ export default function WorkspaceFileTree({
         }}
         onBlur={submitCreate}
         placeholder={creating?.type === 'folder' ? 'folder name' : 'File.java'}
-        className="flex-1 min-w-0 rounded-md border border-teal-500/40 bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-teal-400"
+        className="min-w-0 flex-1 rounded-md border border-teal-500/40 bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-teal-400"
       />
     </div>
   );
@@ -132,11 +139,11 @@ export default function WorkspaceFileTree({
     const { entry } = node;
     const isFolder = entry.type === 'folder';
     const isOpen = expanded[entry.path] ?? true;
-    const isActive = entry.file_id === activeFileId;
-    const isBeingViewed = activeSet.has(entry.file_id);
+    const isActive = entry.id === activeFileId;
+    const isBeingViewed = activeSet.has(entry.id);
 
     return (
-      <div key={entry.file_id}>
+      <div key={entry.id}>
         <div
           className={`group flex items-center gap-1.5 rounded-lg pr-1.5 transition-colors ${
             isActive ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300' : 'text-muted-foreground hover:bg-muted'
@@ -146,7 +153,7 @@ export default function WorkspaceFileTree({
           <button
             type="button"
             onClick={() => (isFolder ? toggle(entry.path) : onSelect(entry))}
-            className="flex flex-1 items-center gap-1.5 py-1.5 text-left min-w-0"
+            className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 text-left"
           >
             {isFolder ? (
               <>
@@ -166,7 +173,7 @@ export default function WorkspaceFileTree({
               </>
             )}
 
-            {renamingId === entry.file_id ? (
+            {renamingId === entry.id ? (
               <input
                 autoFocus
                 value={renameValue}
@@ -177,7 +184,7 @@ export default function WorkspaceFileTree({
                 }}
                 onBlur={() => submitRename(entry)}
                 onClick={(event) => event.stopPropagation()}
-                className="flex-1 min-w-0 rounded-md border border-teal-500/40 bg-background px-1.5 py-0.5 text-xs text-foreground outline-none"
+                className="min-w-0 flex-1 rounded-md border border-teal-500/40 bg-background px-1.5 py-0.5 text-xs text-foreground outline-none"
               />
             ) : (
               <span className="flex-1 truncate text-xs font-medium">{entry.name}</span>
@@ -188,7 +195,7 @@ export default function WorkspaceFileTree({
             )}
           </button>
 
-          {canWrite && renamingId !== entry.file_id && (
+          {canWrite && renamingId !== entry.id && (
             <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
               {isFolder && (
                 <>
@@ -217,7 +224,7 @@ export default function WorkspaceFileTree({
                 type="button"
                 title="Rename"
                 onClick={() => {
-                  setRenamingId(entry.file_id);
+                  setRenamingId(entry.id);
                   setRenameValue(entry.name);
                 }}
                 className="rounded p-1 text-subtle-foreground hover:bg-surface-3 hover:text-foreground"
@@ -228,7 +235,7 @@ export default function WorkspaceFileTree({
                 type="button"
                 title="Delete"
                 onClick={() => onDelete(entry)}
-                className="rounded p-1 text-subtle-foreground hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-700 dark:hover:text-rose-300"
+                className="rounded p-1 text-subtle-foreground hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-300"
               >
                 <Trash2 className="w-3 h-3" />
               </button>
@@ -258,7 +265,7 @@ export default function WorkspaceFileTree({
               type="button"
               title="New file"
               onClick={() => setCreating({ parent: '', type: 'file' })}
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-3 hover:text-teal-700 dark:hover:text-teal-700 dark:hover:text-teal-300"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-3 hover:text-teal-700 dark:hover:text-teal-300"
             >
               <File className="w-3.5 h-3.5" />
             </button>
@@ -266,7 +273,7 @@ export default function WorkspaceFileTree({
               type="button"
               title="New folder"
               onClick={() => setCreating({ parent: '', type: 'folder' })}
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-3 hover:text-teal-700 dark:hover:text-teal-700 dark:hover:text-teal-300"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-3 hover:text-teal-700 dark:hover:text-teal-300"
             >
               <FolderPlus className="w-3.5 h-3.5" />
             </button>

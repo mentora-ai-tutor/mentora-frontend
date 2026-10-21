@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Loader2,
   CheckCircle2,
@@ -31,6 +32,8 @@ type Phase = 'loading' | 'question' | 'completed' | 'error';
 
 export default function IndividualQuiz() {
   const router = useRouter();
+  const { user } = useAuth();
+  const studentId = user?.student_id || user?._id || '';
   const [phase, setPhase] = useState<Phase>('loading');
   const [sessionId, setSessionId] = useState('');
   const [topic, setTopic] = useState('Java');
@@ -44,15 +47,23 @@ export default function IndividualQuiz() {
   const [summary, setSummary] = useState<QuizSummaryResponse | null>(null);
   const [error, setError] = useState('');
   const answerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const initialQuizStartedRef = useRef(false);
 
   const startQuiz = useCallback(async () => {
     setPhase('loading');
     setError('');
     try {
-      const res = await peerLearningApi.startIndividualQuiz();
+      const params = new URLSearchParams(window.location.search);
+      const requestedTopic = params.get('topic');
+      const topicId = params.get('topicId');
+      const res =
+        requestedTopic && studentId
+          ? await peerLearningApi.startIndividualQuiz({ studentId, topic: requestedTopic })
+          : await peerLearningApi.startIndividualQuiz();
       if (res.success && res.data) {
         const data = res.data;
         setSessionId(data.session_id);
+        setTopic(requestedTopic || 'Java');
         setTotalQuestions(data.total_questions || 7);
         setQuestionIndex(data.question_index || 0);
         setCurrentQuestion(data.first_question);
@@ -69,11 +80,16 @@ export default function IndividualQuiz() {
       setError('Network error. Please try again.');
       setPhase('error');
     }
-  }, []);
+  }, [studentId]);
 
   useEffect(() => {
+    if (initialQuizStartedRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('topic') && !studentId) return;
+
+    initialQuizStartedRef.current = true;
     startQuiz();
-  }, [startQuiz]);
+  }, [startQuiz, studentId]);
 
   const handleSubmit = async () => {
     if (!answer.trim() || submitting) return;
@@ -103,7 +119,46 @@ export default function IndividualQuiz() {
               setSummary(summaryRes.data);
               setTopic(summaryRes.data.topic);
               setPhase('completed');
-              localStorage.setItem(`quizResult:${summaryRes.data.student_id}`, JSON.stringify(summaryRes.data));
+              try {
+                const params = new URLSearchParams(window.location.search);
+                const topicId = params.get('topicId');
+                if (topicId) {
+                  const scoresKey = `masteryScores:${summaryRes.data.student_id}`;
+                  const storedScores = localStorage.getItem(scoresKey);
+                  const parsedScores: unknown = storedScores ? JSON.parse(storedScores) : {};
+                  const scores =
+                    parsedScores && typeof parsedScores === 'object' && !Array.isArray(parsedScores)
+                      ? (parsedScores as Record<string, unknown>)
+                      : {};
+                  const previousScore = scores[topicId];
+                  const previousMasteryScore =
+                    typeof previousScore === 'number' && Number.isFinite(previousScore)
+                      ? previousScore
+                      : Number(params.get('baselineScore')) || 0;
+                  const currentScore = summaryRes.data.score_percentage;
+                  localStorage.setItem(scoresKey, JSON.stringify({ ...scores, [topicId]: currentScore }));
+
+                  if (currentScore > previousMasteryScore) {
+                    const verifiedTopicsKey = `masteryVerifiedTopics:${summaryRes.data.student_id}`;
+                    const storedVerifiedTopics = localStorage.getItem(verifiedTopicsKey);
+                    const parsedVerifiedTopics: unknown = storedVerifiedTopics
+                      ? JSON.parse(storedVerifiedTopics)
+                      : [];
+                    const verifiedTopics = Array.isArray(parsedVerifiedTopics)
+                      ? parsedVerifiedTopics.filter((value): value is string => typeof value === 'string')
+                      : [];
+                    if (!verifiedTopics.includes(topicId)) {
+                      localStorage.setItem(
+                        verifiedTopicsKey,
+                        JSON.stringify([...verifiedTopics, topicId]),
+                      );
+                    }
+                  }
+                }
+              } catch (storageError) {
+                console.error('Failed to save mastery verification result', storageError);
+                setError('Your quiz is complete, but the mastery score could not be saved on this device.');
+              }
             } else {
               setFeedback(item);
               setPhase('completed');
@@ -311,6 +366,12 @@ export default function IndividualQuiz() {
 
       {phase === 'completed' && (
         <div className="space-y-3">
+          {error && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+              <p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+
           {/* Mastery Score */}
           <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-card/80 to-amber-500/[0.03] p-6">
             <div className="flex items-center gap-3 mb-4">

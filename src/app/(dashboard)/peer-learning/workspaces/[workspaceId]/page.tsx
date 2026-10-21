@@ -5,7 +5,9 @@ import WorkspaceRoom from '@/components/peer-learning/workspace/WorkspaceRoom';
 
 export default function WorkspaceRoomPage() {
   const params = useParams<{ workspaceId: string }>();
-  const workspaceId = Array.isArray(params?.workspaceId) ? params.workspaceId[0] : params?.workspaceId;
+  const workspaceId = Array.isArray(params?.workspaceId)
+    ? params.workspaceId[0]
+    : params?.workspaceId;
 
   if (!workspaceId) {
     return (

@@ -1,7 +1,9 @@
 const PEER_LEARNING_API_URL =
   process.env.NEXT_PUBLIC_PEER_LEARNING_API_URL || 'http://localhost:8001';
 
-// ── Shared types ───────────────────────────────────
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -10,8 +12,8 @@ export interface ApiResponse<T = unknown> {
   data?: T;
 }
 
-export type WorkspaceRole = 'owner' | 'editor' | 'viewer';
-export type WorkspaceStatus = 'active' | 'archived';
+export type WorkspaceRole = 'leader' | 'member' | 'viewer';
+export type WorkspaceStatus = 'active' | 'archived' | 'closed';
 export type WorkspaceVisibility = 'private' | 'invite';
 
 export interface Workspace {
@@ -21,6 +23,8 @@ export interface Workspace {
   visibility: WorkspaceVisibility;
   status: WorkspaceStatus;
   owner_student_id: string;
+  peer_pool_id: string | null;
+  project_id: string | null;
   member_count: number;
   created_at: string;
   updated_at: string;
@@ -28,75 +32,85 @@ export interface Workspace {
 }
 
 export interface WorkspaceMember {
-  workspace_id: string;
   student_id: string;
   role: WorkspaceRole;
-  status: string;
   joined_at?: string;
-  last_seen_at?: string;
-  updated_at?: string;
+  name?: string | null;
+  email?: string | null;
+  color?: string | null;
+}
+
+export interface StudentSearchResult {
+  student_id: string;
+  name: string | null;
+  email: string | null;
 }
 
 export interface WorkspaceFile {
-  file_id: string;
+  id: string;
   workspace_id: string;
   name: string;
   path: string;
-  parent_path: string;
   type: 'file' | 'folder';
-  language: string;
   content?: string;
-  size: number;
-  version_count: number;
+  language?: string | null;
   created_by: string;
-  updated_by: string;
   created_at: string;
   updated_at: string;
-  status: string;
 }
 
 export interface FileVersion {
-  version_id: string;
+  id: string;
   workspace_id: string;
   file_id: string;
-  version_number: number;
+  path: string;
+  name?: string | null;
   content?: string;
   size: number;
-  author_student_id: string;
-  message: string;
+  student_id: string;
   created_at: string;
 }
 
-export interface ActivityEntry {
+export interface TrashItem {
+  trash_id: string;
   workspace_id: string;
-  actor_student_id: string;
-  action: string;
-  detail: Record<string, unknown>;
-  timestamp: string;
+  items: WorkspaceFile[];
+  deleted_by: string;
+  deleted_at: string;
+  expires_at: string;
 }
 
+export type ChatMessageType = 'text' | 'code' | 'system';
+
 export interface ChatMessage {
-  message_id: string;
+  id: string;
+  type?: 'CHAT_MESSAGE';
   workspace_id: string;
   student_id: string;
-  sender_name: string;
-  role: WorkspaceRole | 'ai' | null;
+  name: string | null;
+  color: string | null;
   message: string;
-  message_type: 'text' | 'code' | 'system' | 'ai' | 'ai_question';
+  message_type: ChatMessageType;
   reply_to: string | null;
+  mentions: string[];
+  file_id: string | null;
+  line_number: number | null;
+  code_language: string | null;
   timestamp: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface CodeComment {
-  comment_id: string;
+  id: string;
   workspace_id: string;
-  file_id: string;
+  file_id: string | null;
+  student_id: string;
+  name?: string | null;
   body: string;
   line_start: number | null;
   line_end: number | null;
   parent_comment_id: string | null;
-  author_student_id: string;
-  author_name: string;
   status: 'open' | 'resolved';
   created_at: string;
   updated_at: string;
@@ -106,130 +120,147 @@ export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface WorkspaceTask {
-  task_id: string;
+  id: string;
   workspace_id: string;
   title: string;
-  description: string;
+  description: string | null;
   assignee_student_id: string | null;
   status: TaskStatus;
   priority: TaskPriority;
   due_date: string | null;
-  labels: string[];
+  labels: string[] | null;
+  file_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
-  completed_at: string | null;
 }
 
-export interface WorkspaceNotification {
-  notification_id: string;
+export interface ActivityEntry {
+  id: string;
   workspace_id: string;
-  recipient_student_id: string;
-  type: string;
-  message: string;
-  actor_student_id: string;
-  detail: Record<string, unknown>;
+  student_id: string;
+  name?: string | null;
+  action: string;
+  target: unknown;
+  timestamp: string;
+}
+
+export type WorkspaceNotificationType =
+  | 'chat_mention'
+  | 'workspace_invitation'
+  | 'member_joined'
+  | 'task_assigned'
+  | 'task_completed'
+  | 'role_changed'
+  | 'ownership_transferred';
+
+export interface WorkspaceNotification {
+  id: string;
+  workspace_id: string;
+  student_id: string;
+  type: WorkspaceNotificationType | string;
   status: 'unread' | 'read';
   created_at: string;
+  message_id?: string;
+  invite_id?: string;
+  task_id?: string;
+  title?: string;
+  created_by?: string;
+  member_student_id?: string;
+  role?: WorkspaceRole;
   read_at?: string;
 }
 
-export interface JoinKeyMeta {
-  key_id: string;
+export interface InviteMeta {
+  id: string;
   workspace_id: string;
+  student_id: string;
   role: WorkspaceRole;
-  created_by: string;
+  status: 'pending' | 'accepted' | 'declined' | 'revoked' | 'accepting';
+  invited_by: string;
+  workspace_name?: string | null;
   created_at: string;
-  expires_at: string | null;
-  max_uses: number | null;
-  uses: number;
-  status: string;
-  last_used_at?: string;
 }
 
-export interface InviteMeta {
-  invite_id: string;
-  workspace_id: string;
+export interface PendingInvitation extends InviteMeta {
+  workspace?: {
+    workspace_id: string;
+    name: string;
+    description: string;
+    owner_student_id: string;
+  };
+}
+
+export interface JoinKeyMeta {
+  id: string;
   role: WorkspaceRole;
-  created_by: string;
-  created_at: string;
-  expires_at: string | null;
-  max_uses: number | null;
+  max_uses: number;
   uses: number;
-  status: string;
+  revoked: boolean;
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
 }
 
 export interface WorkspaceAnalytics {
-  status: string;
-  workspace_id: string;
   totals: {
     members: number;
     files: number;
+    folders: number;
     versions: number;
     messages: number;
     comments: number;
+    open_comments: number;
     tasks: number;
+    tasks_done: number;
+    activities: number;
   };
-  per_member: {
+  members: {
     student_id: string;
-    name: string;
+    name: string | null;
+    color: string | null;
     role: WorkspaceRole;
-    files_created: number;
-    file_edits: number;
-    messages_sent: number;
+    joined_at?: string;
+    edits: number;
+    lines_changed: number;
+    messages: number;
     comments: number;
-    tasks_assigned: number;
+    tasks_created: number;
     tasks_completed: number;
-    last_seen_at?: string;
   }[];
-  timeline: { date: string; count: number }[];
+  activity_by_day: { date: string; count: number }[];
 }
 
 export interface CodeRunResult {
   status: string;
-  execution_enabled: boolean;
-  compiled: boolean;
-  compile_errors: string[];
-  output: string;
+  language: string;
+  stdout: string;
+  stderr: string;
   exit_code: number | null;
+  compile_output: string;
+  duration_ms: number;
   message?: string;
-  error?: string;
-  command?: string;
-  compile_command?: string;
-  run_command?: string;
-  main_class?: string | null;
-  scope?: 'file' | 'project';
-  files_compiled?: number;
-  duration_ms?: number;
-}
-
-export interface AssistantReply {
-  status: string;
-  reply: string;
-  ai_status: string;
-  message_id: string;
-  question?: ChatMessage;
 }
 
 export interface PresenceParticipant {
   student_id: string;
   name: string;
-  role: WorkspaceRole;
-  color: string;
+  color: string | null;
 }
 
 export interface AwarenessState {
   student_id: string;
-  name: string;
-  role: WorkspaceRole;
-  color: string;
+  name?: string;
+  color?: string | null;
+  role?: WorkspaceRole;
   file_id: string | null;
-  selection?: unknown;
   cursor?: unknown;
-  timestamp: string;
+  selection?: unknown;
 }
 
-// ── Request payload types ──────────────────────────
+// ---------------------------------------------------------------------------
+// Request payload types
+// ---------------------------------------------------------------------------
 
 export interface WorkspaceCreateInput {
   name: string;
@@ -245,23 +276,36 @@ export interface WorkspaceUpdateInput {
 }
 
 export interface FileCreateInput {
-  name: string;
+  name?: string;
+  path?: string;
   parent_path?: string;
   type?: 'file' | 'folder';
   content?: string;
   language?: string;
 }
 
-export interface FileContentUpdateInput {
-  content: string;
-  message?: string;
-  base_version?: number;
+export interface FileUpdateInput {
+  content?: string;
+  name?: string;
+  language?: string;
 }
 
-export interface FileUpdateInput {
-  name?: string;
-  parent_path?: string;
-  language?: string;
+export interface ChatSendInput {
+  message: string;
+  message_type?: ChatMessageType;
+  reply_to?: string;
+  mentions?: string[];
+  file_id?: string;
+  line_number?: number;
+  code_language?: string;
+}
+
+export interface CommentCreateInput {
+  body: string;
+  file_id?: string;
+  line_start?: number;
+  line_end?: number;
+  parent_comment_id?: string;
 }
 
 export interface TaskCreateInput {
@@ -272,6 +316,7 @@ export interface TaskCreateInput {
   priority?: TaskPriority;
   due_date?: string | null;
   labels?: string[];
+  file_id?: string | null;
 }
 
 export interface TaskUpdateInput {
@@ -282,9 +327,12 @@ export interface TaskUpdateInput {
   priority?: TaskPriority;
   due_date?: string | null;
   labels?: string[];
+  file_id?: string | null;
 }
 
-// ── API Client ─────────────────────────────────────
+// ---------------------------------------------------------------------------
+// API client
+// ---------------------------------------------------------------------------
 
 function buildQuery(params: Record<string, unknown> | undefined): string {
   if (!params) return '';
@@ -343,11 +391,16 @@ class WorkspaceApi {
 
   private async requestBlob(
     path: string,
+    init?: RequestInit,
   ): Promise<{ success: boolean; blob?: Blob; filename?: string; message?: string }> {
     try {
+      const token = this.getAccessToken();
       const response = await fetch(`${PEER_LEARNING_API_URL}${path}`, {
-        method: 'GET',
-        headers: this.getHeaders(),
+        ...init,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(init?.headers || {}),
+        },
       });
       if (!response.ok) {
         let message = `Request failed (${response.status})`;
@@ -371,7 +424,7 @@ class WorkspaceApi {
     }
   }
 
-  // ── Workspaces ────────────────────────────────
+  // -- Workspaces -----------------------------------------------------------
 
   async createWorkspace(input: WorkspaceCreateInput): Promise<ApiResponse<{ status: string; workspace: Workspace }>> {
     return this.request('/api/workspaces', 'POST', input);
@@ -390,7 +443,7 @@ class WorkspaceApi {
   async updateWorkspace(
     workspaceId: string,
     input: WorkspaceUpdateInput,
-  ): Promise<ApiResponse<{ status: string; workspace: Workspace }>> {
+  ): Promise<ApiResponse<{ status: string }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}`, 'PATCH', input);
   }
 
@@ -402,35 +455,37 @@ class WorkspaceApi {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/unarchive`, 'POST');
   }
 
-  async purgeWorkspace(
-    workspaceId: string,
-  ): Promise<ApiResponse<{ status: string; message: string; deleted: Record<string, number> }>> {
+  async purgeWorkspace(workspaceId: string): Promise<ApiResponse<{ status: string; message: string }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/purge`, 'DELETE');
+  }
+
+  async leaveWorkspace(workspaceId: string): Promise<ApiResponse<{ status: string; message: string }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/leave`, 'POST');
   }
 
   async transferOwnership(
     workspaceId: string,
     newOwnerStudentId: string,
-  ): Promise<ApiResponse<{ status: string; message: string; new_owner: string }>> {
+  ): Promise<ApiResponse<{ status: string; owner_student_id: string }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/transfer-ownership`, 'POST', {
       new_owner_student_id: newOwnerStudentId,
     });
   }
 
-  // ── Membership ────────────────────────────────
+  // -- Membership -----------------------------------------------------------
 
   async listMembers(
     workspaceId: string,
-  ): Promise<ApiResponse<{ status: string; workspace_id: string; total: number; members: WorkspaceMember[] }>> {
+  ): Promise<ApiResponse<{ status: string; total: number; members: WorkspaceMember[] }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/members`);
   }
 
-  async addMember(
+  async inviteMember(
     workspaceId: string,
     studentId: string,
-    role: WorkspaceRole = 'editor',
-  ): Promise<ApiResponse<{ status: string; member: WorkspaceMember }>> {
-    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/members`, 'POST', {
+    role: 'member' | 'viewer' = 'member',
+  ): Promise<ApiResponse<{ status: string; invitation: InviteMeta }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/invite`, 'POST', {
       student_id: studentId,
       role,
     });
@@ -439,8 +494,8 @@ class WorkspaceApi {
   async updateMemberRole(
     workspaceId: string,
     studentId: string,
-    role: WorkspaceRole,
-  ): Promise<ApiResponse<{ status: string; message: string }>> {
+    role: 'member' | 'viewer',
+  ): Promise<ApiResponse<{ status: string; member: WorkspaceMember }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(studentId)}`,
       'PATCH',
@@ -451,86 +506,88 @@ class WorkspaceApi {
   async removeMember(
     workspaceId: string,
     studentId: string,
-  ): Promise<ApiResponse<{ status: string; message: string }>> {
+  ): Promise<ApiResponse<{ status: string }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(studentId)}`,
       'DELETE',
     );
   }
 
-  async leaveWorkspace(workspaceId: string): Promise<ApiResponse<{ status: string; message: string }>> {
-    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/leave`, 'POST');
+  async searchStudents(query: string): Promise<ApiResponse<{ status: string; students: StudentSearchResult[] }>> {
+    return this.request(`/api/workspaces/students/search${buildQuery({ q: query })}`);
   }
 
-  // ── Join keys & invites ───────────────────────
+  // -- Join keys & invitations ----------------------------------------------
 
   async createJoinKey(
     workspaceId: string,
-    options?: { role?: WorkspaceRole; expires_in_hours?: number; max_uses?: number },
-  ): Promise<ApiResponse<{ status: string; join_key: string; key_id: string }>> {
+    options?: { role?: 'member' | 'viewer'; expires_in_hours?: number; max_uses?: number },
+  ): Promise<
+    ApiResponse<{ status: string; join_key: string; key_id: string; expires_at: string; max_uses: number }>
+  > {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/join-keys`, 'POST', options ?? {});
   }
 
-  async listJoinKeys(
-    workspaceId: string,
-  ): Promise<ApiResponse<{ status: string; workspace_id: string; total: number; join_keys: JoinKeyMeta[] }>> {
+  async listJoinKeys(workspaceId: string): Promise<ApiResponse<{ status: string; keys: JoinKeyMeta[] }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/join-keys`);
   }
 
-  async revokeJoinKey(
-    workspaceId: string,
-    keyId: string,
-  ): Promise<ApiResponse<{ status: string; message: string }>> {
+  async revokeJoinKey(workspaceId: string, keyId: string): Promise<ApiResponse<{ status: string }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/join-keys/${encodeURIComponent(keyId)}`,
       'DELETE',
     );
   }
 
-  async joinWithKey(joinKey: string): Promise<ApiResponse<{ status: string; message: string; workspace_id: string; workspace?: Workspace }>> {
+  async regenerateJoinKey(
+    workspaceId: string,
+    keyId: string,
+    options?: { role?: 'member' | 'viewer'; expires_in_hours?: number; max_uses?: number },
+  ): Promise<
+    ApiResponse<{ status: string; join_key: string; key_id: string; expires_at: string; max_uses: number }>
+  > {
+    return this.request(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/join-keys/${encodeURIComponent(keyId)}/regenerate`,
+      'POST',
+      options ?? {},
+    );
+  }
+
+  async joinWithKey(
+    joinKey: string,
+  ): Promise<ApiResponse<{ status: string; workspace_id: string; role: WorkspaceRole }>> {
     return this.request('/api/workspaces/join', 'POST', { join_key: joinKey });
   }
 
-  async createInvite(
-    workspaceId: string,
-    options?: { role?: WorkspaceRole; expires_in_hours?: number; max_uses?: number },
-  ): Promise<ApiResponse<{ status: string; invite_token: string; invite_id: string }>> {
-    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/invites`, 'POST', options ?? {});
-  }
-
-  async listInvites(
-    workspaceId: string,
-  ): Promise<ApiResponse<{ status: string; workspace_id: string; total: number; invites: InviteMeta[] }>> {
+  async listInvites(workspaceId: string): Promise<ApiResponse<{ status: string; invites: InviteMeta[] }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/invites`);
   }
 
-  async revokeInvite(
-    workspaceId: string,
-    inviteId: string,
-  ): Promise<ApiResponse<{ status: string; message: string }>> {
+  async revokeInvite(workspaceId: string, inviteId: string): Promise<ApiResponse<{ status: string }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(inviteId)}`,
       'DELETE',
     );
   }
 
-  async acceptInvite(token: string): Promise<ApiResponse<{ status: string; message: string; workspace_id: string; workspace?: Workspace }>> {
-    return this.request('/api/workspaces/invites/accept', 'POST', { token });
+  async listPendingInvitations(): Promise<ApiResponse<{ status: string; invitations: PendingInvitation[] }>> {
+    return this.request('/api/workspaces/invitations/pending');
   }
 
-  // ── Files ─────────────────────────────────────
-
-  async createFile(
-    workspaceId: string,
-    input: FileCreateInput,
-  ): Promise<ApiResponse<{ status: string; file: WorkspaceFile }>> {
-    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/files`, 'POST', input);
+  async acceptInvitation(inviteId: string): Promise<ApiResponse<{ status: string; workspace_id: string }>> {
+    return this.request(`/api/workspaces/invitations/${encodeURIComponent(inviteId)}/accept`, 'POST');
   }
+
+  async declineInvitation(inviteId: string): Promise<ApiResponse<{ status: string }>> {
+    return this.request(`/api/workspaces/invitations/${encodeURIComponent(inviteId)}/decline`, 'POST');
+  }
+
+  // -- Files ----------------------------------------------------------------
 
   async listFiles(
     workspaceId: string,
-    includeContent = false,
-  ): Promise<ApiResponse<{ status: string; workspace_id: string; total: number; files: WorkspaceFile[] }>> {
+    includeContent = true,
+  ): Promise<ApiResponse<{ status: string; total: number; files: WorkspaceFile[] }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/files${buildQuery({ include_content: includeContent })}`,
     );
@@ -542,16 +599,18 @@ class WorkspaceApi {
     );
   }
 
-  async updateFileContent(
+  async createFile(
     workspaceId: string,
-    fileId: string,
-    input: FileContentUpdateInput,
-  ): Promise<ApiResponse<{ status: string; file_id: string; version_number: number; updated_at: string }>> {
-    return this.request(
-      `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}/content`,
-      'PUT',
-      input,
-    );
+    input: FileCreateInput,
+  ): Promise<ApiResponse<{ status: string; file: WorkspaceFile }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/files`, 'POST', input);
+  }
+
+  async createFolder(
+    workspaceId: string,
+    input: FileCreateInput,
+  ): Promise<ApiResponse<{ status: string; file: WorkspaceFile }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/folders`, 'POST', input);
   }
 
   async updateFile(
@@ -561,28 +620,49 @@ class WorkspaceApi {
   ): Promise<ApiResponse<{ status: string; file: WorkspaceFile }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}`,
-      'PATCH',
+      'PUT',
       input,
+    );
+  }
+
+  async moveFile(
+    workspaceId: string,
+    fileId: string,
+    newPath: string,
+  ): Promise<ApiResponse<{ status: string; path: string }>> {
+    return this.request(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}/move`,
+      'POST',
+      { new_path: newPath },
+    );
+  }
+
+  async duplicateFile(
+    workspaceId: string,
+    fileId: string,
+  ): Promise<ApiResponse<{ status: string; files: WorkspaceFile[] }>> {
+    return this.request(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}/duplicate`,
+      'POST',
     );
   }
 
   async deleteFile(
     workspaceId: string,
     fileId: string,
-    recursive = false,
-  ): Promise<ApiResponse<{ status: string; message: string; deleted_count: number }>> {
+  ): Promise<ApiResponse<{ status: string; trash_id: string }>> {
     return this.request(
-      `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}${buildQuery({
-        recursive,
-      })}`,
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}`,
       'DELETE',
     );
   }
 
+  // -- Versions -------------------------------------------------------------
+
   async listFileVersions(
     workspaceId: string,
     fileId: string,
-  ): Promise<ApiResponse<{ status: string; workspace_id: string; file_id: string; total: number; versions: FileVersion[] }>> {
+  ): Promise<ApiResponse<{ status: string; total: number; versions: FileVersion[] }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}/versions`,
     );
@@ -602,82 +682,149 @@ class WorkspaceApi {
     workspaceId: string,
     fileId: string,
     versionId: string,
-  ): Promise<ApiResponse<{ status: string; file_id: string; version_number: number; restored_from: string }>> {
+  ): Promise<ApiResponse<{ status: string; file: WorkspaceFile; content: string }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}/versions/${encodeURIComponent(versionId)}/restore`,
       'POST',
     );
   }
 
-  // ── Activity ──────────────────────────────────
+  // -- Trash ----------------------------------------------------------------
 
-  async listActivity(
+  async listTrash(workspaceId: string): Promise<ApiResponse<{ status: string; items: TrashItem[] }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/trash`);
+  }
+
+  async restoreTrash(
     workspaceId: string,
-    options?: { limit?: number; since?: string },
-  ): Promise<ApiResponse<{ status: string; workspace_id: string; total: number; activity: ActivityEntry[] }>> {
+    trashId: string,
+  ): Promise<ApiResponse<{ status: string; files: WorkspaceFile[] }>> {
     return this.request(
-      `/api/workspaces/${encodeURIComponent(workspaceId)}/activity${buildQuery(options)}`,
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/trash/${encodeURIComponent(trashId)}/restore`,
+      'POST',
     );
   }
 
-  // ── Chat ──────────────────────────────────────
-
-  async sendChatMessage(
-    workspaceId: string,
-    message: string,
-    messageType: 'text' | 'code' | 'system' = 'text',
-    replyTo?: string,
-  ): Promise<ApiResponse<{ status: string; message: ChatMessage }>> {
-    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/chat/messages`, 'POST', {
-      message,
-      message_type: messageType,
-      reply_to: replyTo,
-    });
+  async deleteTrash(workspaceId: string, trashId: string): Promise<ApiResponse<{ status: string }>> {
+    return this.request(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/trash/${encodeURIComponent(trashId)}`,
+      'DELETE',
+    );
   }
+
+  // -- Import / export ------------------------------------------------------
+
+  async exportWorkspace(
+    workspaceId: string,
+  ): Promise<{ success: boolean; blob?: Blob; filename?: string; message?: string }> {
+    return this.requestBlob(`/api/workspaces/${encodeURIComponent(workspaceId)}/export`);
+  }
+
+  async importWorkspaceArchive(
+    workspaceId: string,
+    archive: Blob,
+  ): Promise<ApiResponse<{ status: string; total: number; files: WorkspaceFile[] }>> {
+    try {
+      const token = this.getAccessToken();
+      const response = await fetch(
+        `${PEER_LEARNING_API_URL}/api/workspaces/${encodeURIComponent(workspaceId)}/import`,
+        {
+          method: 'POST',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'Content-Type': 'application/zip',
+          },
+          body: archive,
+        },
+      );
+      let result: Record<string, unknown> = {};
+      try {
+        result = (await response.json()) as Record<string, unknown>;
+      } catch {
+        result = {};
+      }
+      const detail = typeof result.detail === 'string' ? result.detail : undefined;
+      return {
+        success: response.ok,
+        data: result as { status: string; total: number; files: WorkspaceFile[] },
+        message: detail || (response.ok ? undefined : `Request failed (${response.status})`),
+      };
+    } catch {
+      return { success: false, message: 'Network error' };
+    }
+  }
+
+  // -- Chat -----------------------------------------------------------------
 
   async listChatMessages(
     workspaceId: string,
-    options?: { limit?: number; before?: string; since?: string },
-  ): Promise<ApiResponse<{ status: string; workspace_id: string; total: number; messages: ChatMessage[] }>> {
+    options?: { before?: string; limit?: number },
+  ): Promise<
+    ApiResponse<{
+      status: string;
+      total: number;
+      messages: ChatMessage[];
+      has_more: boolean;
+      next_before: string | null;
+      unread_count: number;
+    }>
+  > {
     return this.request(
-      `/api/workspaces/${encodeURIComponent(workspaceId)}/chat/messages${buildQuery(options)}`,
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/chat${buildQuery(options)}`,
+    );
+  }
+
+  async sendChatMessage(
+    workspaceId: string,
+    input: ChatSendInput,
+  ): Promise<ApiResponse<{ status: string; message: ChatMessage; unread_count: number }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/chat`, 'POST', input);
+  }
+
+  async getChatUnread(workspaceId: string): Promise<ApiResponse<{ status: string; unread_count: number }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/chat/unread`);
+  }
+
+  async markChatRead(workspaceId: string): Promise<ApiResponse<{ status: string; unread_count: number }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/chat/read`, 'POST');
+  }
+
+  async updateChatMessage(
+    workspaceId: string,
+    messageId: string,
+    message: string,
+  ): Promise<ApiResponse<{ status: string; message: ChatMessage }>> {
+    return this.request(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/chat/${encodeURIComponent(messageId)}`,
+      'PATCH',
+      { message },
     );
   }
 
   async deleteChatMessage(
     workspaceId: string,
     messageId: string,
-  ): Promise<ApiResponse<{ status: string; message: string }>> {
+  ): Promise<ApiResponse<{ status: string }>> {
     return this.request(
-      `/api/workspaces/${encodeURIComponent(workspaceId)}/chat/messages/${encodeURIComponent(messageId)}`,
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/chat/${encodeURIComponent(messageId)}`,
       'DELETE',
     );
   }
 
-  // ── Inline comments ───────────────────────────
+  // -- Comments -------------------------------------------------------------
 
   async listComments(
     workspaceId: string,
-    fileId: string,
-    status: 'open' | 'resolved' | 'all' = 'all',
-  ): Promise<ApiResponse<{ status: string; workspace_id: string; file_id: string; total: number; comments: CodeComment[] }>> {
-    return this.request(
-      `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}/comments${buildQuery(
-        { status },
-      )}`,
-    );
+    options?: { file_id?: string; status?: 'open' | 'resolved' },
+  ): Promise<ApiResponse<{ status: string; total: number; comments: CodeComment[] }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/comments${buildQuery(options)}`);
   }
 
   async createComment(
     workspaceId: string,
-    fileId: string,
-    input: { body: string; line_start?: number; line_end?: number; parent_comment_id?: string },
+    input: CommentCreateInput,
   ): Promise<ApiResponse<{ status: string; comment: CodeComment }>> {
-    return this.request(
-      `/api/workspaces/${encodeURIComponent(workspaceId)}/files/${encodeURIComponent(fileId)}/comments`,
-      'POST',
-      input,
-    );
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/comments`, 'POST', input);
   }
 
   async updateComment(
@@ -692,30 +839,19 @@ class WorkspaceApi {
     );
   }
 
-  async deleteComment(
-    workspaceId: string,
-    commentId: string,
-  ): Promise<ApiResponse<{ status: string; message: string }>> {
+  async deleteComment(workspaceId: string, commentId: string): Promise<ApiResponse<{ status: string }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/comments/${encodeURIComponent(commentId)}`,
       'DELETE',
     );
   }
 
-  // ── Tasks ─────────────────────────────────────
+  // -- Tasks ----------------------------------------------------------------
 
   async listTasks(
     workspaceId: string,
-    options?: { status?: string; assignee?: string },
-  ): Promise<
-    ApiResponse<{
-      status: string;
-      workspace_id: string;
-      total: number;
-      tasks: WorkspaceTask[];
-      board: Record<TaskStatus, WorkspaceTask[]>;
-    }>
-  > {
+    options?: { status?: TaskStatus; assignee?: string },
+  ): Promise<ApiResponse<{ status: string; total: number; tasks: WorkspaceTask[] }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/tasks${buildQuery(options)}`);
   }
 
@@ -738,92 +874,73 @@ class WorkspaceApi {
     );
   }
 
-  async deleteTask(
-    workspaceId: string,
-    taskId: string,
-  ): Promise<ApiResponse<{ status: string; message: string }>> {
+  async deleteTask(workspaceId: string, taskId: string): Promise<ApiResponse<{ status: string }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/tasks/${encodeURIComponent(taskId)}`,
       'DELETE',
     );
   }
 
-  // ── AI assistant ──────────────────────────────
+  // -- Assistant & code run -------------------------------------------------
 
   async askAssistant(
     workspaceId: string,
-    input: { question: string; file_id?: string; code?: string },
-  ): Promise<ApiResponse<AssistantReply>> {
+    input: { question: string; file_id?: string; code?: string; use_rag?: boolean },
+  ): Promise<ApiResponse<{ status: string; answer: string }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/assistant/ask`, 'POST', input);
   }
 
-  // ── Analytics ─────────────────────────────────
+  async runCode(
+    workspaceId: string,
+    input: { code: string; stdin?: string; file_id?: string | null; language?: string },
+  ): Promise<ApiResponse<{ status: string; result: CodeRunResult }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/code/run`, 'POST', input);
+  }
+
+  // -- Activity / analytics / notifications ---------------------------------
+
+  async listActivity(
+    workspaceId: string,
+    options?: { limit?: number; actor_student_id?: string; action?: string },
+  ): Promise<ApiResponse<{ status: string; total: number; activities: ActivityEntry[] }>> {
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/activity${buildQuery(options)}`);
+  }
 
   async getAnalytics(
     workspaceId: string,
-  ): Promise<ApiResponse<WorkspaceAnalytics>> {
+  ): Promise<ApiResponse<{ status: string; analytics: WorkspaceAnalytics }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/analytics`);
   }
 
-  // ── Notifications ─────────────────────────────
-
   async listNotifications(
     workspaceId: string,
-    status: 'unread' | 'read' | 'all' = 'unread',
+    options?: { unread_only?: boolean; limit?: number },
   ): Promise<
     ApiResponse<{
       status: string;
-      workspace_id: string;
       total: number;
       unread_count: number;
       notifications: WorkspaceNotification[];
     }>
   > {
-    return this.request(
-      `/api/workspaces/${encodeURIComponent(workspaceId)}/notifications${buildQuery({ status })}`,
-    );
+    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/notifications${buildQuery(options)}`);
   }
 
   async markNotificationRead(
     workspaceId: string,
     notificationId: string,
-  ): Promise<ApiResponse<{ status: string; message: string }>> {
+  ): Promise<ApiResponse<{ status: string }>> {
     return this.request(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/notifications/${encodeURIComponent(notificationId)}/read`,
-      'POST',
+      'PATCH',
     );
   }
 
-  async markAllNotificationsRead(
-    workspaceId: string,
-  ): Promise<ApiResponse<{ status: string; message: string; modified_count: number }>> {
+  async markAllNotificationsRead(workspaceId: string): Promise<ApiResponse<{ status: string }>> {
     return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/notifications/read-all`, 'POST');
   }
 
-  // ── Sandboxed code run ────────────────────────
-
-  async runCode(
-    workspaceId: string,
-    code: string,
-    stdin = '',
-    fileId: string | null = null,
-  ): Promise<ApiResponse<CodeRunResult>> {
-    return this.request(`/api/workspaces/${encodeURIComponent(workspaceId)}/run`, 'POST', {
-      code,
-      stdin,
-      file_id: fileId,
-    });
-  }
-
-  // ── Export ────────────────────────────────────
-
-  async exportWorkspace(
-    workspaceId: string,
-  ): Promise<{ success: boolean; blob?: Blob; filename?: string; message?: string }> {
-    return this.requestBlob(`/api/workspaces/${encodeURIComponent(workspaceId)}/export`);
-  }
-
-  // ── Real-time (WebSocket) ─────────────────────
+  // -- WebSocket ------------------------------------------------------------
 
   getWebSocketUrl(workspaceId: string): string {
     const token = this.getAccessToken() || '';

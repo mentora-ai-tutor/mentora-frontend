@@ -40,6 +40,8 @@ export default function PairSessionPage() {
   const roomId = roomIdParam || defaultRoomId;
   const peerId = searchParams.get('peerId') || 'unknown';
   const topic = searchParams.get('topic') || 'General Programming';
+  const topicId = searchParams.get('topicId') || '';
+  const baselineScore = Number(searchParams.get('baselineScore') || 0);
   const knowledgeGapParam = searchParams.get('knowledgeGap') || topic;
   const isAiSession = searchParams.get('ai') === '1';
 
@@ -67,7 +69,6 @@ export default function PairSessionPage() {
   const [recommendations, setRecommendations] = useState<ContentRecommendation[]>([]);
   const [messages, setMessages] = useState<ChatWsMessage[]>([]);
   const [aiLoading, setAiLoading] = useState(isAiSession);
-  const [aiSessionComplete, setAiSessionComplete] = useState(false);
   const [aiSessionSummary, setAiSessionSummary] = useState<DiagnosticSessionCompleteResponse['session_summary'] | null>(null);
 
   const collabWsRef = useRef<WebSocket | null>(null);
@@ -81,6 +82,22 @@ export default function PairSessionPage() {
       collabWsRef.current.send(JSON.stringify(message));
     }
   }, []);
+
+  const handleEndSession = useCallback(async () => {
+    const [summaryRes, recommendationsRes] = await Promise.allSettled([
+      peerLearningApi.summarizeSession(roomId),
+      peerLearningApi.recommendContent({ topic }),
+    ]);
+
+    if (summaryRes.status === 'fulfilled' && summaryRes.value.success) {
+      setSummary(summaryRes.value.data || null);
+    }
+    if (recommendationsRes.status === 'fulfilled' && recommendationsRes.value.success) {
+      setRecommendations(recommendationsRes.value.data?.recommendations || []);
+    }
+
+    setSessionEnded(true);
+  }, [roomId, topic]);
 
   const normalizeCursor = useCallback((value: Record<string, unknown>): RemoteCursor | null => {
     const id = String(value.student_id || value.participant_id || value.id || '');
@@ -200,7 +217,7 @@ export default function PairSessionPage() {
       }
       if (cancelled) return;
 
-      const res = await peerLearningApi.onboardAndDiagnose();
+      const res = await peerLearningApi.onboardAndDiagnose({ topic, topicId });
       if (cancelled) return;
 
       if (!res.success || !res.data) {
@@ -211,9 +228,9 @@ export default function PairSessionPage() {
       const data = res.data as unknown as Record<string, unknown>;
       if (data.status === 'session_complete') {
         setAiLoading(false);
-        setAiSessionComplete(true);
         setAiSessionSummary((res.data as DiagnosticSessionCompleteResponse).session_summary);
         setSequenceComplete(true);
+        await handleEndSession();
         return;
       }
 
@@ -231,7 +248,7 @@ export default function PairSessionPage() {
     startAiSession();
 
     return () => { cancelled = true; };
-  }, [isAiSession]);
+  }, [handleEndSession, isAiSession, roomId, topic, topicId]);
 
   const handleCodeChange = useCallback(
     (value: string) => {
@@ -316,15 +333,15 @@ export default function PairSessionPage() {
   const handleAiTaskAdvance = useCallback(async (passed: boolean) => {
     if (!isAiSession || !passed) return;
     setAiLoading(true);
-    const res = await peerLearningApi.onboardAndDiagnose();
+    const res = await peerLearningApi.onboardAndDiagnose({ topic, topicId });
     setAiLoading(false);
     if (!res.success || !res.data) return;
 
     const data = res.data as unknown as Record<string, unknown>;
     if (data.status === 'session_complete') {
-      setAiSessionComplete(true);
       setAiSessionSummary((res.data as DiagnosticSessionCompleteResponse).session_summary);
       setSequenceComplete(true);
+      await handleEndSession();
       return;
     }
 
@@ -337,7 +354,7 @@ export default function PairSessionPage() {
       codeLoadedRef.current = true;
       setHintsRevealed(false);
     }
-  }, [isAiSession]);
+  }, [handleEndSession, isAiSession, topic, topicId]);
 
   const handleCursorMove = useCallback((point: { x: number; y: number }) => {
     sendCollabMessage({ type: 'CURSOR_MOVE', student_id: studentId, student_name: studentName, role: 'Learner', x: point.x, y: point.y });
@@ -367,22 +384,6 @@ export default function PairSessionPage() {
     sendCollabMessage({ type: 'WHITEBOARD_CLEAR' });
   }, [sendCollabMessage]);
 
-  const handleEndSession = async () => {
-    const [summaryRes, recommendationsRes] = await Promise.allSettled([
-      peerLearningApi.summarizeSession(roomId),
-      peerLearningApi.recommendContent({ topic }),
-    ]);
-
-    if (summaryRes.status === 'fulfilled' && summaryRes.value.success) {
-      setSummary(summaryRes.value.data || null);
-    }
-    if (recommendationsRes.status === 'fulfilled' && recommendationsRes.value.success) {
-      setRecommendations(recommendationsRes.value.data?.recommendations || []);
-    }
-
-    setSessionEnded(true);
-  };
-
   const [collabSessionSummary, setCollabSessionSummary] = useState<SessionSummary | null>(null);
 
   const handleCollabSessionComplete = useCallback((summary: SessionSummary) => {
@@ -400,7 +401,12 @@ export default function PairSessionPage() {
         peerName={peerNameParam}
         learnerName={studentName}
         summary={collabSessionSummary}
-        onVerifyMastery={() => router.push(`/peer-learning/quiz?topic=${encodeURIComponent(topic)}`)}
+        onVerifyMastery={() => {
+          const params = new URLSearchParams({ topic });
+          if (topicId) params.set('topicId', topicId);
+          params.set('baselineScore', String(baselineScore));
+          router.push(`/peer-learning/quiz?${params.toString()}`);
+        }}
       />
     );
   }
@@ -418,6 +424,13 @@ export default function PairSessionPage() {
         evaluation={evaluation}
         summary={summary}
         recommendations={recommendations}
+        aiSessionSummary={isAiSession ? aiSessionSummary : null}
+        onVerifyMastery={() => {
+          const params = new URLSearchParams({ topic });
+          if (topicId) params.set('topicId', topicId);
+          params.set('baselineScore', String(baselineScore));
+          router.push(`/peer-learning/quiz?${params.toString()}`);
+        }}
         onReturnHome={() => router.push('/peer-learning')}
       />
     );
@@ -557,31 +570,6 @@ export default function PairSessionPage() {
           <Loader2 className="w-6 h-6 text-amber-700 dark:text-amber-400 animate-spin" />
           <p className="text-sm text-amber-700 dark:text-amber-300 font-semibold">Generating your first diagnostic task...</p>
           <p className="text-xs text-subtle-foreground">The AI teacher is preparing a personalized coding challenge.</p>
-        </div>
-      )}
-
-      {/* ═══ AI Session Complete ═══ */}
-      {isAiSession && aiSessionComplete && aiSessionSummary && (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
-            <h3 className="text-base font-extrabold text-foreground">Diagnostic Session Complete</h3>
-          </div>
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <div className="rounded-xl bg-background border border-border p-3 text-center">
-              <p className="text-[10px] text-subtle-foreground uppercase mb-1">Tasks Completed</p>
-              <p className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400">{aiSessionSummary.tasks_passed}/{aiSessionSummary.total_tasks}</p>
-            </div>
-            <div className="rounded-xl bg-background border border-border p-3 text-center">
-              <p className="text-[10px] text-subtle-foreground uppercase mb-1">Mastery Score</p>
-              <p className="text-lg font-extrabold text-amber-700 dark:text-amber-400">{aiSessionSummary.mastery_score}%</p>
-            </div>
-            <div className="rounded-xl bg-background border border-border p-3 text-center">
-              <p className="text-[10px] text-subtle-foreground uppercase mb-1">Status</p>
-              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Passed</p>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">You can continue chatting with the AI teacher or end the session.</p>
         </div>
       )}
 
