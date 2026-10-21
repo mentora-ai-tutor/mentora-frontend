@@ -131,12 +131,14 @@ export interface DiagnosticSessionTaskResponse {
 }
 
 export interface DiagnosticTaskResult {
-  task_index: number;
-  task_type: string;
-  submitted_code: string;
-  is_correct: boolean;
-  grade: string;
-  feedback: string;
+  task_index?: number;
+  task_number?: number;
+  task_type?: string;
+  submitted_code?: string;
+  is_correct?: boolean;
+  passed?: boolean;
+  grade?: string;
+  feedback?: string;
 }
 
 export interface DiagnosticSessionCompleteResponse {
@@ -145,7 +147,6 @@ export interface DiagnosticSessionCompleteResponse {
   session_summary: {
     total_tasks: number;
     tasks_passed: number;
-    mastery_score: number;
     results: DiagnosticTaskResult[];
   };
 }
@@ -476,16 +477,23 @@ class PeerLearningApi {
     });
   }
 
-  // ── Peer Matching (JWT-only, no body) ──────────
+  // ── Peer Matching ──────────────────────────────
 
-  async matchPeer(): Promise<ApiResponse<PeerMatchResponse>> {
-    return this.request<PeerMatchResponse>('/api/peer/match', 'POST');
+  async matchPeer(topic?: string): Promise<ApiResponse<PeerMatchResponse>> {
+    return this.request<PeerMatchResponse>(
+      '/api/peer/match',
+      'POST',
+      topic ? { topic } : undefined,
+    );
   }
 
-  async onboardAndDiagnose(): Promise<ApiResponse<DiagnosticSessionResponse>> {
+  async onboardAndDiagnose(request?: { topicId?: string; topic?: string }): Promise<ApiResponse<DiagnosticSessionResponse>> {
     return this.request<DiagnosticSessionResponse>(
       '/api/student/onboard-and-diagnose',
       'POST',
+      request
+        ? { topic_id: request.topicId, topic: request.topic }
+        : undefined,
     );
   }
 
@@ -548,8 +556,14 @@ class PeerLearningApi {
 
   // ── Individual Quiz (code-based, 7 questions) ──
 
-  async startIndividualQuiz(): Promise<ApiResponse<IndividualQuizStartResponse>> {
-    return this.request<IndividualQuizStartResponse>('/api/individual-quiz/start', 'POST');
+  async startIndividualQuiz(
+    request?: { studentId: string; topic: string },
+  ): Promise<ApiResponse<IndividualQuizStartResponse>> {
+    return this.request<IndividualQuizStartResponse>(
+      '/api/individual-quiz/start',
+      'POST',
+      request ? { student_id: request.studentId, topic: request.topic } : undefined,
+    );
   }
 
   async submitQuizAnswer(studentAnswer: string): Promise<ApiResponse<SubmitAnswerResponse>> {

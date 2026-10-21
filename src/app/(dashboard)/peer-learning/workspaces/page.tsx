@@ -6,28 +6,33 @@ import { useRouter } from 'next/navigation';
 import {
   Archive,
   ArrowRight,
+  Check,
   FolderKanban,
+  Inbox,
   KeyRound,
-  Link2,
   Plus,
   RotateCcw,
   Trash2,
   Users,
   X,
 } from 'lucide-react';
-import { workspaceApi, type Workspace } from '@/lib/api/workspaces';
+import {
+  workspaceApi,
+  type PendingInvitation,
+  type Workspace,
+} from '@/lib/api/workspaces';
 
 export default function WorkspacesPage() {
   const router = useRouter();
   const [active, setActive] = useState<Workspace[]>([]);
   const [archived, setArchived] = useState<Workspace[]>([]);
+  const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [joinKey, setJoinKey] = useState('');
-  const [inviteToken, setInviteToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
@@ -37,9 +42,10 @@ export default function WorkspacesPage() {
   };
 
   const load = useCallback(async () => {
-    const [activeRes, archivedRes] = await Promise.all([
+    const [activeRes, archivedRes, pendingRes] = await Promise.all([
       workspaceApi.listWorkspaces(false),
       workspaceApi.listWorkspaces(true),
+      workspaceApi.listPendingInvitations(),
     ]);
     if (activeRes.success && activeRes.data) {
       setActive(activeRes.data.workspaces);
@@ -48,6 +54,9 @@ export default function WorkspacesPage() {
     }
     if (archivedRes.success && archivedRes.data) {
       setArchived(archivedRes.data.workspaces.filter((item) => item.status === 'archived'));
+    }
+    if (pendingRes.success && pendingRes.data) {
+      setInvitations(pendingRes.data.invitations);
     }
     setLoading(false);
   }, []);
@@ -60,7 +69,10 @@ export default function WorkspacesPage() {
     const value = name.trim();
     if (!value) return;
     setBusy(true);
-    const res = await workspaceApi.createWorkspace({ name: value, description: description.trim() || undefined });
+    const res = await workspaceApi.createWorkspace({
+      name: value,
+      description: description.trim() || undefined,
+    });
     setBusy(false);
     if (res.success && res.data?.workspace) {
       router.push(`/peer-learning/workspaces/${res.data.workspace.workspace_id}`);
@@ -82,16 +94,21 @@ export default function WorkspacesPage() {
     }
   };
 
-  const handleAcceptInvite = async () => {
-    const value = inviteToken.trim();
-    if (!value) return;
-    setBusy(true);
-    const res = await workspaceApi.acceptInvite(value);
-    setBusy(false);
+  const handleAcceptInvite = async (inviteId: string) => {
+    const res = await workspaceApi.acceptInvitation(inviteId);
     if (res.success && res.data?.workspace_id) {
       router.push(`/peer-learning/workspaces/${res.data.workspace_id}`);
     } else {
-      notify('error', res.message || 'Invalid or expired invite');
+      notify('error', res.message || 'Could not accept invitation');
+    }
+  };
+
+  const handleDeclineInvite = async (inviteId: string) => {
+    const res = await workspaceApi.declineInvitation(inviteId);
+    if (res.success) {
+      setInvitations((prev) => prev.filter((item) => item.id !== inviteId));
+    } else {
+      notify('error', res.message || 'Could not decline invitation');
     }
   };
 
@@ -105,8 +122,8 @@ export default function WorkspacesPage() {
     }
   };
 
-  const handlePurge = async (workspaceId: string, name: string) => {
-    if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  const handlePurge = async (workspaceId: string, workspaceName: string) => {
+    if (!window.confirm(`Permanently delete "${workspaceName}"? This cannot be undone.`)) return;
     const res = await workspaceApi.purgeWorkspace(workspaceId);
     if (res.success) {
       setLoading(true);
@@ -130,7 +147,9 @@ export default function WorkspacesPage() {
             <FolderKanban className="h-5 w-5 text-teal-700 dark:text-teal-400" />
           </div>
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-black text-foreground group-hover:text-teal-700 dark:group-hover:text-teal-700 dark:group-hover:text-teal-300">{workspace.name}</h3>
+            <h3 className="truncate text-sm font-black text-foreground group-hover:text-teal-700 dark:group-hover:text-teal-300">
+              {workspace.name}
+            </h3>
             <p className="truncate text-xs text-subtle-foreground">{workspace.description || 'No description'}</p>
           </div>
         </Link>
@@ -141,7 +160,8 @@ export default function WorkspacesPage() {
 
       <div className="mt-4 flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-xs text-subtle-foreground">
-          <Users className="h-3.5 w-3.5" /> {workspace.member_count} member{workspace.member_count === 1 ? '' : 's'}
+          <Users className="h-3.5 w-3.5" /> {workspace.member_count} member
+          {workspace.member_count === 1 ? '' : 's'}
         </span>
         <div className="flex items-center gap-2">
           {isArchived ? (
@@ -197,8 +217,8 @@ export default function WorkspacesPage() {
             <h1 className="text-2xl font-black text-foreground md:text-3xl">Project Workspaces</h1>
           </div>
           <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Collaborate with your team in shared workspaces: edit code together in real time, chat, manage tasks,
-            comment, and get AI help — all in one place.
+            Collaborate with your team in shared workspaces: edit code together in real time, chat, manage
+            tasks, comment, and get AI help — all in one place.
           </p>
         </div>
         <button
@@ -238,42 +258,65 @@ export default function WorkspacesPage() {
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/50 p-3">
-          <KeyRound className="ml-1 h-4 w-4 shrink-0 text-teal-700 dark:text-teal-400" />
-          <input
-            value={joinKey}
-            onChange={(event) => setJoinKey(event.target.value)}
-            placeholder="Enter a join key"
-            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-subtle-foreground"
-          />
-          <button
-            type="button"
-            onClick={handleJoin}
-            disabled={busy || !joinKey.trim()}
-            className="rounded-lg bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-3 disabled:opacity-40"
-          >
-            Join
-          </button>
-        </div>
-        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/50 p-3">
-          <Link2 className="ml-1 h-4 w-4 shrink-0 text-teal-700 dark:text-teal-400" />
-          <input
-            value={inviteToken}
-            onChange={(event) => setInviteToken(event.target.value)}
-            placeholder="Paste an invite token"
-            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-subtle-foreground"
-          />
-          <button
-            type="button"
-            onClick={handleAcceptInvite}
-            disabled={busy || !inviteToken.trim()}
-            className="rounded-lg bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-3 disabled:opacity-40"
-          >
-            Accept
-          </button>
-        </div>
+      <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/50 p-3">
+        <KeyRound className="ml-1 h-4 w-4 shrink-0 text-teal-700 dark:text-teal-400" />
+        <input
+          value={joinKey}
+          onChange={(event) => setJoinKey(event.target.value)}
+          placeholder="Enter a join key"
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-subtle-foreground"
+        />
+        <button
+          type="button"
+          onClick={handleJoin}
+          disabled={busy || !joinKey.trim()}
+          className="rounded-lg bg-muted px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-3 disabled:opacity-40"
+        >
+          Join
+        </button>
       </div>
+
+      {invitations.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-subtle-foreground">
+            <Inbox className="h-3.5 w-3.5" /> Pending invitations ({invitations.length})
+          </h2>
+          <div className="space-y-2">
+            {invitations.map((invitation) => (
+              <div
+                key={invitation.id}
+                className="flex items-center justify-between rounded-2xl border border-border bg-card/50 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-foreground">
+                    {invitation.workspace?.name || invitation.workspace_name || 'Workspace'}
+                  </p>
+                  <p className="truncate text-xs text-subtle-foreground">
+                    {invitation.workspace?.description || 'Invited you to collaborate'} ·{' '}
+                    <span className="capitalize">{invitation.role}</span>
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleDeclineInvite(invitation.id)}
+                    className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="h-3 w-3" /> Decline
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleAcceptInvite(invitation.id)}
+                    className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-500"
+                  >
+                    <Check className="h-3 w-3" /> Accept
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16">
@@ -282,11 +325,15 @@ export default function WorkspacesPage() {
       ) : (
         <>
           <section className="space-y-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-subtle-foreground">Active ({active.length})</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-subtle-foreground">
+              Active ({active.length})
+            </h2>
             {active.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border p-10 text-center">
                 <FolderKanban className="mx-auto mb-2 h-8 w-8 text-subtle-foreground" />
-                <p className="text-sm text-subtle-foreground">No workspaces yet. Create one or join with a key.</p>
+                <p className="text-sm text-subtle-foreground">
+                  No workspaces yet. Create one or join with a key.
+                </p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

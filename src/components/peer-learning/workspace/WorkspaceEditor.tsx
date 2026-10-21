@@ -68,8 +68,6 @@ export default function WorkspaceEditor({
       binding.destroy();
     } catch {
       // y-monaco auto-destroys the binding when the Monaco model is disposed
-      // (switching files remounts the Editor via `key`), so a manual destroy
-      // can throw: "[yjs] Tried to remove event handler that doesn't exist."
     }
   };
 
@@ -82,13 +80,13 @@ export default function WorkspaceEditor({
   }, []);
 
   useEffect(() => {
-    if (lastFileIdRef.current === (file?.file_id ?? null)) return;
-    lastFileIdRef.current = file?.file_id ?? null;
+    if (lastFileIdRef.current === (file?.id ?? null)) return;
+    lastFileIdRef.current = file?.id ?? null;
     setReady(false);
     setDirty(false);
     setRunResult(null);
     lastSavedRef.current = file?.content ?? '';
-  }, [file?.file_id, file?.content]);
+  }, [file?.id, file?.content]);
 
   const scheduleAwareness = (currentFile: WorkspaceFile) => {
     if (awarenessTimer.current) clearTimeout(awarenessTimer.current);
@@ -98,7 +96,7 @@ export default function WorkspaceEditor({
       if (!editor || !p) return;
       const position = editor.getPosition();
       if (position) {
-        p.sendAwareness(currentFile.file_id, { line: position.lineNumber, column: position.column });
+        p.sendAwareness(currentFile.id, { line: position.lineNumber, column: position.column });
       }
     }, 150);
   };
@@ -119,7 +117,7 @@ export default function WorkspaceEditor({
     const mountId = ++mountIdRef.current;
 
     void (async () => {
-      const ytext = await currentProvider.prepareFile(currentFile.file_id, currentFile.content ?? '');
+      const ytext = await currentProvider.prepareFile(currentFile.id, currentFile.content ?? '');
       if (mountId !== mountIdRef.current) return;
       const model = editor.getModel();
       if (!model) return;
@@ -249,9 +247,9 @@ export default function WorkspaceEditor({
         </div>
       </div>
 
-      <div className="relative flex-1 min-h-0">
+      <div className="relative min-h-0 flex-1">
         <Editor
-          key={file.file_id}
+          key={file.id}
           height="100%"
           theme="vs-dark"
           defaultLanguage={file.language || 'java'}
@@ -279,7 +277,7 @@ export default function WorkspaceEditor({
       {showRun && (
         <div className="h-44 shrink-0 sm:h-56">
           <WorkspaceTerminal
-            fileName={file.name}
+            language={file.language || 'java'}
             running={running}
             result={runResult}
             stdin={stdin}

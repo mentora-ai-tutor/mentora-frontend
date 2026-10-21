@@ -48,10 +48,10 @@ export default function WorkspaceCommentsPanel({
   const resolved = comments.filter((comment) => comment.status === 'resolved');
 
   const renderComment = (comment: CodeComment) => {
-    const isAuthor = comment.author_student_id === currentStudentId;
+    const isAuthor = comment.student_id === currentStudentId;
     return (
       <div
-        key={comment.comment_id}
+        key={comment.id}
         className={`rounded-lg border p-2.5 ${
           comment.status === 'resolved'
             ? 'border-border bg-muted opacity-70'
@@ -60,11 +60,15 @@ export default function WorkspaceCommentsPanel({
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-foreground/80">{comment.author_name || comment.author_student_id}</span>
+            <span className="text-[11px] font-bold text-foreground/80">
+              {comment.name || comment.student_id}
+            </span>
             {comment.line_start && (
               <span className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-teal-700 dark:text-teal-300">
                 L{comment.line_start}
-                {comment.line_end && comment.line_end !== comment.line_start ? `–${comment.line_end}` : ''}
+                {comment.line_end && comment.line_end !== comment.line_start
+                  ? `–${comment.line_end}`
+                  : ''}
               </span>
             )}
           </div>
@@ -72,8 +76,8 @@ export default function WorkspaceCommentsPanel({
             <button
               type="button"
               title={comment.status === 'open' ? 'Resolve' : 'Reopen'}
-              onClick={() => onResolve(comment.comment_id, comment.status === 'open')}
-              className="rounded p-1 text-subtle-foreground hover:bg-surface-3 hover:text-emerald-700 dark:hover:text-emerald-700 dark:hover:text-emerald-300"
+              onClick={() => onResolve(comment.id, comment.status === 'open')}
+              className="rounded p-1 text-subtle-foreground hover:bg-surface-3 hover:text-emerald-700 dark:hover:text-emerald-300"
             >
               {comment.status === 'open' ? <Check className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />}
             </button>
@@ -81,8 +85,8 @@ export default function WorkspaceCommentsPanel({
               <button
                 type="button"
                 title="Delete"
-                onClick={() => onDelete(comment.comment_id)}
-                className="rounded p-1 text-subtle-foreground hover:bg-rose-500/15 hover:text-rose-700 dark:hover:text-rose-700 dark:hover:text-rose-300"
+                onClick={() => onDelete(comment.id)}
+                className="rounded p-1 text-subtle-foreground hover:bg-rose-500/15 hover:text-rose-700 dark:hover:text-rose-300"
               >
                 <Trash2 className="w-3 h-3" />
               </button>
@@ -104,7 +108,9 @@ export default function WorkspaceCommentsPanel({
       </div>
 
       <div className="flex-1 space-y-2 overflow-y-auto p-3">
-        {comments.length === 0 && <p className="py-6 text-center text-xs text-subtle-foreground">No comments on this file yet.</p>}
+        {comments.length === 0 && (
+          <p className="py-6 text-center text-xs text-subtle-foreground">No comments on this file yet.</p>
+        )}
         {open.map(renderComment)}
         {resolved.length > 0 && (
           <p className="pt-2 text-[10px] font-bold uppercase tracking-wider text-subtle-foreground">Resolved</p>

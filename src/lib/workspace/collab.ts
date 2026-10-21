@@ -8,11 +8,28 @@ import {
 
 export type CollabStatus = 'connecting' | 'connected' | 'disconnected';
 
+export interface CollabSelf {
+  student_id: string;
+  name: string;
+  color: string | null;
+  role: string;
+  can_edit: boolean;
+  status: string;
+}
+
 export interface CollabEventMap {
   status: CollabStatus;
+  self: CollabSelf;
   presence: PresenceParticipant[];
   awareness: AwarenessState[];
   chat: ChatMessage;
+  chatEdited: ChatMessage;
+  chatDeleted: { message_id: string };
+  fileTree: Record<string, unknown>;
+  activity: Record<string, unknown>;
+  notification: Record<string, unknown>;
+  taskEvent: Record<string, unknown>;
+  commentEvent: Record<string, unknown>;
   error: string;
 }
 
@@ -48,10 +65,11 @@ const SEND_DEBOUNCE_MS = 120;
  * A Yjs provider for the peer-learning Project Workspace relay.
  *
  * The backend is a stateless fan-out relay: it does not run a Yjs server, it
- * only forwards opaque updates between members and caches the latest update per
- * file so late joiners can catch up. This provider therefore sends the *full*
- * encoded document state on each change (rather than deltas) so the server's
- * per-file cache always contains a complete snapshot.
+ * only forwards opaque updates between members and caches the latest full
+ * document state per file so late joiners can catch up. This provider
+ * therefore sends the *full* encoded document state on each change (rather
+ * than deltas) so the server's per-file cache always contains a complete
+ * snapshot.
  */
 export class WorkspaceCollabProvider {
   readonly workspaceId: string;
@@ -75,14 +93,15 @@ export class WorkspaceCollabProvider {
 
   private listeners = new Map<keyof CollabEventMap, Set<Listener<never>>>();
 
-  self: PresenceParticipant | null = null;
+  self: CollabSelf | null = null;
+  syncedFiles: string[] = [];
 
   constructor(workspaceId: string, url?: string) {
     this.workspaceId = workspaceId;
     this.url = url || workspaceApi.getWebSocketUrl(workspaceId);
   }
 
-  // ── Event emitter ─────────────────────────────
+  // -- Event emitter --------------------------------------------------------
 
   on<K extends keyof CollabEventMap>(event: K, listener: Listener<CollabEventMap[K]>): () => void {
     const set = this.listeners.get(event) ?? new Set();
@@ -113,7 +132,7 @@ export class WorkspaceCollabProvider {
     return Array.from(this.awarenessMap.values());
   }
 
-  // ── Connection lifecycle ──────────────────────
+  // -- Connection lifecycle -------------------------------------------------
 
   connect(): void {
     if (typeof window === 'undefined') return;
@@ -143,9 +162,13 @@ export class WorkspaceCollabProvider {
       this.emit('error', 'Real-time connection error.');
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       this.stopPing();
       this.setStatus('disconnected');
+      if (event.code === 4401 || event.code === 4403) {
+        this.emit('error', 'Workspace access was revoked.');
+        return;
+      }
       if (!this.closedByUser) this.scheduleReconnect();
     };
   }
@@ -230,14 +253,14 @@ export class WorkspaceCollabProvider {
     });
   }
 
-  // ── Document management ───────────────────────
+  // -- Document management --------------------------------------------------
 
   getDoc(fileId: string): Y.Doc {
     let doc = this.docs.get(fileId);
     if (!doc) {
       doc = new Y.Doc();
       doc.on('update', (_update: Uint8Array, origin: unknown) => {
-        if (origin === 'remote') return;
+        if (origin === 'remote' || origin === 'seed') return;
         this.scheduleSend(fileId);
       });
       this.docs.set(fileId, doc);
@@ -287,6 +310,17 @@ export class WorkspaceCollabProvider {
     });
   }
 
+  /** Replaces the document content (used when restoring a file version). */
+  applyContent(fileId: string, content: string, origin = 'restore'): void {
+    const doc = this.getDoc(fileId);
+    const ytext = doc.getText('monaco');
+    doc.transact(() => {
+      if (ytext.length) ytext.delete(0, ytext.length);
+      if (content) ytext.insert(0, content);
+    }, origin);
+    this.scheduleSend(fileId);
+  }
+
   private scheduleSend(fileId: string): void {
     const existing = this.sendTimers.get(fileId);
     if (existing) clearTimeout(existing);
@@ -306,20 +340,39 @@ export class WorkspaceCollabProvider {
     this.send({ type: 'YJS_UPDATE', file_id: fileId, update: toBase64(update) });
   }
 
-  // ── Awareness ─────────────────────────────────
+  // -- Awareness ------------------------------------------------------------
 
   sendAwareness(fileId: string, cursor?: unknown, selection?: unknown): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.send({ type: 'AWARENESS', file_id: fileId, cursor, selection });
   }
 
-  // ── Chat ──────────────────────────────────────
+  // -- Chat -----------------------------------------------------------------
 
-  sendChat(message: string, messageType: 'text' | 'code' | 'system' = 'text', replyTo?: string): void {
-    this.send({ type: 'CHAT_MESSAGE', message, message_type: messageType, reply_to: replyTo });
+  sendChat(
+    message: string,
+    options?: {
+      messageType?: 'text' | 'code' | 'system';
+      replyTo?: string;
+      mentions?: string[];
+      fileId?: string;
+      lineNumber?: number;
+      codeLanguage?: string;
+    },
+  ): void {
+    this.send({
+      type: 'CHAT_MESSAGE',
+      message,
+      message_type: options?.messageType || 'text',
+      reply_to: options?.replyTo,
+      mentions: options?.mentions || [],
+      file_id: options?.fileId,
+      line_number: options?.lineNumber,
+      code_language: options?.codeLanguage,
+    });
   }
 
-  // ── Incoming message handling ─────────────────
+  // -- Incoming message handling -------------------------------------------
 
   private handleMessage(event: MessageEvent): void {
     if (typeof event.data !== 'string') return;
@@ -333,10 +386,28 @@ export class WorkspaceCollabProvider {
       case 'INIT_STATE':
         this.handleInitState(payload);
         break;
-      case 'PRESENCE_JOINED':
-      case 'PRESENCE_LEFT':
-        this.handlePresence(payload);
+      case 'PRESENCE_JOINED': {
+        const participant: PresenceParticipant = {
+          student_id: String(payload.student_id ?? ''),
+          name: String(payload.name ?? payload.student_id ?? ''),
+          color: (payload.color as string | null) ?? null,
+        };
+        if (participant.student_id) this.presenceMap.set(participant.student_id, participant);
+        this.emit('presence', this.getPresence());
         break;
+      }
+      case 'PRESENCE_LEFT': {
+        const studentId = String(payload.student_id ?? '');
+        if (studentId) {
+          this.presenceMap.delete(studentId);
+          for (const [key, value] of this.awarenessMap) {
+            if (value.student_id === studentId) this.awarenessMap.delete(key);
+          }
+        }
+        this.emit('presence', this.getPresence());
+        this.emit('awareness', this.getAwareness());
+        break;
+      }
       case 'AWARENESS':
         this.handleAwareness(payload);
         break;
@@ -347,7 +418,30 @@ export class WorkspaceCollabProvider {
         this.handleSyncState(payload);
         break;
       case 'CHAT_MESSAGE':
-        if (payload.message) this.emit('chat', payload.message as ChatMessage);
+        if (payload.id) this.emit('chat', payload as unknown as ChatMessage);
+        break;
+      case 'CHAT_MESSAGE_EDITED':
+        if (payload.message) this.emit('chatEdited', payload.message as ChatMessage);
+        break;
+      case 'CHAT_MESSAGE_DELETED':
+        if (payload.message_id) {
+          this.emit('chatDeleted', { message_id: String(payload.message_id) });
+        }
+        break;
+      case 'FILE_TREE':
+        this.emit('fileTree', payload as Record<string, unknown>);
+        break;
+      case 'ACTIVITY':
+        if (payload.activity) this.emit('activity', payload as Record<string, unknown>);
+        break;
+      case 'NOTIFICATION':
+        if (payload.notification) this.emit('notification', payload as Record<string, unknown>);
+        break;
+      case 'TASK_EVENT':
+        this.emit('taskEvent', payload as Record<string, unknown>);
+        break;
+      case 'COMMENT_EVENT':
+        this.emit('commentEvent', payload as Record<string, unknown>);
         break;
       case 'ERROR':
         if (typeof payload.message === 'string') this.emit('error', payload.message);
@@ -358,39 +452,63 @@ export class WorkspaceCollabProvider {
   }
 
   private handleInitState(payload: ServerMessage): void {
-    const self = payload.self as PresenceParticipant | undefined;
-    if (self) this.self = self;
+    this.self = {
+      student_id: String(payload.student_id ?? ''),
+      name: String(payload.name ?? ''),
+      color: (payload.color as string | null) ?? null,
+      role: String(payload.role ?? 'viewer'),
+      can_edit: Boolean(payload.can_edit),
+      status: String(payload.status ?? 'active'),
+    };
+    this.syncedFiles = Array.isArray(payload.synced_files)
+      ? (payload.synced_files as string[])
+      : [];
     const presence = (payload.presence as PresenceParticipant[] | undefined) ?? [];
     this.presenceMap.clear();
     for (const participant of presence) this.presenceMap.set(participant.student_id, participant);
-    this.emit('presence', this.getPresence());
-
-    const cursors = (payload.cursors as AwarenessState[] | undefined) ?? [];
-    this.awarenessMap.clear();
-    for (const cursor of cursors) this.awarenessMap.set(cursor.student_id, cursor);
-    this.emit('awareness', this.getAwareness());
-  }
-
-  private handlePresence(payload: ServerMessage): void {
-    const presence = (payload.presence as PresenceParticipant[] | undefined) ?? [];
-    this.presenceMap.clear();
-    for (const participant of presence) this.presenceMap.set(participant.student_id, participant);
+    this.emit('self', this.self);
     this.emit('presence', this.getPresence());
   }
 
   private handleAwareness(payload: ServerMessage): void {
-    const awareness = payload.awareness as AwarenessState | undefined;
-    if (!awareness) return;
-    this.awarenessMap.set(awareness.student_id, awareness);
+    const studentId = typeof payload.student_id === 'string' ? payload.student_id : '';
+    if (!studentId) return;
+    this.awarenessMap.set(studentId, {
+      student_id: studentId,
+      file_id: typeof payload.file_id === 'string' ? payload.file_id : null,
+      cursor: payload.cursor,
+      selection: payload.selection,
+    });
     this.emit('awareness', this.getAwareness());
   }
 
   private handleSyncState(payload: ServerMessage): void {
+    // Bulk sync: { file_id: null, states: { fileId: stateB64 | null } }
+    if (payload.file_id === null && payload.states && typeof payload.states === 'object') {
+      const states = payload.states as Record<string, string | null>;
+      for (const [fileId, state] of Object.entries(states)) {
+        if (state) this.applyRemoteState(fileId, state);
+      }
+      return;
+    }
+
     const fileId = typeof payload.file_id === 'string' ? payload.file_id : '';
+    if (!fileId) return;
+    const state = typeof payload.state === 'string' ? payload.state : null;
+    if (state) this.applyRemoteState(fileId, state);
     const resolver = this.syncResolvers.get(fileId);
     if (resolver) {
       this.syncResolvers.delete(fileId);
-      resolver(false);
+      resolver(Boolean(state));
+    }
+  }
+
+  private applyRemoteState(fileId: string, stateB64: string): void {
+    const doc = this.getDoc(fileId);
+    try {
+      Y.applyUpdate(doc, fromBase64(stateB64), 'remote');
+    } catch {
+      // ignore malformed snapshots
     }
   }
 
@@ -398,21 +516,6 @@ export class WorkspaceCollabProvider {
     const fileId = typeof payload.file_id === 'string' ? payload.file_id : '';
     const update = typeof payload.update === 'string' ? payload.update : '';
     if (!fileId || !update) return;
-
-    const isServerSync = payload.sender_student_id === 'server';
-    if (isServerSync) {
-      const resolver = this.syncResolvers.get(fileId);
-      if (resolver) {
-        this.syncResolvers.delete(fileId);
-        resolver(true);
-      }
-    }
-
-    const doc = this.getDoc(fileId);
-    try {
-      Y.applyUpdate(doc, fromBase64(update), 'remote');
-    } catch {
-      // ignore malformed updates
-    }
+    this.applyRemoteState(fileId, update);
   }
 }

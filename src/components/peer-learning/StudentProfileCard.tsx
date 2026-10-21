@@ -1,8 +1,7 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { User, AlertTriangle, Brain, Zap, Code } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { AlertTriangle, Check, CheckCircle2, Code2, Lock, Shield, User } from 'lucide-react';
 import type { StudentAnalysisDocument } from '@/lib/api/peerLearning';
 import type { User as AuthUser } from '@/lib/api/auth';
 
@@ -10,253 +9,273 @@ interface StudentProfileCardProps {
   analysis: StudentAnalysisDocument | null;
   loading: boolean;
   user?: AuthUser | null;
+  activeGapIndex: number | null;
+  verificationScores: Record<string, number>;
+  verifiedTopicIds: string[];
+  completedGaps: number;
+  journeyProgress: number;
+  gapActions?: ReactNode;
 }
 
-function CircularScore({ value, label, color }: { value: number; label: string; color: string }) {
-  const radius = 36;
-  const stroke = 5;
-  const normalizedRadius = radius - stroke;
-  const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (value / 100) * circumference;
+function ScoreBar({ value, color = 'bg-emerald-500' }: { value: number; color?: string }) {
+  const score = Math.max(0, Math.min(100, value));
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative w-[72px] h-[72px]">
-        <svg height={radius * 2} width={radius * 2} className="-rotate-90">
-          <circle
-            stroke="rgba(255,255,255,0.06)"
-            fill="transparent"
-            strokeWidth={stroke}
-            r={normalizedRadius}
-            cx={radius}
-            cy={radius}
-          />
-          <circle
-            stroke={color}
-            fill="transparent"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={`${circumference} ${circumference}`}
-            style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.6s ease' }}
-            r={normalizedRadius}
-            cx={radius}
-            cy={radius}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-extrabold text-foreground">{value}%</span>
-        </div>
-      </div>
-      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+    <div
+      className="h-2 overflow-hidden rounded-full bg-muted"
+      role="progressbar"
+      aria-label="Mastery score"
+      aria-valuenow={score}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div className={`h-full rounded-full ${color} transition-[width] duration-500`} style={{ width: `${score}%` }} />
     </div>
   );
 }
 
-export default function StudentProfileCard({ analysis, loading, user }: StudentProfileCardProps) {
+export default function StudentProfileCard({
+  analysis,
+  loading,
+  user,
+  activeGapIndex,
+  verificationScores,
+  verifiedTopicIds,
+  completedGaps,
+  journeyProgress,
+  gapActions,
+}: StudentProfileCardProps) {
+  const studentName = user?.name || 'Student';
+  const initials = studentName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((name) => name[0].toUpperCase())
+    .join('');
+
   if (loading) {
     return (
-      <Card className="bg-card/60 border-border">
-        <CardContent className="py-8">
-          <div className="flex items-center justify-center gap-3">
-            <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-muted-foreground text-sm">Loading your learning profile...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <section className="rounded-2xl border border-border bg-card/80 p-6 shadow-sm">
+        <div className="flex min-h-48 items-center justify-center gap-3 text-sm text-muted-foreground">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          Loading your learning profile...
+        </div>
+      </section>
     );
   }
 
   if (!analysis) {
     return (
-      <Card className="bg-card/60 border-border">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
-              <User className="w-5 h-5 text-teal-700 dark:text-teal-400" />
-            </div>
-            <div>
-              <CardTitle className="text-foreground text-lg">Student Learning Profile</CardTitle>
-              <p className="text-subtle-foreground text-xs mt-0.5">Your logged-in account information</p>
-            </div>
+      <section className="rounded-2xl border border-border bg-card/80 p-6 shadow-sm">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-500/10 text-sm font-extrabold text-emerald-700 dark:text-emerald-400">
+            {initials || <User className="h-5 w-5" />}
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="rounded-xl bg-background border border-border p-3">
-              <p className="text-[10px] font-bold tracking-wider text-subtle-foreground uppercase mb-1">Student Name</p>
-              <p className="text-foreground font-semibold text-sm">{user?.name || 'N/A'}</p>
-            </div>
-            <div className="rounded-xl bg-background border border-border p-3">
-              <p className="text-[10px] font-bold tracking-wider text-subtle-foreground uppercase mb-1">Student ID</p>
-              <p className="text-foreground font-semibold text-sm">{user?.student_id || user?._id || 'N/A'}</p>
-            </div>
-            <div className="rounded-xl bg-background border border-border p-3">
-              <p className="text-[10px] font-bold tracking-wider text-subtle-foreground uppercase mb-1">Email</p>
-              <p className="text-foreground font-semibold text-sm truncate">{user?.email || 'N/A'}</p>
-            </div>
-            <div className="rounded-xl bg-background border border-border p-3">
-              <p className="text-[10px] font-bold tracking-wider text-subtle-foreground uppercase mb-1">Status</p>
-              <p className="text-amber-700 dark:text-amber-400 font-semibold text-sm">Awaiting Analysis</p>
-            </div>
+          <div>
+            <h2 className="text-lg font-extrabold text-foreground">Student Learning Profile</h2>
+            <p className="text-xs text-muted-foreground">{studentName}</p>
           </div>
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-center gap-3">
-            <Brain className="w-5 h-5 text-amber-700 dark:text-amber-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">No Learning Analysis Found</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Complete a diagnostic quiz or import your learning data to get started with peer matching.
-              </p>
-            </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Your learning profile is not ready yet</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Complete a diagnostic quiz or import your learning data to identify your knowledge gaps.
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     );
   }
 
-  const mastery = analysis.mastery_profile;
-  const knowledgeGaps = mastery.knowledge_gaps;
+  const knowledgeGaps = analysis.mastery_profile.knowledge_gaps;
 
   return (
-    <Card className="bg-card/60 border-border">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
-              <User className="w-7 h-7 text-teal-700 dark:text-teal-400" />
-            </div>
-            <div>
-              <CardTitle className="text-foreground text-2xl font-extrabold">Student Learning Profile</CardTitle>
-              <p className="text-subtle-foreground text-sm mt-1">Your knowledge gaps and weak subskills</p>
-            </div>
+    <section className="overflow-hidden rounded-2xl border border-border bg-card/80 shadow-sm">
+      <header className="p-5 pb-4 sm:p-6 sm:pb-4">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-500/10 text-sm font-extrabold text-emerald-700 dark:text-emerald-400">
+            {initials || <User className="h-5 w-5" />}
           </div>
-          <Badge className="bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20 text-sm px-3 py-1.5">
+          <div className="min-w-0">
+            <h2 className="text-lg font-extrabold text-foreground">Student Learning Profile</h2>
+            <p className="truncate text-xs text-muted-foreground">{studentName}</p>
+          </div>
+          <span className="ml-auto hidden rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-muted-foreground sm:inline-flex">
             {analysis.student_id}
-          </Badge>
+          </span>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6 pt-4">
-        {knowledgeGaps.length > 0 ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2.5">
-              <AlertTriangle className="w-5 h-5 text-amber-700 dark:text-amber-400" />
-              <p className="text-sm font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
-                Knowledge Gaps ({knowledgeGaps.length})
+
+        <div className="rounded-xl border border-border bg-background/70 p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-foreground">Learning Journey Progress</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {knowledgeGaps.length
+                  ? completedGaps >= knowledgeGaps.length
+                    ? 'All gaps completed'
+                    : `Gap ${completedGaps + 1} of ${knowledgeGaps.length}`
+                  : 'No open knowledge gaps'}
               </p>
             </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">
+                {completedGaps} of {knowledgeGaps.length} completed
+              </p>
+              <p className="mt-1 text-sm font-extrabold text-emerald-700 dark:text-emerald-400">{journeyProgress}%</p>
+            </div>
+          </div>
+          <ScoreBar value={journeyProgress} />
+        </div>
+      </header>
 
-            <div className="space-y-4">
-              {knowledgeGaps.map((gap, gapIdx) => (
-                <div
-                  key={gapIdx}
-                  className="rounded-2xl border border-border bg-background/70 overflow-hidden"
-                >
-                  <div className="flex flex-col md:flex-row">
-                    {/* Left side — Topic info, weak subskills, misconceptions */}
-                    <div className="flex-1 p-7 space-y-5">
-                      {/* Topic header */}
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                          <Code className="w-5 h-5 text-amber-700 dark:text-amber-400" />
-                        </div>
-                        <p className="text-foreground font-bold text-base">{gap.topic}</p>
-                      </div>
+      {knowledgeGaps.length ? (
+        <div className="grid gap-3 px-5 pb-5 sm:px-6 sm:pb-6 md:grid-cols-2">
+          {knowledgeGaps.map((gap, gapIdx) => {
+            const savedScore = verificationScores[gap.topic_id];
+            const isMastered =
+              verifiedTopicIds.includes(gap.topic_id) ||
+              (typeof savedScore === 'number' && savedScore > gap.mastery_score);
+            const isCurrent = activeGapIndex === gapIdx;
+            const isLocked = activeGapIndex !== null && gapIdx > activeGapIndex;
+            const masteryScore = Math.round(Math.max(gap.mastery_score, savedScore ?? gap.mastery_score));
+            const confidence = Math.round(gap.confidence * 100);
+            const weakSubskills = gap.weak_subskills ?? [];
+            const misconceptions = gap.misconceptions ?? [];
 
-                      {/* Weak subskills + Misconceptions side by side */}
-                      <div className="flex flex-col sm:flex-row gap-6">
-                        {/* Weak Subskills */}
-                        {gap.weak_subskills.length > 0 && (
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider mb-3">
-                              Weak Subskills
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {gap.weak_subskills.map((ws, wsIdx) => (
-                                <span
-                                  key={wsIdx}
-                                  className="px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300 rounded-lg text-sm font-medium"
-                                >
-                                  {ws.subskill}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Separator */}
-                        {gap.weak_subskills.length > 0 && gap.misconceptions.length > 0 && (
-                          <div className="hidden sm:block w-px bg-surface-3 shrink-0" />
-                        )}
-
-                        {/* Misconceptions */}
-                        {gap.misconceptions.length > 0 && (
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-3">
-                              Misconceptions
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {gap.misconceptions.map((m, mIdx) => (
-                                <span
-                                  key={mIdx}
-                                  className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/15 text-amber-700 dark:text-amber-300/80 rounded-lg text-sm font-medium"
-                                >
-                                  {m}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+            return (
+              <article
+                key={gap.topic_id || gapIdx}
+                aria-current={isCurrent ? 'step' : undefined}
+                aria-disabled={isLocked}
+                className={`min-w-0 overflow-hidden rounded-2xl border transition-colors ${
+                  isCurrent
+                    ? 'border-emerald-500 bg-emerald-500/[0.04] shadow-[0_0_0_1px_rgba(16,185,129,0.12)] md:col-span-2'
+                    : isMastered
+                      ? 'border-border bg-background/70 md:col-span-2'
+                      : 'border-border bg-background/50'
+                } ${isLocked ? 'opacity-65' : ''}`}
+              >
+                <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center">
+                  <div className="flex min-w-0 flex-1 gap-3">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+                        isCurrent || isMastered
+                          ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                          : 'border-border bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {isLocked ? (
+                        <Lock className="h-5 w-5" />
+                      ) : isMastered ? (
+                        <Check className="h-5 w-5" />
+                      ) : (
+                        <Code2 className="h-5 w-5" />
+                      )}
                     </div>
 
-                    {/* Vertical separator */}
-                    <div className="hidden md:block w-px bg-surface-3 my-6" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-extrabold text-foreground">{gap.topic}</h3>
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                            isCurrent
+                              ? 'border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                              : isMastered
+                                ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                : 'border-border bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {isCurrent ? 'Active · Current focus' : isMastered ? 'Completed' : 'Locked'}
+                        </span>
+                      </div>
 
-                    {/* Horizontal separator on mobile */}
-                    <div className="md:hidden mx-7 h-px bg-surface-3" />
+                      {!isLocked && (
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                              <span className="text-muted-foreground">Current Mastery</span>
+                              <span className="font-bold text-foreground">{masteryScore}%</span>
+                            </div>
+                            <ScoreBar value={masteryScore} />
+                          </div>
+                          <div>
+                            <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                              <span className="text-muted-foreground">Your Confidence</span>
+                              <span className="font-bold text-foreground">{confidence}%</span>
+                            </div>
+                            <ScoreBar value={confidence} color="bg-sky-500" />
+                          </div>
+                        </div>
+                      )}
 
-                    {/* Right side — Performance metrics */}
-                    <div className="flex items-center justify-center gap-10 px-8 py-6 md:w-[260px] shrink-0">
-                      <CircularScore
-                        value={gap.mastery_score}
-                        label="Mastery"
-                        color="#f59e0b"
-                      />
-                      <CircularScore
-                        value={Math.round(gap.confidence * 100)}
-                        label="Confidence"
-                        color="#34c98a"
-                      />
+                      {isCurrent && (weakSubskills.length > 0 || misconceptions.length > 0) && (
+                        <div className="mt-3 space-y-2">
+                          {weakSubskills.length > 0 && (
+                            <div>
+                              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Weak Subskills
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {weakSubskills.map((item, index) => (
+                                  <span
+                                    key={`${item.subskill}-${index}`}
+                                    className="rounded-full border border-amber-500/25 bg-amber-500/5 px-2.5 py-1 text-[11px] text-foreground"
+                                  >
+                                    {item.subskill}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {misconceptions.length > 0 && (
+                            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                              <span className="font-semibold text-foreground">Common misconception: </span>
+                              {misconceptions[0]}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {isLocked && (
+                        <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Lock className="h-3 w-3" />
+                          Complete the previous gap to unlock
+                        </p>
+                      )}
+                      {isMastered && (
+                        <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Verified improvement · Peer session
+                        </p>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-border bg-muted p-6">
-            <p className="text-base text-subtle-foreground">No knowledge gaps detected. Great job!</p>
-          </div>
-        )}
 
-        {mastery.strengths.length > 0 && (
-          <div className="rounded-2xl border border-border bg-muted p-5">
-            <div className="flex items-center gap-2.5 mb-3">
-              <Zap className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
-              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Strengths</p>
-            </div>
-            <div className="flex flex-wrap gap-2.5">
-              {mastery.strengths.map((s, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-lg text-sm font-medium"
-                >
-                  {s.topic} ({s.mastery_score}%)
-                </span>
-              ))}
-            </div>
+                  {isCurrent && (
+                    <div className="border-t border-emerald-500/15 pt-4 lg:w-[260px] lg:shrink-0 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+                      <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                        <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        Saved baseline: {Math.round(gap.mastery_score)}%
+                      </div>
+                      {gapActions}
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mx-5 mb-5 flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:mx-6 sm:mb-6">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">No knowledge gaps detected</p>
+            <p className="mt-1 text-xs text-muted-foreground">You’re all caught up. Great work!</p>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+    </section>
   );
 }

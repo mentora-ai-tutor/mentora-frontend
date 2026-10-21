@@ -20,6 +20,11 @@ function formatTime(value: string): string {
   return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
 export default function WorkspaceVersionsDialog({
   file,
   versions,
@@ -52,23 +57,29 @@ export default function WorkspaceVersionsDialog({
         <div className="grid flex-1 grid-cols-1 overflow-hidden md:grid-cols-[240px_1fr]">
           <div className="overflow-y-auto border-b border-border p-2 md:border-b-0 md:border-r">
             {loading && <p className="p-3 text-xs text-subtle-foreground">Loading…</p>}
-            {!loading && versions.length === 0 && <p className="p-3 text-xs text-subtle-foreground">No versions yet.</p>}
+            {!loading && versions.length === 0 && (
+              <p className="p-3 text-xs text-subtle-foreground">No versions yet.</p>
+            )}
             {versions.map((version) => (
               <button
-                key={version.version_id}
+                key={version.id}
                 type="button"
                 onClick={async () => {
                   setPreviewLoading(true);
-                  const full = await onView(version.version_id);
+                  const full = await onView(version.id);
                   setPreview(full);
                   setPreviewLoading(false);
                 }}
                 className={`mb-1 flex w-full flex-col rounded-lg px-2.5 py-2 text-left transition-colors ${
-                  preview?.version_id === version.version_id ? 'bg-teal-500/10' : 'hover:bg-muted'
+                  preview?.id === version.id ? 'bg-teal-500/10' : 'hover:bg-muted'
                 }`}
               >
-                <span className="text-xs font-semibold text-foreground">v{version.version_number}</span>
-                <span className="truncate text-[10px] text-subtle-foreground">{version.message}</span>
+                <span className="truncate text-xs font-semibold text-foreground">
+                  {version.name || 'Version'}
+                </span>
+                <span className="text-[10px] text-subtle-foreground">
+                  {formatSize(version.size)}
+                </span>
                 <span className="text-[10px] text-subtle-foreground">{formatTime(version.created_at)}</span>
               </button>
             ))}
@@ -79,12 +90,12 @@ export default function WorkspaceVersionsDialog({
               <>
                 <div className="flex items-center justify-between border-b border-border px-3 py-2">
                   <span className="text-[11px] text-muted-foreground">
-                    v{preview.version_number} by {preview.author_student_id}
+                    by {preview.name || preview.student_id} · {formatTime(preview.created_at)}
                   </span>
                   {canWrite && (
                     <button
                       type="button"
-                      onClick={() => onRestore(preview.version_id)}
+                      onClick={() => onRestore(preview.id)}
                       className="flex items-center gap-1 rounded-md bg-teal-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-teal-500"
                     >
                       <RotateCcw className="h-3 w-3" /> Restore
